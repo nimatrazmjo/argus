@@ -36,22 +36,22 @@ mirror, not a public registry.
 Insert/kill/query transcript; `system.parts` showing a part on the S3 disk; replica status.
 
 ## F003 — OTel Collector pipeline (ingest spine)
-**Status**: IN PROGRESS
+**Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] Node-level DaemonSet (kubelet/cAdvisor scrape, pod-log filelog receiver, OTLP receiver) + a gateway Deployment (batch, k8sattributes enrichment) deployed.
-- [ ] OTLP metrics, logs, and traces written to ClickHouse via the gateway.
-- [ ] Every record carries k8s resource attributes (namespace, pod, node) from the k8sattributes processor.
-- [ ] Gateway batches and applies resource detection; config is one source of truth, not per-app.
-- [ ] Edge cases: collector restart (no crash loop), malformed OTLP rejected cleanly, backpressure when ClickHouse is slow.
-- [ ] E2E: `N/A` here — correlation is proven in F004.
-- [ ] FULL verify green.
+- [x] Node-level DaemonSet (kubelet/cAdvisor scrape, pod-log filelog receiver, OTLP receiver) + a gateway Deployment (batch, k8sattributes enrichment) deployed.
+- [x] OTLP metrics, logs, and traces written to ClickHouse via the gateway.
+- [x] Every record carries k8s resource attributes (namespace, pod, node) from the k8sattributes processor.
+- [x] Gateway batches and applies resource detection; config is one source of truth, not per-app.
+- [x] Edge cases: collector restart (no crash loop), malformed OTLP rejected cleanly, backpressure when ClickHouse is slow.
+- [x] E2E: `N/A` here — correlation is proven in F004.
+- [x] FULL verify green.
 
 ### Evidence expected
 A test OTLP export landing as rows in each ClickHouse table, with k8s attributes populated.
 
 ## F004 — End-to-end correlation proof
-**Status**: NOT STARTED
+**Status**: IN PROGRESS
 
 ### Acceptance criteria
 - [ ] A sample instrumented service emits a metric, a trace, and a log for one request.

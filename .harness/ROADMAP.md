@@ -4,7 +4,7 @@ All features across all phases, with permanent ids and status. This is the sourc
 for **scope**. Statuses: `NOT STARTED` · `IN PROGRESS` · `BLOCKED` · `IN REVIEW` ·
 `COMPLETE` · `DEPRECATED`.
 
-**Progress**: 2 / 21 COMPLETE (10%)
+**Progress**: 3 / 21 COMPLETE (14%)
 
 > The requirement: a self-hosted, air-gapped Datadog-equivalent for internal DHS use, running
 > entirely in Kubernetes. Spine = OpenTelemetry Collector -> ClickHouse -> SigNoz. Phases are
@@ -14,8 +14,8 @@ for **scope**. Statuses: `NOT STARTED` · `IN PROGRESS` · `BLOCKED` · `IN REVI
 ## Phase 01 — Foundation (prove the spine, end to end, air-gapped)
 - [x] **F001** — Cluster baseline: operators (OTel, ClickHouse/Altinity, Prometheus) installed from a mirrored internal registry via Helm; `init.sh` + `check-architecture.sh` stood up — `COMPLETE`
 - [x] **F002** — ClickHouse HA (2 nodes + replica) with S3/MinIO-backed storage policy, healthy — `COMPLETE`
-- [ ] **F003** — OTel Collector pipeline: node DaemonSet + gateway Deployment, OTLP in -> ClickHouse out, k8s resource enrichment — `IN PROGRESS`
-- [ ] **F004** — End-to-end correlation proof: one sample app's metric + trace + log correlate by trace id in SigNoz; e2e test asserts it — `NOT STARTED`
+- [x] **F003** — OTel Collector pipeline: node DaemonSet + gateway Deployment, OTLP in -> ClickHouse out, k8s resource enrichment — `COMPLETE`
+- [ ] **F004** — End-to-end correlation proof: one sample app's metric + trace + log correlate by trace id in SigNoz; e2e test asserts it — `IN PROGRESS`
 - [ ] **F005** — PII/CJIS redaction processor in the collector pipeline; sensitive fields provably never land in ClickHouse — `NOT STARTED`
 
 ## Phase 02 — Coverage (see everything; onboarding is one line)

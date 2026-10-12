@@ -17,6 +17,34 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-12 — F003 OTel Collector pipeline (ingest spine) — COMPLETE
+Branch/commit: feat/F003   PR: N/A (local gitops repo, no remote origin configured)   CI: green
+Evidence:
+  - `./deploy/mirror/images.txt` & `./deploy/mirror/setup-mirror.sh` -> Mirrored verified container image:
+      * `otel/opentelemetry-collector-contrib:0.160.0` to `localhost:5001/argus/opentelemetry-collector-contrib:0.160.0` (validated ClickHouse exporter, k8sattributes, kubeletstats, and filelog receivers).
+  - Declarative Kubernetes OpenTelemetryCollector manifests:
+      * `deploy/otel/rbac.yaml`: ServiceAccount `argus-collector`, ClusterRole, ClusterRoleBinding for pod, node, namespace metadata inspection.
+      * `deploy/clickhouse/otel-schema.sql`: Pre-created DDL schemas for `otel_traces`, `otel_logs`, `otel_metrics_*` on ClickHouse HA replicas.
+      * `deploy/otel/gateway.yaml`: Gateway Deployment collector exposing OTLP gRPC (4317) and HTTP (4318), memory_limiter, k8sattributes enrichment, batch processor, and clickhouse exporter.
+      * `deploy/otel/node-daemonset.yaml`: Node DaemonSet collector with `kubeletstats`, `filelog` container log scraper, and OTLP receiver forwarding to the gateway.
+  - `./scripts/deploy-otel.sh` -> Deployed gateway and node DaemonSet; both rolled out successfully.
+  - `./scripts/test-otel-pipeline.sh` -> 5 passed, 0 failed:
+      * Gateway & Node DaemonSet readiness verified.
+      * OTLP trace ingestion verified; landed in `otel_traces` with `k8s.namespace.name` and `k8s.node.name`.
+      * OTLP metric ingestion verified; landed in `otel_metrics_gauge` with `k8s.*` attributes.
+      * OTLP log ingestion verified; landed in `otel_logs` with `k8s.*` attributes.
+      * Continuous node-level scraping verified (cluster container logs and kubelet stats actively ingesting).
+  - `./scripts/test-otel-edge-cases.sh` -> 4 passed, 0 failed:
+      * Malformed OTLP trace JSON rejected with HTTP 400 without crashing gateway.
+      * Gateway remains healthy and accepting traffic after malformed input.
+      * Node DaemonSet pod kill clean recovery without filelock crash loops.
+      * Gateway deployment rollout restart preserves connectivity and accepts immediate OTLP traffic.
+  - `kubectl get pods -n argus-system -o jsonpath='...'` -> Confirms 100% of collector pods run from `localhost:5001/argus/*`.
+  - `./scripts/verify.sh` -> PASS: full 7-step verification suite green (Architecture + Edge cases + ClickHouse tiering + ClickHouse edge cases + OTel pipeline + OTel edge cases + Baseline readiness).
+  - e2e: N/A — not user-facing (ingestion spine proven; end-to-end trace-metric-log correlation proven in F004).
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: Ingest pipeline is live and ready for end-to-end correlation proof (F004).
+
 ## 2026-10-12 — F002 ClickHouse HA + object-storage tier — COMPLETE
 Branch/commit: feat/F002   PR: N/A (local gitops repo, no remote origin configured)   CI: green
 Evidence:

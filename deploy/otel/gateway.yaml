@@ -1,0 +1,67 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: argus-gateway
+  namespace: argus-system
+spec:
+  mode: deployment
+  replicas: 1
+  serviceAccount: argus-collector
+  image: localhost:5001/argus/opentelemetry-collector-contrib:0.160.0
+  imagePullPolicy: IfNotPresent
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 75
+        spike_limit_percentage: 20
+      k8sattributes:
+        auth_type: "serviceAccount"
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+
+    exporters:
+      clickhouse:
+        endpoint: "tcp://clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000"
+        database: "default"
+        username: "default"
+        password: "argus123"
+        ttl: 72h
+        timeout: 10s
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 5m
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, batch]
+          exporters: [clickhouse]
+        metrics:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, batch]
+          exporters: [clickhouse]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, batch]
+          exporters: [clickhouse]

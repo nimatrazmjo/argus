@@ -11,7 +11,7 @@ echo "        ARGUS PLATFORM BASELINE READINESS (init.sh)              "
 echo "================================================================="
 
 # 1. Check Git working tree
-echo "[1/8] Inspecting git repository state..."
+echo "[1/9] Inspecting git repository state..."
 if [ -d .git ]; then
   CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
   DIRTY_COUNT=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
@@ -26,7 +26,7 @@ else
 fi
 
 # 2. Check cluster access
-echo "[2/8] Validating Kubernetes cluster connectivity..."
+echo "[2/9] Validating Kubernetes cluster connectivity..."
 if ! kubectl cluster-info >/dev/null 2>&1; then
   echo "      ERROR: Cannot connect to Kubernetes cluster." >&2
   FAILED=1
@@ -36,7 +36,7 @@ else
 fi
 
 # 3. Check internal mirror registry
-echo "[3/8] Validating air-gapped image mirror (http://${MIRROR_REGISTRY}/v2/)..."
+echo "[3/9] Validating air-gapped image mirror (http://${MIRROR_REGISTRY}/v2/)..."
 if ! curl -s -f "http://${MIRROR_REGISTRY}/v2/" >/dev/null 2>&1; then
   echo "      ERROR: Mirror registry at http://${MIRROR_REGISTRY}/v2/ is unreachable." >&2
   FAILED=1
@@ -46,7 +46,7 @@ else
 fi
 
 # 4. Check required CRDs
-echo "[4/8] Validating required Custom Resource Definitions (CRDs)..."
+echo "[4/9] Validating required Custom Resource Definitions (CRDs)..."
 REQUIRED_CRDS=(
   "opentelemetrycollectors.opentelemetry.io"
   "instrumentations.opentelemetry.io"
@@ -75,7 +75,7 @@ else
 fi
 
 # 5. Check operator Deployments in namespace
-echo "[5/8] Validating operator rollout status in namespace '${NAMESPACE}'..."
+echo "[5/9] Validating operator rollout status in namespace '${NAMESPACE}'..."
 if ! kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
   echo "      ERROR: Namespace '${NAMESPACE}' does not exist." >&2
   FAILED=1
@@ -113,7 +113,7 @@ else
 fi
 
 # 6. Check ClickHouse & Keeper component readiness (if deployed)
-echo "[6/8] Validating ClickHouse HA and Keeper readiness (if deployed)..."
+echo "[6/9] Validating ClickHouse HA and Keeper readiness (if deployed)..."
 if kubectl get chi argus-clickhouse -n "${NAMESPACE}" >/dev/null 2>&1; then
   CHI_STATUS=$(kubectl get chi argus-clickhouse -n "${NAMESPACE}" -o jsonpath='{.status.status}' 2>/dev/null || echo "Unknown")
   if [ "${CHI_STATUS}" == "Completed" ]; then
@@ -144,8 +144,35 @@ if kubectl get chk argus-keeper -n "${NAMESPACE}" >/dev/null 2>&1; then
   fi
 fi
 
-# 7. Audit pod image origins (Air-gap / Mirror compliance)
-echo "[7/8] Auditing image origins (air-gap compliance)..."
+# 7. Check OpenTelemetry Collector pipeline readiness (if deployed)
+echo "[7/9] Validating OpenTelemetry Collector pipeline readiness (if deployed)..."
+if kubectl get opentelemetrycollector argus-gateway -n "${NAMESPACE}" >/dev/null 2>&1; then
+  GW_AVAILABLE=$(kubectl get deploy argus-gateway-collector -n "${NAMESPACE}" -o jsonpath='{.status.availableReplicas}' 2>/dev/null || echo "0")
+  if [ "${GW_AVAILABLE:-0}" -ge 1 ]; then
+    echo "      OpenTelemetry Gateway Collector: Ready (${GW_AVAILABLE}/1)"
+  else
+    echo "      ERROR: OpenTelemetry Gateway Collector not ready (${GW_AVAILABLE:-0}/1)" >&2
+    FAILED=1
+  fi
+else
+  echo "      OpenTelemetry Gateway not deployed yet (skipping)."
+fi
+
+if kubectl get opentelemetrycollector argus-node-collector -n "${NAMESPACE}" >/dev/null 2>&1; then
+  DS_AVAILABLE=$(kubectl get ds argus-node-collector-collector -n "${NAMESPACE}" -o jsonpath='{.status.numberAvailable}' 2>/dev/null || echo "0")
+  DS_DESIRED=$(kubectl get ds argus-node-collector-collector -n "${NAMESPACE}" -o jsonpath='{.status.desiredNumberScheduled}' 2>/dev/null || echo "1")
+  if [ "${DS_AVAILABLE:-0}" -ge "${DS_DESIRED:-1}" ] && [ "${DS_AVAILABLE:-0}" -gt 0 ]; then
+    echo "      OpenTelemetry Node DaemonSet: Ready (${DS_AVAILABLE}/${DS_DESIRED})"
+  else
+    echo "      ERROR: OpenTelemetry Node DaemonSet not ready (${DS_AVAILABLE:-0}/${DS_DESIRED:-1})" >&2
+    FAILED=1
+  fi
+else
+  echo "      OpenTelemetry Node DaemonSet not deployed yet (skipping)."
+fi
+
+# 8. Audit pod image origins (Air-gap / Mirror compliance)
+echo "[8/9] Auditing image origins (air-gap compliance)..."
 UNMIRRORED_IMAGES=0
 if kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
   POD_IMAGES=$(kubectl get pods -n "${NAMESPACE}" -o jsonpath='{range .items[*].spec.containers[*]}{.image}{"\n"}{end}' 2>/dev/null || true)
@@ -170,8 +197,8 @@ if kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
   fi
 fi
 
-# 8. Check architecture boundaries & Roadmap hygiene
-echo "[8/8] Checking architecture boundaries and roadmap consistency..."
+# 9. Check architecture boundaries & Roadmap hygiene
+echo "[9/9] Checking architecture boundaries and roadmap consistency..."
 if [ -f "scripts/check-architecture.sh" ]; then
   ./scripts/check-architecture.sh
 fi

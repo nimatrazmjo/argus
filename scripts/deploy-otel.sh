@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# scripts/deploy-otel.sh — Declaratively deploy OpenTelemetry Collector Pipeline (Gateway + DaemonSet)
+set -euo pipefail
+
+NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
+MIRROR_REGISTRY="${ARGUS_IMAGE_REGISTRY:-localhost:5001}"
+PASSWORD="${CLICKHOUSE_PASSWORD:-argus123}"
+
+echo "================================================================="
+echo "      ARGUS OPENTELEMETRY COLLECTOR PIPELINE DEPLOYMENT          "
+echo "================================================================="
+
+# 1. Validate mirror registry
+echo "--> [1/5] Verifying air-gap mirror registry..."
+if ! curl -s -f "http://${MIRROR_REGISTRY}/v2/" >/dev/null 2>&1; then
+  echo "    ERROR: Mirror registry at ${MIRROR_REGISTRY} is unreachable." >&2
+  exit 1
+fi
+
+# 2. Pre-provision ClickHouse telemetry schemas across replicas
+echo "--> [2/5] Ensuring ClickHouse OTel schema is initialized..."
+for pod in chi-argus-clickhouse-argus-cluster-0-0-0 chi-argus-clickhouse-argus-cluster-0-1-0; do
+  if kubectl get pod "${pod}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+    kubectl exec -n "${NAMESPACE}" "${pod}" -c clickhouse -- clickhouse-client --password="${PASSWORD}" --multiquery < deploy/clickhouse/otel-schema.sql >/dev/null 2>&1 || true
+  fi
+done
+
+# 3. Apply RBAC
+echo "--> [3/5] Applying OpenTelemetry Collector RBAC..."
+kubectl apply -f deploy/otel/rbac.yaml
+
+# 4. Deploy Gateway Collector
+echo "--> [4/5] Deploying OpenTelemetry Gateway Collector..."
+kubectl apply -f deploy/otel/gateway.yaml
+kubectl rollout status deployment/argus-gateway-collector -n "${NAMESPACE}" --timeout=120s
+
+# 5. Deploy Node DaemonSet Collector
+echo "--> [5/5] Deploying OpenTelemetry Node DaemonSet Collector..."
+kubectl apply -f deploy/otel/node-daemonset.yaml
+kubectl rollout status daemonset/argus-node-collector-collector -n "${NAMESPACE}" --timeout=120s
+
+echo "================================================================="
+echo "STATUS: PASS — OpenTelemetry Collector pipeline deployed successfully."
+echo "================================================================="

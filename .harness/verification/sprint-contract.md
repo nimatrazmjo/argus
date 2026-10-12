@@ -1,61 +1,65 @@
-# Sprint Contract — F002: ClickHouse HA + object-storage tier
+# Sprint Contract — F003: OTel Collector pipeline (ingest spine)
 
-Feature: F002 — ClickHouse HA + object-storage tier
+Feature: F003 — OTel Collector pipeline (ingest spine)
 Phase: Phase 01 — Foundation
 Date: 2026-10-12
 
 > Filled before building. Maps every acceptance criterion to concrete, reproducible verification checks.
 
 ## 1. Scope & Acceptance Criteria
-- [x] ClickHouse runs HA (2 shards/replicas appropriate for 10-50 app workload) deployed via Altinity operator (`ClickHouseInstallation` CR).
-  - *Evidence*: `kubectl get chi -n argus-system`, `kubectl get pods -n argus-system -l clickhouse.altinity.com/chi=argus-clickhouse` showing 2 ready replicas/pods, and `system.clusters` query demonstrating HA cluster topology.
-- [x] Tiered storage policy configured and verified (hot local disk -> cold S3/MinIO tier).
-  - *Evidence*: `system.disks` shows both `default` (local) and `s3_cold` (object storage) disks; creating a tiered table and executing `ALTER TABLE ... MOVE PART ... TO DISK 's3_cold'` verified via `SELECT disk_name FROM system.parts WHERE table = ...`.
-- [x] Pod restart resilience with zero data loss.
-  - *Evidence*: Automated test inserts unique test rows, kills ClickHouse pod(s), awaits pod recovery, and queries to confirm 100% data integrity.
+- [x] Node-level DaemonSet collector deployed via `OpenTelemetryCollector` CR (kubelet/cAdvisor scrape, pod-log filelog receiver, OTLP receiver forwarding to gateway).
+  - *Evidence*: `kubectl get opentelemetrycollector argus-node-collector -n argus-system` ready; DaemonSet pods running on cluster nodes.
+- [x] Gateway Deployment collector deployed via `OpenTelemetryCollector` CR (batch processor, `k8sattributes` processor, ClickHouse exporter).
+  - *Evidence*: `kubectl get opentelemetrycollector argus-gateway -n argus-system` ready; exposing OTLP gRPC (4317) and HTTP (4318).
+- [x] OTLP metrics, logs, and traces written directly to ClickHouse via the gateway exporter.
+  - *Evidence*: Test OTLP payloads sent to gateway endpoints land as rows in ClickHouse tables (`otel_traces`, `otel_metrics_gauge`, `otel_logs` / `default.otel_*`).
+- [x] Records carry Kubernetes resource attributes (`k8s.namespace.name`, `k8s.pod.name`, `k8s.node.name`) populated by `k8sattributes` processor.
+  - *Evidence*: SQL query on ingested rows demonstrates populated `k8s.*` resource attributes.
+- [x] Single source of truth: gateway configuration manages batching, retry, and schema formatting without per-application configuration drift.
 - [x] Edge cases covered:
-  - Object store temporarily unreachable -> writes continue to land on local disk without crashing.
-  - Replica down -> surviving replica serves reads and writes without outage.
-  - Disk pressure threshold simulation -> tiering policy moves cold data to secondary tier.
-  - *Evidence*: `./scripts/test-clickhouse-edge-cases.sh` passes all failure path simulations.
-- [x] Air-gap compliance: all ClickHouse and supporting images resolved from internal mirror (`localhost:5001/argus/...`).
-  - *Evidence*: Image origin check in `init.sh` confirms all ClickHouse pods run from mirror.
-- [x] E2E: `N/A — not user-facing` (infrastructure storage tier proven by automated functional tests).
+  - Collector pod restart recovers cleanly without crash loop.
+  - Malformed OTLP payload rejected with HTTP 400 without crashing gateway or node collectors.
+  - ClickHouse temporarily slow or busy triggers buffer retry rather than data loss.
+  - *Evidence*: `./scripts/test-otel-edge-cases.sh` passes all error condition checks.
+- [x] Air-gap compliance: 100% of collector images resolved from internal mirror (`localhost:5001/argus/*`).
+  - *Evidence*: Image audit in `init.sh` confirms zero public pulls.
+- [x] E2E: `N/A — not user-facing` (spine pipeline verified by automated OTLP emission and ClickHouse table queries; correlation proven in F004).
 - [x] No regressions: `./scripts/verify.sh` green.
 
 ## 2. Edge cases & failure paths (from `verification/edge-cases.md`)
-- **Downstream error / storage unreachable**: S3 object storage down/unreachable -> ClickHouse storage policy maintains local `default` disk as primary volume; inserts succeed into hot volume without dropping client connections.
-- **State / replica down**: One pod restarted or unavailable -> queries to distributed table continue functioning via remaining replica/shard.
-- **State / lifecycle persistence**: Pod abruptly killed via `kubectl delete pod` -> persistent volumes retain table definitions and committed parts; restarted pod re-attaches cleanly.
-- **Concurrency / deduplication**: ReplicatedMergeTree handles replicated inserts idempotently across shards.
+- **Downstream error / storage slow**: ClickHouse unavailable or high latency -> gateway retry_on_failure buffer queues telemetry without dropping immediately.
+- **Client error / malformed payload**: Malformed HTTP/gRPC OTLP message -> gateway returns standard gRPC InvalidArgument / HTTP 400, worker threads do not panic or restart.
+- **Node agent / daemonset restart**: Node collector restarted via pod kill -> mounts resume host logs and container metrics cleanly without duplicate file lock errors.
+- **RBAC permissions**: `k8sattributes` processor requires ClusterRole to query Pod/Node metadata -> declarative RBAC attached to OpenTelemetryCollector service account.
 
 ## 3. E2E scenario(s)
-`N/A — not user-facing` (backend data tier; verified via automated SQL test suite executing inserts, kills, queries, and part movements).
+`N/A — not user-facing` (infrastructure telemetry pipeline; verified via automated OTLP emission script checking ClickHouse database rows).
 
 ## 4. Plan (thinnest vertical slice)
-1. Add ClickHouse server and S3/MinIO images to internal mirror catalog (`deploy/mirror/images.txt`) and push to `localhost:5001/argus/*`.
-2. Deploy lightweight S3/MinIO service in `argus-system` backed by persistent volume and initialize bucket `argus-cold-storage`.
-3. Create declarative `ClickHouseInstallation` CR manifest [`deploy/clickhouse/clickhouse-ha.yaml`](file:///Users/nimatullahrazmjo/workstation/argus/deploy/clickhouse/clickhouse-ha.yaml):
-   - 2-node cluster (shards/replicas) with ClickHouse Keeper coordination.
-   - Storage configuration declaring `s3_cold` disk and `tiered_hot_cold` storage policy (local hot -> S3 cold).
-   - Image set to `localhost:5001/argus/clickhouse-server:24.8.4.13`.
-4. Apply the ClickHouseInstallation CR and await status `Completed` / all pods Ready.
-5. Create automated test and verification script [`scripts/test-clickhouse-tiering.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-clickhouse-tiering.sh):
-   - Asserts cluster topology (`system.clusters`).
-   - Asserts storage policy (`system.storage_policies`, `system.disks`).
-   - Inserts rows, triggers part move to `s3_cold`, asserts `system.parts.disk_name == 's3_cold'`.
-   - Executes kill-pod resilience test and asserts zero data loss.
-6. Create [`scripts/test-clickhouse-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-clickhouse-edge-cases.sh) covering replica failover and object-store isolation.
-7. Integrate into `scripts/verify.sh` and update tracking files.
+1. Ensure mirrored image `localhost:5001/argus/opentelemetry-collector-contrib:0.160.0` is registered in `deploy/mirror/images.txt`.
+2. Define ClusterRole and ClusterRoleBinding for OpenTelemetry Collector to enable `k8sattributes` processor to watch Pods and Namespaces.
+3. Create declarative gateway Deployment manifest [`deploy/otel/gateway.yaml`](file:///Users/nimatullahrazmjo/workstation/argus/deploy/otel/gateway.yaml):
+   - Receivers: OTLP (gRPC: 4317, HTTP: 4318).
+   - Processors: `memory_limiter`, `k8sattributes`, `batch`.
+   - Exporters: `clickhouse` (pointing to `chi-argus-clickhouse-argus-cluster-0-0.argus-system:9000` / `clickhouse-argus-clickhouse:9000`, database `default`, username `default`, password `argus123`).
+4. Create declarative node DaemonSet manifest [`deploy/otel/node-daemonset.yaml`](file:///Users/nimatullahrazmjo/workstation/argus/deploy/otel/node-daemonset.yaml):
+   - Receivers: `kubeletstats`, `filelog` (container logs), `otlp`.
+   - Exporter: `otlp` forwarding to gateway service.
+5. Create deployment script [`scripts/deploy-otel.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/deploy-otel.sh).
+6. Create automated pipeline test script [`scripts/test-otel-pipeline.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-otel-pipeline.sh):
+   - Generates and sends sample OTLP trace, metric, and log via HTTP/gRPC.
+   - Queries ClickHouse tables to assert data landed with k8s attributes.
+7. Create automated edge cases test script [`scripts/test-otel-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-otel-edge-cases.sh).
+8. Integrate into `scripts/verify.sh` and update tracking files.
 
 ## 5. Out of scope (parked, not built)
-- OTel Collector pipeline writing OTLP to ClickHouse (F003).
-- SigNoz frontend connecting to ClickHouse (F006).
+- SigNoz frontend UI queries (F006).
+- PII / CJIS redaction processor (F005).
+- Application-specific auto-instrumentation (F007).
 
 ## 6. New dependencies (with justification)
-- `clickhouse/clickhouse-server:24.8.4.13`: Production LTS ClickHouse engine.
-- S3-compatible object storage (MinIO): S3 API target for cold tiering.
+- `otel/opentelemetry-collector-contrib:0.160.0`: Contains official ClickHouse exporter and k8sattributes processor.
 
 ## 7. Risks
-- ClickHouse Keeper initialization in small clusters: Mitigated by configuring internal Keeper in ClickHouse configuration templates supported by Altinity operator.
-- S3 credentials in air-gapped clusters: Stored as Kubernetes Secret and referenced securely in ClickHouse config.
+- ClickHouse exporter schema creation: OpenTelemetry Collector contrib's ClickHouse exporter automatically provisions tables (`otel_traces`, `otel_metrics`, `otel_logs`) on first connection if database exists.
+- RBAC permissions for k8sattributes: Requires Pod and Node read permissions across cluster.
