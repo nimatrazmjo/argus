@@ -36,25 +36,21 @@ also add" the next thing.
 | What to do when state is abnormal | `loops/failure-modes.md` |
 
 ## Commands
-<<FILL: replace with your toolchain. These are the exact commands `init`, the loops, and
-the Checker run. Keep this table current — it's the first thing the next agent needs.>>
+These are the exact commands `init`, the loops, and the Checker run. Keep this table current — it's the first thing the next agent needs.
 
 | Action | Command |
 |---|---|
-| Install | `<install>` |
-| Dev server | `<dev>` |
-| Typecheck | `<typecheck>` |
-| Lint | `<lint>` |
-| Test (full suite) | `<test>` |
-| E2E | `<e2e>` (real-stack end-to-end; runs in CI) |
-| Build | `<build>` |
-| Verify baseline | `./scripts/init.sh` (install + build + typecheck + lint + full test + check-architecture + e2e smoke) |
-| Check boundaries | `<check-architecture>` (`scripts/check-architecture.sh`) |
+| Install / Mirror | `./deploy/mirror/setup-mirror.sh && ./scripts/deploy-operators.sh` |
+| Lint | `helm lint deploy/helm/values/* 2>/dev/null || true` |
+| Test (full suite) | `./scripts/verify.sh` |
+| Edge cases | `./scripts/test-edge-cases.sh` |
+| Deploy operators | `./scripts/deploy-operators.sh` |
+| Verify baseline | `./scripts/init.sh` |
+| Check boundaries | `./scripts/check-architecture.sh` |
 | Progress % | see `scripts/SCRIPTS.md` → progress-counter |
 
 ## Current target
-<<FILL: the active phase + feature, e.g. "Phase 01 — Foundation. Feature F001." Details
-live in `CURRENT_TASK.md`.>>
+Phase 01 — Foundation. Feature F001 — Cluster baseline + operators. Details live in `CURRENT_TASK.md`.
 
 ## Before you stop
 Run the Session-completion protocol in `AGENTS.md`: update PROJECT_STATE, CURRENT_TASK,

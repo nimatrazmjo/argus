@@ -1,22 +1,20 @@
 # CURRENT TASK
 
-**Feature**: F001 — Cluster baseline + operators
+**Feature**: F002 — ClickHouse HA + object-storage tier
 **Phase**: Phase 01 — Foundation
 **Status**: IN PROGRESS
 
 ## Exact next step
-1. Write `verification/sprint-contract.md` for F001, mapping each acceptance item in
+1. Write `verification/sprint-contract.md` for F002, mapping each acceptance item in
    `phases/PHASE-01-FOUNDATION.md` to a concrete check.
-2. Create `scripts/init.sh` (validate cluster access + required CRDs + operators Ready) and
-   `scripts/check-architecture.sh` (no-op exit 0 until layer-boundaries is filled).
-3. Add the Helm install (declarative values / GitOps) for the OpenTelemetry Operator, the
-   Altinity ClickHouse operator, and the Prometheus Operator — all images from the internal
-   mirror, no public-registry pulls.
+2. Define declarative ClickHouseInstallation CR manifest using Altinity operator schema with 2 shards/replicas.
+3. Configure local S3/MinIO tiered storage policy and automated part tiering verification.
+4. Implement resilience tests (insert -> restart pod -> verify persistence, edge cases).
 
 ## Acceptance (summary)
-See `phases/PHASE-01-FOUNDATION.md` -> F001 for full criteria and the signed
+See `phases/PHASE-01-FOUNDATION.md` -> F002 for full criteria and the signed
 `verification/sprint-contract.md` for this feature.
 
 ## Definition of done
 Every acceptance item met + evidence in `CHANGELOG.md` + Evaluator PASS + check-architecture
-clean (no-op for now) + PR reviewed clean (inert until a remote + gh exist). See `AGENTS.md`.
+clean + PR reviewed clean (inert until a remote + gh exist). See `AGENTS.md`.

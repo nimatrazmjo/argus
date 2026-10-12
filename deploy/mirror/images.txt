@@ -1,0 +1,14 @@
+# Argus Baseline Images (Latest Verified Releases)
+# OpenTelemetry Operator
+ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator:0.160.0
+ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-k8s:0.160.0
+
+# Altinity ClickHouse Operator
+altinity/clickhouse-operator:0.27.4
+altinity/metrics-exporter:0.27.4
+
+# Prometheus Operator Stack
+quay.io/prometheus-operator/prometheus-operator:v0.94.1
+quay.io/prometheus-operator/prometheus-config-reloader:v0.94.1
+quay.io/prometheus-operator/admission-webhook:v0.94.1
+ghcr.io/jkroepke/kube-webhook-certgen:1.8.9

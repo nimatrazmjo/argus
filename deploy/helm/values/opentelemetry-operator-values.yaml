@@ -1,0 +1,21 @@
+# deploy/helm/values/opentelemetry-operator-values.yaml
+# Declarative configuration for OpenTelemetry Operator with internal mirror images
+
+manager:
+  image:
+    repository: localhost:5001/argus/opentelemetry-operator
+    tag: "0.160.0"
+    imagePullPolicy: IfNotPresent
+  collectorImage:
+    repository: localhost:5001/argus/opentelemetry-collector-k8s
+    tag: "0.160.0"
+
+admissionWebhooks:
+  certManager:
+    enabled: false
+  autoGenerateCert:
+    enabled: true
+    recreate: true
+
+crds:
+  create: true

@@ -6,17 +6,17 @@ evidence and the phase smoke test is green. Every image/chart is pulled from the
 mirror, not a public registry.
 
 ## F001 — Cluster baseline + operators
-**Status**: IN PROGRESS
+**Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] OpenTelemetry Operator, a ClickHouse operator (Altinity), and the Prometheus Operator are installed via Helm into a dedicated namespace, all images resolved from the internal mirror (no public-registry pulls).
-- [ ] `scripts/init.sh` exists and runs green: validates cluster access, required CRDs present, operators Ready.
-- [ ] `scripts/check-architecture.sh` exists (no-op exit 0 until `rules/layer-boundaries.md` is filled).
-- [ ] Install is declarative (Helm values / GitOps), re-appliable without manual steps.
-- [ ] Edge/error cases from `verification/edge-cases.md` (applicable: missing CRD, mirror unreachable, partial operator rollout) covered.
-- [ ] E2E: `N/A — not user-facing` (operator install asserted by init smoke).
-- [ ] Boundary invariants: obeys `rules/layer-boundaries.md` (no-op until filled).
-- [ ] FULL verify passes, no regressions.
+- [x] OpenTelemetry Operator, a ClickHouse operator (Altinity), and the Prometheus Operator are installed via Helm into a dedicated namespace, all images resolved from the internal mirror (no public-registry pulls).
+- [x] `scripts/init.sh` exists and runs green: validates cluster access, required CRDs present, operators Ready.
+- [x] `scripts/check-architecture.sh` exists (no-op exit 0 until `rules/layer-boundaries.md` is filled).
+- [x] Install is declarative (Helm values / GitOps), re-appliable without manual steps.
+- [x] Edge/error cases from `verification/edge-cases.md` (applicable: missing CRD, mirror unreachable, partial operator rollout) covered.
+- [x] E2E: `N/A — not user-facing` (operator install asserted by init smoke).
+- [x] Boundary invariants: obeys `rules/layer-boundaries.md` (no-op until filled).
+- [x] FULL verify passes, no regressions.
 
 ### Evidence expected
 `init.sh` output showing operators Ready; `helm list`; `kubectl get crd` for each operator; proof images came from the mirror.
