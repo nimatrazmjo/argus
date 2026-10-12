@@ -65,16 +65,16 @@ A test OTLP export landing as rows in each ClickHouse table, with k8s attributes
 e2e test id + output; a query showing metric, trace, and log joined on trace id.
 
 ## F005 — PII/CJIS redaction at ingest
-**Status**: IN PROGRESS
+**Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] A redaction/transform processor in the collector pipeline strips/masks the agreed sensitive fields (configurable list) before the exporter.
-- [ ] A test proves a sensitive field present in the OTLP input is absent from ClickHouse storage.
-- [ ] Redaction runs on logs, trace attributes, and span events.
-- [ ] Config is reviewable by the compliance persona (readable field list, not opaque regex soup where avoidable).
-- [ ] Edge cases: nested attributes, field in a log body vs attribute, redaction failure must drop not leak.
-- [ ] E2E: redaction asserted as part of the F004 flow with sensitive fields injected.
-- [ ] FULL verify green.
+- [x] A redaction/transform processor in the collector pipeline strips/masks the agreed sensitive fields (configurable list) before the exporter.
+- [x] A test proves a sensitive field present in the OTLP input is absent from ClickHouse storage.
+- [x] Redaction runs on logs, trace attributes, and span events.
+- [x] Config is reviewable by the compliance persona (readable field list, not opaque regex soup where avoidable).
+- [x] Edge cases: nested attributes, field in a log body vs attribute, redaction failure must drop not leak.
+- [x] E2E: redaction asserted as part of the F004 flow with sensitive fields injected.
+- [x] FULL verify green.
 
 ### Evidence expected
 Input-with-PII -> stored-without-PII transcript; the processor config; the assertion test.
@@ -82,3 +82,4 @@ Input-with-PII -> stored-without-PII transcript; the processor config; the asser
 ## Phase completion criteria
 Every feature F001-F005 is `COMPLETE` with evidence, and the phase smoke test (init green +
 one request producing a correlated, redacted metric+trace+log) passes, before Phase 02 starts.
+

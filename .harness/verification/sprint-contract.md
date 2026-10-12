@@ -1,70 +1,67 @@
-# Sprint Contract — F004: End-to-end correlation proof
+# Sprint Contract — F005: PII/CJIS redaction at ingest
 
-Feature: F004 — End-to-end correlation proof
+Feature: F005 — PII/CJIS redaction at ingest
 Phase: Phase 01 — Foundation
 Date: 2026-10-12
 
 > Filled before building. Maps every acceptance criterion to concrete, reproducible verification checks.
 
 ## 1. Scope & Acceptance Criteria
-- [x] Sample instrumented service deployed in Kubernetes (`argus-sample-service` in `argus-system`) using mirrored image (`localhost:5001/argus/*`).
-  - *Evidence*: `kubectl get deployment argus-sample-service -n argus-system` Ready; image audited against local mirror.
-- [x] Single transaction emits correlated telemetry trio: a trace span, an application log, and a metric data point sharing the exact same W3C `TraceId`.
-  - *Evidence*: `curl http://argus-sample-service:8080/order` returns JSON response containing generated `trace_id`.
-- [x] ClickHouse SQL query successfully joins all 3 telemetry types on `TraceId`:
-  - `otel_traces.TraceId = otel_logs.TraceId`
-  - `otel_traces.TraceId = otel_metrics_gauge.Attributes['trace_id']` (or `has(otel_metrics_gauge.Exemplars.TraceId, otel_traces.TraceId)`)
-  - *Evidence*: Automated SQL query outputs joined record containing SpanName, LogBody, and MetricValue for the target `TraceId`.
-- [x] End-to-end ingestion latency from transaction completion to ClickHouse queryable is verified < 10 seconds.
-  - *Evidence*: Timed polling loop verifies data is queryable in ClickHouse within seconds of request issuance (measured 2s).
-- [x] Automated e2e test script reproduces correlation verification on demand (`scripts/test-correlation.sh`).
-  - *Evidence*: Script exits 0 with complete correlation join proof transcript.
-- [x] Edge cases covered (`scripts/test-correlation-edge-cases.sh`):
-  - **Dropped span**: Request with `?drop_span=true` emits log and metric without span; pipeline records them, correlation query degrades gracefully without breaking.
-  - **Log without trace id**: Request with `?no_trace_id=true` emits log without trace id; pipeline records log with empty TraceId without parser crash.
-  - **Clock skew**: Telemetry emitted with skewed timestamp (e.g. ±120s); pipeline accepts and stores skewed timestamps accurately in ClickHouse.
-  - **Service recovery**: Pod restart preserves full telemetry emission and connectivity to OTel Gateway.
+- [x] Declarative redaction/transform processor configured in the OpenTelemetry Gateway collector pipeline (`deploy/otel/gateway.yaml`):
+  - Strips agreed sensitive keys (`ssn`, `password`, `secret`, `token`, `auth_token`, `api_key`, `cjis_fbi_number`, `credit_card`).
+  - Masks pattern-matched sensitive values in freeform attributes and log bodies (SSN: `\d{3}-\d{2}-\d{4}` -> `[REDACTED_SSN]`, PAN/Credit Card: `\b(?:\d[ -]*?){13,16}\b` -> `[REDACTED_PAN]`).
+  - Config is human-reviewable by compliance officers (clean, explicit field list and named rules).
+- [x] Redaction applies across all signals:
+  - Logs: log attributes, log body.
+  - Traces: span attributes.
+  - Span events: event attributes.
+- [x] Proof of absence: An automated test script (`scripts/test-redaction.sh`) emits OTLP traces, span events, and logs containing sensitive fields/PII:
+  - Asserts sensitive values land nowhere in ClickHouse (`otel_traces`, `otel_logs`, `Events.Attributes`, etc.).
+  - Asserts non-sensitive fields and trace context are intact and correlated.
+- [x] Edge cases covered (`scripts/test-redaction-edge-cases.sh`):
+  - **Field in log body vs log attribute**: Sensitive data in both message body and attribute map are redacted simultaneously.
+  - **Span event attributes**: Sensitive data attached to an in-span event (`Events.Attributes`) is scrubbed.
+  - **Multiple occurrences & formats**: Multiple PII instances in a single log message or mixed with valid text are redacted.
+  - **Safe degradation / drop-not-leak**: Redaction processor failure mode does not leak unredacted data downstream.
+- [x] E2E integration: Sample service emits request containing PII attributes and body; ClickHouse query confirms telemetry is ingested, correlated, and scrubbed.
 - [x] Air-gap compliance: 100% of container images resolved from internal mirror (`localhost:5001/argus/*`).
-  - *Evidence*: Image audit in `init.sh` confirms zero public registry pulls.
-- [x] No regressions: `./scripts/verify.sh` green (all 9 steps pass).
+- [x] No regressions: `./scripts/verify.sh` green (all 11 steps pass).
 
 ## 2. Edge cases & failure paths (from `verification/edge-cases.md`)
 - **Input / data**:
-  - Missing trace id on log record -> log recorded with empty TraceId; no collector crash, partial correlation available.
-  - Dropped span in distributed call -> logs and metrics persist; left join preserves available telemetry.
-  - Boundary clock skew -> past/future timestamps within reasonable window ingested without dropping.
-- **State / lifecycle**:
-  - Sample service restart / crash -> replacement pod comes up Ready, establishes connection to OTel gateway, zero persistent leaks.
-- **Downstream resilience**:
-  - Gateway batching latency -> verified bounded under 10 seconds.
+  - Embedded PII in log body string (e.g. `User SSN 123-45-6789 submitted payment`) -> body replaced with `[REDACTED_SSN]`.
+  - Sensitive key in span event -> deleted / masked in `Events.Attributes`.
+  - Empty or non-string attribute values -> processor executes without throwing uncaught exceptions.
+- **Compliance / security**:
+  - Sensitive fields never persist to ClickHouse hot or cold storage.
+  - Explicit blacklist for keys + regex patterns for unstructured values.
 
 ## 3. E2E scenario(s)
-An HTTP client issues a transaction to `http://argus-sample-service:8080/order`.
-The service processes the order, assigns a W3C TraceContext TraceID (`00-<trace_id>-<span_id>-01`), and emits:
-1. Trace span: `process_order` (duration, route, order id).
-2. Log: `Order <id> successfully processed` with TraceID and SpanID.
-3. Metric: `order_processing_duration_ms` with TraceID in attributes and exemplars.
-ClickHouse is queried with an inner join on `TraceId`. Exactly one joined record is returned matching the transaction.
+An application or client emits a transaction containing:
+- Span attributes: `ssn: "123-45-6789"`, `password: "SuperSecret123"`, `order.id: "ord-99"`.
+- Span event: name `auth_attempt`, event attributes `auth_token: "bearer-xyz123"`.
+- Log record: attribute `cjis_fbi_number: "FBI-987654321"`, body `Payment processed for card 4111-2222-3333-4444`.
+Collector gateway processes the stream:
+- `ssn` and `password` removed from span attributes.
+- `auth_token` removed from span event attributes.
+- `cjis_fbi_number` removed from log attributes.
+- Card number in log body replaced with `[REDACTED_PAN]`.
+ClickHouse is queried:
+- Returns zero rows where any table contains `123-45-6789`, `SuperSecret123`, `bearer-xyz123`, `FBI-987654321`, or `4111-2222-3333-4444`.
+- Trace, log, and metric remain queryable and correlated.
 
 ## 4. Plan (thinnest vertical slice)
-1. Add `python:3.12-alpine` to `deploy/mirror/images.txt` and populate mirror `localhost:5001/argus/python:3.12-alpine`.
-2. Build sample service container `localhost:5001/argus/sample-service:1.0.0`:
-   - Ultra-clean Python 3.12 HTTP server (zero external dependencies).
-   - Generates W3C TraceContext TraceID.
-   - Emits OTLP HTTP payloads (`/v1/traces`, `/v1/logs`, `/v1/metrics`) to `http://argus-gateway.argus-system:4318`.
-   - Supports query params: `drop_span`, `no_trace_id`, `skew_seconds`.
-3. Push `localhost:5001/argus/sample-service:1.0.0` to local mirror.
-4. Create Kubernetes deployment & service manifest [`deploy/sample-app/sample-service.yaml`](file:///Users/nimatullahrazmjo/workstation/argus/deploy/sample-app/sample-service.yaml).
-5. Create deployment script [`scripts/deploy-sample-app.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/deploy-sample-app.sh).
-6. Create automated correlation test script [`scripts/test-correlation.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-correlation.sh).
-7. Create automated correlation edge cases test script [`scripts/test-correlation-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-correlation-edge-cases.sh).
-8. Integrate into `scripts/verify.sh` and run full test suite.
-9. Verify air-gap compliance and update documentation.
+1. Add `transform` processor configuration to `deploy/otel/gateway.yaml` with compliance-reviewable statements for traces, logs, and span events.
+2. Deploy updated gateway configuration via `kubectl apply -f deploy/otel/gateway.yaml` and wait for rollout.
+3. Create automated redaction test script `scripts/test-redaction.sh`:
+   - Emits test trace with sensitive span attributes and span events.
+   - Emits test log with sensitive log attributes and PII body.
+   - Queries ClickHouse and asserts sensitive strings are 100% absent, while redacted markers and non-sensitive fields are present.
+4. Create automated redaction edge cases test script `scripts/test-redaction-edge-cases.sh`.
+5. Enhance sample service `server.py` and `scripts/test-correlation.sh` to optionally inject PII and verify redaction during end-to-end flow.
+6. Integrate into `scripts/verify.sh` as steps in full verification suite.
+7. Verify all edge cases and air-gap audit, update documentation and commit.
 
 ## 5. Out of scope (parked, not built)
-- SigNoz UI visualization (F006).
-- Zero-code auto-instrumentation injection via mutating webhook (F007).
-- PII redaction processor (F005).
-
-## 6. New dependencies (with justification)
-- `python:3.12-alpine`: Standard minimal base image for lightweight synthetic sample service.
+- UI visualization in SigNoz (Phase 02, F006).
+- Mutating webhook auto-injection (Phase 02, F007).

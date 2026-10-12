@@ -4,7 +4,7 @@ All features across all phases, with permanent ids and status. This is the sourc
 for **scope**. Statuses: `NOT STARTED` · `IN PROGRESS` · `BLOCKED` · `IN REVIEW` ·
 `COMPLETE` · `DEPRECATED`.
 
-**Progress**: 4 / 21 COMPLETE (19%)
+**Progress**: 5 / 21 COMPLETE (24%)
 
 > The requirement: a self-hosted, air-gapped Datadog-equivalent for internal DHS use, running
 > entirely in Kubernetes. Spine = OpenTelemetry Collector -> ClickHouse -> SigNoz. Phases are
@@ -16,10 +16,10 @@ for **scope**. Statuses: `NOT STARTED` · `IN PROGRESS` · `BLOCKED` · `IN REVI
 - [x] **F002** — ClickHouse HA (2 nodes + replica) with S3/MinIO-backed storage policy, healthy — `COMPLETE`
 - [x] **F003** — OTel Collector pipeline: node DaemonSet + gateway Deployment, OTLP in -> ClickHouse out, k8s resource enrichment — `COMPLETE`
 - [x] **F004** — End-to-end correlation proof: one sample app's metric + trace + log correlate by trace id in SigNoz; e2e test asserts it — `COMPLETE`
-- [ ] **F005** — PII/CJIS redaction processor in the collector pipeline; sensitive fields provably never land in ClickHouse — `IN PROGRESS`
+- [x] **F005** — PII/CJIS redaction processor in the collector pipeline; sensitive fields provably never land in ClickHouse — `COMPLETE`
 
 ## Phase 02 — Coverage (see everything; onboarding is one line)
-- [ ] **F006** — SigNoz deployed, reading ClickHouse: APM, logs, traces, dashboards — `NOT STARTED`
+- [ ] **F006** — SigNoz deployed, reading ClickHouse: APM, logs, traces, dashboards — `IN PROGRESS`
 - [ ] **F007** — Zero-code auto-instrumentation via OTel Operator annotation; onboarding runbook for app teams — `NOT STARTED`
 - [ ] **F008** — eBPF safety net (Beyla or Pixie): network-level service map for un-annotated services — `NOT STARTED`
 - [ ] **F009** — Infra metrics: node-exporter + kube-state-metrics into the store — `NOT STARTED`

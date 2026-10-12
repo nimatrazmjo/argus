@@ -17,6 +17,30 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-12 — F005 PII/CJIS redaction at ingest — COMPLETE
+Branch/commit: feat/F005   PR: N/A (local gitops repo, no remote origin configured)   CI: green
+Evidence:
+  - Declarative Redaction Processor in OpenTelemetry Gateway:
+      * `deploy/otel/gateway.yaml` configured with `transform/redaction` OTTL processor.
+      * Strips agreed compliance blacklist keys: `password`, `token`, `auth_token`, `secret`, `api_key`, `cjis_fbi_number`, `ssn`, `credit_card`.
+      * Masks unstructured PII: SSN regex `\b\d{3}-\d{2}-\d{4}\b` -> `[REDACTED_SSN]`, Credit Card (PAN) regex `\b(?:\d[ -]*?){13,16}\b` -> `[REDACTED_PAN]`.
+      * Masks inline key-value credentials in log bodies: `(?i)(password|secret|token|auth_token|api_key|cjis_fbi_number|ssn)=[^&\s,;]+` -> `$$1=[REDACTED]`.
+      * Applies across all telemetry signals: traces (span attributes), span events (`Events.Attributes`), and logs (`LogAttributes`, `Body`).
+  - `./scripts/test-redaction.sh` -> PASS:
+      * Injected sensitive SSN, passwords, bearer tokens, CJIS FBI identifiers, and credit cards into trace span attributes, span events, log attributes, and log body.
+      * ClickHouse SQL queries assert sensitive keys stripped and freeform values masked.
+      * Global database scan proves 0 sensitive records exist across `default.otel_traces` and `default.otel_logs`.
+  - `./scripts/test-redaction-edge-cases.sh` -> 4 passed, 0 failed:
+      * Multiple PII instances in a single log body: all occurrences scrubbed to `[REDACTED_SSN]` and `[REDACTED_PAN]`.
+      * Concurrent body and attribute secret scrubbing verified.
+      * Mixed attribute data types (bool, int, double, empty string) safely handled without collector panic.
+      * Live sample service transaction passes cleanly through redaction pipeline.
+  - `kubectl get pods -n argus-system -o jsonpath='...'` -> Confirms 100% of pods run from `localhost:5001/argus/*` (air-gap compliant).
+  - `./scripts/verify.sh` -> PASS: full 11-step verification suite green (Architecture + Edge cases + ClickHouse tiering + ClickHouse edge cases + OTel pipeline + OTel edge cases + Telemetry correlation + Correlation edge cases + Redaction verification + Redaction edge cases + Baseline readiness).
+  - e2e: Correlated request with PII verified end to end (Phase 01 smoke test passed).
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: Phase 01 (Foundation) is 100% COMPLETE! All 5 foundation features (F001-F005) verified and green. Moving to Phase 02 (Coverage), beginning with F006 (SigNoz deployment).
+
 ## 2026-10-12 — F004 End-to-end correlation proof — COMPLETE
 Branch/commit: feat/F004   PR: N/A (local gitops repo, no remote origin configured)   CI: green
 Evidence:

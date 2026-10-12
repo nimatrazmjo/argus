@@ -3,23 +3,24 @@
 > Read this first, every session. Rewrite it for a cold reader before you stop.
 
 ## Where we are
-- **Phase**: Phase 01 — Foundation
-- **Active feature**: F005 — PII/CJIS redaction at ingest (IN PROGRESS)
-- **Overall progress**: 4 / 21 features COMPLETE (19%)
+- **Phase**: Phase 02 — Coverage
+- **Active feature**: F006 — SigNoz deployed, reading ClickHouse: APM, logs, traces, dashboards (IN PROGRESS)
+- **Overall progress**: 5 / 21 features COMPLETE (24%)
+- **Milestone status**: Phase 01 (Foundation: F001-F005) is 100% COMPLETE.
 
 ## Last verified
 - **Date**: 2026-10-12
 - **init**: PASS — `scripts/init.sh` green (validates cluster v1.36.1, mirror health, 7 CRDs, 3 operator deployments Ready, ClickHouse HA Completed & Ready, ClickHouse Keeper Ready, OpenTelemetry Gateway & Node DaemonSet Ready, Sample Instrumented Service Ready, 100% mirrored image origins)
-- **Full suite + check-architecture**: PASS — `scripts/verify.sh` green (all 9 steps: check-architecture + test-edge-cases + test-clickhouse-tiering + test-clickhouse-edge-cases + test-otel-pipeline + test-otel-edge-cases + test-correlation + test-correlation-edge-cases + init)
-- **E2E**: PASS — `scripts/test-correlation.sh` proves end-to-end trace + metric + log correlation joined on TraceId in ClickHouse with latency < 10s (measured 2s).
-- **Git**: branch `feat/F004` -> ready to commit and switch to `feat/F005`
+- **Full suite + check-architecture**: PASS — `scripts/verify.sh` green (all 11 steps: check-architecture + test-edge-cases + test-clickhouse-tiering + test-clickhouse-edge-cases + test-otel-pipeline + test-otel-edge-cases + test-correlation + test-correlation-edge-cases + test-redaction + test-redaction-edge-cases + init)
+- **E2E**: PASS — Full Phase 01 smoke test passed (init green + correlated, redacted metric+trace+log).
+- **Git**: branch `feat/F005` -> ready to commit and switch to `feat/F006`
 
 ## Next step
-Write sprint contract for F005 (`verification/sprint-contract.md`), then implement the
-PII/CJIS redaction processor in the OpenTelemetry Collector gateway pipeline:
-- Transform/redaction processor configured with declarative rules to mask/strip sensitive fields (SSN, credit card, passwords, CJIS-restricted identifiers) across logs, trace attributes, and span events.
-- Test proving sensitive fields present in OTLP input are provably absent from ClickHouse storage.
-- Edge cases covering nested attributes, log body vs attribute redaction, and drop-on-failure safety.
+Write sprint contract for F006 (`verification/sprint-contract.md`), then deploy SigNoz
+(frontend, query-service) into `argus-system` connected to our existing ClickHouse HA cluster:
+- Mirror latest verified SigNoz images (`signoz/frontend`, `signoz/query-service`) to `localhost:5001/argus/*`.
+- Deploy SigNoz pointing to `clickhouse-argus-clickhouse:9000` with user `default` and password `argus123`.
+- Verify SigNoz UI and API read traces, logs, and metrics directly from ClickHouse.
 See CURRENT_TASK.md.
 
 ## Open blockers
