@@ -51,21 +51,21 @@ Insert/kill/query transcript; `system.parts` showing a part on the S3 disk; repl
 A test OTLP export landing as rows in each ClickHouse table, with k8s attributes populated.
 
 ## F004 — End-to-end correlation proof
-**Status**: IN PROGRESS
+**Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] A sample instrumented service emits a metric, a trace, and a log for one request.
-- [ ] All three are queryable and correlate by the same trace id in SigNoz (or via ClickHouse query pre-UI).
-- [ ] An automated e2e test drives the request and asserts the correlated trio exists.
-- [ ] Edge cases: dropped span, log without trace id (degrades, does not break), clock skew.
-- [ ] E2E: primary flow (request -> metric+trace+log correlated) passes end to end.
-- [ ] FULL verify green.
+- [x] A sample instrumented service emits a metric, a trace, and a log for one request.
+- [x] All three are queryable and correlate by the same trace id in SigNoz (or via ClickHouse query pre-UI).
+- [x] An automated e2e test drives the request and asserts the correlated trio exists.
+- [x] Edge cases: dropped span, log without trace id (degrades, does not break), clock skew.
+- [x] E2E: primary flow (request -> metric+trace+log correlated) passes end to end.
+- [x] FULL verify green.
 
 ### Evidence expected
 e2e test id + output; a query showing metric, trace, and log joined on trace id.
 
 ## F005 — PII/CJIS redaction at ingest
-**Status**: NOT STARTED
+**Status**: IN PROGRESS
 
 ### Acceptance criteria
 - [ ] A redaction/transform processor in the collector pipeline strips/masks the agreed sensitive fields (configurable list) before the exporter.

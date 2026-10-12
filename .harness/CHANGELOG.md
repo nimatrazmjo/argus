@@ -17,6 +17,32 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-12 — F004 End-to-end correlation proof — COMPLETE
+Branch/commit: feat/F004   PR: N/A (local gitops repo, no remote origin configured)   CI: green
+Evidence:
+  - `./deploy/mirror/images.txt` & `./deploy/mirror/setup-mirror.sh` -> Mirrored verified base & sample images:
+      * `python:3.12-alpine` to `localhost:5001/argus/python:3.12-alpine`
+      * `localhost:5001/argus/sample-service:1.0.0` (zero-dependency synthetic microservice emitting W3C TraceContext traces, logs, and metrics with exemplars)
+  - `deploy/sample-app/app/server.py` & `deploy/sample-app/sample-service.yaml`:
+      * Deployed instrumented sample service (`argus-sample-service`) in `argus-system`.
+      * Emits correlated OTLP traces (`/v1/traces`), logs (`/v1/logs`), and metrics (`/v1/metrics`) to `http://argus-gateway-collector.argus-system:4318`.
+  - Schema upgrade: `deploy/clickhouse/otel-schema.sql` upgraded tables (`otel_traces`, `otel_logs`, `otel_metrics_*`) to `ReplicatedMergeTree('/clickhouse/tables/{shard}/default/...', '{replica}')` backed by ClickHouse Keeper for active-active multi-replica HA.
+  - `./scripts/test-correlation.sh` -> PASS:
+      * Live HTTP transaction issued to `argus-sample-service`.
+      * Single transaction emitted trace span, log record, and metric data point sharing identical W3C `TraceId`.
+      * 3-way SQL join query in ClickHouse (`otel_traces` + `otel_logs` + `otel_metrics_gauge` ON `TraceId`) executed and returned correlated record.
+      * End-to-end latency from emission to queryable join measured at 2 seconds (well within < 10s SLA).
+  - `./scripts/test-correlation-edge-cases.sh` -> 4 passed, 0 failed:
+      * Dropped span handling: request with `?drop_span=true` leaves zero traces, while log and metric persist and correlate gracefully without crashing.
+      * Log without TraceId: request with `?no_trace_id=true` records log with empty TraceId without parser or ingestion failure.
+      * Clock skew handling: telemetry with ±120s timestamp offset accurately ingested and correlated across ClickHouse tables.
+      * Pod restart resilience: sample service pod termination and replacement pod recovery maintains clean telemetry emission.
+  - `kubectl get pods -n argus-system -o jsonpath='...'` -> Confirms 100% of pods run from `localhost:5001/argus/*` (air-gap compliant).
+  - `./scripts/verify.sh` -> PASS: full 9-step verification suite green (Architecture + Platform edge cases + ClickHouse tiering + ClickHouse edge cases + OTel pipeline + OTel edge cases + Telemetry correlation + Correlation edge cases + Baseline readiness).
+  - e2e: Trace verified (`scripts/test-correlation.sh` proves end-to-end trace-metric-log correlation across OpenTelemetry and ClickHouse).
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: Observability spine is proven end-to-end. F005 (PII/CJIS redaction processor) is next.
+
 ## 2026-10-12 — F003 OTel Collector pipeline (ingest spine) — COMPLETE
 Branch/commit: feat/F003   PR: N/A (local gitops repo, no remote origin configured)   CI: green
 Evidence:

@@ -171,6 +171,20 @@ else
   echo "      OpenTelemetry Node DaemonSet not deployed yet (skipping)."
 fi
 
+if kubectl get deploy argus-sample-service -n "${NAMESPACE}" >/dev/null 2>&1; then
+  SAMPLE_AVAILABLE=$(kubectl get deploy argus-sample-service -n "${NAMESPACE}" -o jsonpath='{.status.availableReplicas}' 2>/dev/null || echo "0")
+  if [ "${SAMPLE_AVAILABLE:-0}" -lt 1 ]; then
+    kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=argus-sample-service -n "${NAMESPACE}" --timeout=15s >/dev/null 2>&1 || true
+    SAMPLE_AVAILABLE=$(kubectl get deploy argus-sample-service -n "${NAMESPACE}" -o jsonpath='{.status.availableReplicas}' 2>/dev/null || echo "0")
+  fi
+  if [ "${SAMPLE_AVAILABLE:-0}" -ge 1 ]; then
+    echo "      Sample Instrumented Service: Ready (${SAMPLE_AVAILABLE}/1)"
+  else
+    echo "      ERROR: Sample Instrumented Service not ready (${SAMPLE_AVAILABLE:-0}/1)" >&2
+    FAILED=1
+  fi
+fi
+
 # 8. Audit pod image origins (Air-gap / Mirror compliance)
 echo "[8/9] Auditing image origins (air-gap compliance)..."
 UNMIRRORED_IMAGES=0

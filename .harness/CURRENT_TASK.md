@@ -1,24 +1,24 @@
 # CURRENT TASK
 
-**Feature**: F004 — End-to-end correlation proof
+**Feature**: F005 — PII/CJIS redaction at ingest
 **Phase**: Phase 01 — Foundation
 **Status**: IN PROGRESS
 
 ## Exact next step
-1. Commit completed F003 implementation on branch `feat/F003`.
-2. Create and checkout git branch `feat/F004`.
-3. Write `verification/sprint-contract.md` for F004 mapping acceptance criteria:
-   - Sample instrumented app emitting metric, trace, and log with matching TraceID for a single transaction.
-   - TraceID present across all three telemetry types.
-   - ClickHouse SQL query successfully joins all 3 on TraceID.
-   - Latency from emit to ClickHouse queryable < 10 seconds.
-   - Automated e2e test script reproduces correlation join query on demand.
-4. Deploy sample service / synthetic generator in Kubernetes using mirrored image.
-5. Implement `scripts/test-correlation.sh` and edge cases (dropped span, log without trace id, clock skew).
-6. Integrate into `scripts/verify.sh`.
+1. Commit completed F004 implementation on branch `feat/F004`.
+2. Create and checkout git branch `feat/F005`.
+3. Write `verification/sprint-contract.md` for F005 mapping acceptance criteria:
+   - Redaction/transform processor in OTel gateway pipeline masks/strips sensitive fields (SSN, credit cards, CJIS identifiers, auth tokens, passwords) before ClickHouse export.
+   - Test proving sensitive fields present in OTLP input are provably absent from ClickHouse storage.
+   - Redaction runs on logs, trace attributes, and span events.
+   - Config is reviewable by compliance persona (clear regex/field list rules).
+   - Edge cases: nested attributes, field in log body vs attribute, redaction failure drops rather than leaks.
+4. Implement redaction processor configuration in `deploy/otel/gateway.yaml` (using `redaction` or `transform` processor).
+5. Implement `scripts/test-redaction.sh` and `scripts/test-redaction-edge-cases.sh`.
+6. Integrate into `scripts/verify.sh` and run full suite.
 
 ## Acceptance (summary)
-See `phases/PHASE-01-FOUNDATION.md` -> F004 for full criteria and the signed
+See `phases/PHASE-01-FOUNDATION.md` -> F005 for full criteria and the signed
 `verification/sprint-contract.md` for this feature.
 
 ## Definition of done

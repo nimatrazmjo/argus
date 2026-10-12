@@ -17,3 +17,7 @@ ghcr.io/jkroepke/kube-webhook-certgen:1.8.9
 # ClickHouse Server & S3 Cold Storage
 clickhouse/clickhouse-server:24.8.4.13
 chrislusf/seaweedfs:latest
+
+# Base Images & Sample Microservices
+python:3.12-alpine
+localhost:5001/argus/sample-service:1.0.0

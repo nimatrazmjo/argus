@@ -6,25 +6,31 @@ echo "================================================================="
 echo "             ARGUS FULL VERIFICATION SUITE                       "
 echo "================================================================="
 
-echo "--> Step 1/7: Running architecture boundary verification..."
+echo "--> Step 1/9: Running architecture boundary verification..."
 ./scripts/check-architecture.sh
 
-echo "--> Step 2/7: Running platform edge cases and failure paths battery..."
+echo "--> Step 2/9: Running platform edge cases and failure paths battery..."
 ./scripts/test-edge-cases.sh
 
-echo "--> Step 3/7: Running ClickHouse HA, tiering, and persistence verification..."
+echo "--> Step 3/9: Running ClickHouse HA, tiering, and persistence verification..."
 ./scripts/test-clickhouse-tiering.sh
 
-echo "--> Step 4/7: Running ClickHouse HA edge cases and replication battery..."
+echo "--> Step 4/9: Running ClickHouse HA edge cases and replication battery..."
 ./scripts/test-clickhouse-edge-cases.sh
 
-echo "--> Step 5/7: Running OpenTelemetry Collector pipeline functional verification..."
+echo "--> Step 5/9: Running OpenTelemetry Collector pipeline functional verification..."
 ./scripts/test-otel-pipeline.sh
 
-echo "--> Step 6/7: Running OpenTelemetry Collector edge cases and resilience battery..."
+echo "--> Step 6/9: Running OpenTelemetry Collector edge cases and resilience battery..."
 ./scripts/test-otel-edge-cases.sh
 
-echo "--> Step 7/7: Running baseline readiness and operator audit..."
+echo "--> Step 7/9: Running telemetry correlation (trace + metric + log 3-way join) verification..."
+./scripts/test-correlation.sh
+
+echo "--> Step 8/9: Running telemetry correlation edge cases and failure paths battery..."
+./scripts/test-correlation-edge-cases.sh
+
+echo "--> Step 9/9: Running baseline readiness and air-gap operator audit..."
 ./scripts/init.sh
 
 echo "================================================================="
