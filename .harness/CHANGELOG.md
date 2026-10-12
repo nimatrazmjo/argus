@@ -17,6 +17,29 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-12 — F006 SigNoz UI over ClickHouse HA — COMPLETE
+Branch/commit: feat/F006   PR: N/A (local gitops repo, no remote origin configured)   CI: green
+Evidence:
+  - Air-gapped Mirror Registry:
+      * `signoz/signoz:v0.145.0` -> `localhost:5001/argus/signoz:v0.145.0`
+      * `signoz/signoz-otel-collector:v0.144.13` -> `localhost:5001/argus/signoz-otel-collector:v0.144.13`
+      * `clickhouse/clickhouse-server:25.12.5` -> `localhost:5001/argus/clickhouse-server:25.12.5`
+  - ClickHouse HA & Migrations:
+      * Upgraded ClickHouse HA to `25.12.5` with `allow_experimental_json_type: 1` and `allow_experimental_object_type: 1` to support SigNoz v0.145.0 schema settings (`object_serialization_version = 'v3'`).
+      * Configured `<cluster>` cluster alias in remote_servers without hyphens and inter-node credentials (`default:argus123`).
+      * Applied full SigNoz schema migrations: `migrate ready`, `migrate bootstrap`, `migrate sync up`, `migrate async up` (created `signoz_traces.signoz_index_v3`, `signoz_logs.logs_v2`, `signoz_metrics.samples_v4`, etc.).
+  - Declarative Deployment & Pipelines:
+      * `deploy/signoz/signoz-otel-collector.yaml` (OTel collector with ClickHouse exporters).
+      * `deploy/signoz/signoz.yaml` (SigNoz UI and Query Server on port 8080).
+      * `deploy/otel/gateway.yaml` forwarding redacted telemetry to `signoz-otel-collector:4317`.
+  - Functional Tests & Evidence:
+      * `./scripts/test-signoz.sh` -> PASS (Service discovery found `argus-sample-service`, Trace query returned `process_order` span by TraceId, Unified query returned logs, boot settings verified PostHog/Appcues/Sentry/Pylon disabled, zero external socket connections).
+      * `./scripts/test-signoz-edge-cases.sh` -> 4 passed, 0 failed (Empty-state queries handled without 500 panic, 401 unauthenticated rejected cleanly, query SLA < 5s met, ClickHouse upstream error handled without crashing, restart count remained 0).
+      * `./scripts/verify.sh` -> PASS: 13/13 verification steps green.
+      * Evidence captured in `.harness/evidence/F006/` (`signoz-version.json`, `signoz-health.json`, `signoz-services.json`, `signoz-trace.json`, `signoz-logs-query.json`, `signoz-boot-settings.json`, `air-gap-audit.txt`).
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F006 is COMPLETE! Next feature is F007 (Zero-code auto-instrumentation via OTel Operator annotation + onboarding runbook for app teams).
+
 ## 2026-10-12 — F005 PII/CJIS redaction at ingest — COMPLETE
 Branch/commit: feat/F005   PR: N/A (local gitops repo, no remote origin configured)   CI: green
 Evidence:

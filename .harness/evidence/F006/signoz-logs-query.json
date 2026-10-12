@@ -1,0 +1,11 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "",
+    "result": [
+      {
+        "queryName": "A"
+      }
+    ]
+  }
+}

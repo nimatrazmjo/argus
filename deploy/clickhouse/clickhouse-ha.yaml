@@ -16,7 +16,21 @@ spec:
     users:
       default/password: "argus123"
       default/networks/ip: "::/0"
+      default/settings/allow_experimental_json_type: "1"
+      default/settings/allow_experimental_object_type: "1"
+    profiles:
+      default/allow_experimental_json_type: "1"
+      default/allow_experimental_object_type: "1"
     files:
+      "{users}/json.xml": |
+        <clickhouse>
+          <profiles>
+            <default>
+              <allow_experimental_json_type>1</allow_experimental_json_type>
+              <allow_experimental_object_type>1</allow_experimental_object_type>
+            </default>
+          </profiles>
+        </clickhouse>
       storage.xml: |
         <clickhouse>
           <storage_configuration>
@@ -46,6 +60,27 @@ spec:
             </policies>
           </storage_configuration>
         </clickhouse>
+      cluster_alias.xml: |
+        <clickhouse>
+          <remote_servers>
+            <cluster>
+              <shard>
+                <replica>
+                  <host>chi-argus-clickhouse-argus-cluster-0-0</host>
+                  <port>9000</port>
+                  <user>default</user>
+                  <password>argus123</password>
+                </replica>
+                <replica>
+                  <host>chi-argus-clickhouse-argus-cluster-0-1</host>
+                  <port>9000</port>
+                  <user>default</user>
+                  <password>argus123</password>
+                </replica>
+              </shard>
+            </cluster>
+          </remote_servers>
+        </clickhouse>
     clusters:
       - name: "argus-cluster"
         layout:
@@ -57,7 +92,7 @@ spec:
         spec:
           containers:
             - name: clickhouse
-              image: localhost:5001/argus/clickhouse-server:24.8.4.13
+              image: localhost:5001/argus/clickhouse-server:25.12.5
               imagePullPolicy: IfNotPresent
     volumeClaimTemplates:
       - name: data-storage

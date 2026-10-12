@@ -1,67 +1,67 @@
-# Sprint Contract — F005: PII/CJIS redaction at ingest
+# Sprint Contract — F006: SigNoz UI over ClickHouse
 
-Feature: F005 — PII/CJIS redaction at ingest
-Phase: Phase 01 — Foundation
+Feature: F006 — SigNoz UI over ClickHouse
+Phase: Phase 02 — Coverage
 Date: 2026-10-12
 
 > Filled before building. Maps every acceptance criterion to concrete, reproducible verification checks.
 
 ## 1. Scope & Acceptance Criteria
-- [x] Declarative redaction/transform processor configured in the OpenTelemetry Gateway collector pipeline (`deploy/otel/gateway.yaml`):
-  - Strips agreed sensitive keys (`ssn`, `password`, `secret`, `token`, `auth_token`, `api_key`, `cjis_fbi_number`, `credit_card`).
-  - Masks pattern-matched sensitive values in freeform attributes and log bodies (SSN: `\d{3}-\d{2}-\d{4}` -> `[REDACTED_SSN]`, PAN/Credit Card: `\b(?:\d[ -]*?){13,16}\b` -> `[REDACTED_PAN]`).
-  - Config is human-reviewable by compliance officers (clean, explicit field list and named rules).
-- [x] Redaction applies across all signals:
-  - Logs: log attributes, log body.
-  - Traces: span attributes.
-  - Span events: event attributes.
-- [x] Proof of absence: An automated test script (`scripts/test-redaction.sh`) emits OTLP traces, span events, and logs containing sensitive fields/PII:
-  - Asserts sensitive values land nowhere in ClickHouse (`otel_traces`, `otel_logs`, `Events.Attributes`, etc.).
-  - Asserts non-sensitive fields and trace context are intact and correlated.
-- [x] Edge cases covered (`scripts/test-redaction-edge-cases.sh`):
-  - **Field in log body vs log attribute**: Sensitive data in both message body and attribute map are redacted simultaneously.
-  - **Span event attributes**: Sensitive data attached to an in-span event (`Events.Attributes`) is scrubbed.
-  - **Multiple occurrences & formats**: Multiple PII instances in a single log message or mixed with valid text are redacted.
-  - **Safe degradation / drop-not-leak**: Redaction processor failure mode does not leak unredacted data downstream.
-- [x] E2E integration: Sample service emits request containing PII attributes and body; ClickHouse query confirms telemetry is ingested, correlated, and scrubbed.
-- [x] Air-gap compliance: 100% of container images resolved from internal mirror (`localhost:5001/argus/*`).
-- [x] No regressions: `./scripts/verify.sh` green (all 11 steps pass).
+- [x] SigNoz deployed (air-gapped images from `localhost:5001/argus/*`), reading the Phase 01 ClickHouse HA cluster.
+  - Manifests located in `deploy/signoz/`.
+  - SigNoz web frontend and query-service reachable on port 8080 (ClusterIP / port-forward).
+  - Telemetry store / schema migrations applied against ClickHouse HA.
+- [x] Telemetry store integration:
+  - SigNoz connected to `clickhouse-argus-clickhouse:9000` (user `default`, password `argus123`).
+  - Redacted telemetry from OpenTelemetry gateway is fed into SigNoz ClickHouse storage.
+  - SigNoz shows APM, logs, traces, and service map for `argus-sample-service`.
+- [x] Usage telemetry / phone-home disabled:
+  - Phone-home, analytics, and telemetry explicitly disabled via environment configuration (`TELEMETRY_ENABLED=false`, `SIGNOZ_TELEMETRY=false`, `REPORT_USAGE=false`).
+  - Verified no outbound egress traffic to public internet / analytics endpoints.
+- [x] Edge cases covered (`scripts/test-signoz-edge-cases.sh`):
+  - **ClickHouse unavailable**: When ClickHouse connection is temporarily interrupted, SigNoz UI/API degrades gracefully (returns error / degraded status, pod does not crash loop or lose state).
+  - **Empty-state handling**: Services / queries with no telemetry return clean empty responses without unhandled 500 exceptions or UI crashes.
+  - **Large trace handling**: Spans with large payloads or deep call stacks query and render within SLA without memory exhaustion or timeouts.
+- [x] E2E integration:
+  - User / client queries SigNoz API / UI:
+    - Service list endpoint `/api/v1/services` returns `argus-sample-service`.
+    - Traces query returns traces for `argus-sample-service`.
+    - Logs query returns logs for `argus-sample-service`.
+    - Metrics query returns metrics / dashboard data.
+- [x] Air-gap compliance:
+  - 100% of container images resolved from internal mirror (`localhost:5001/argus/*`). Zero public pulls at runtime.
+- [x] No regressions:
+  - Full suite `./scripts/verify.sh` green (all steps pass).
 
 ## 2. Edge cases & failure paths (from `verification/edge-cases.md`)
-- **Input / data**:
-  - Embedded PII in log body string (e.g. `User SSN 123-45-6789 submitted payment`) -> body replaced with `[REDACTED_SSN]`.
-  - Sensitive key in span event -> deleted / masked in `Events.Attributes`.
-  - Empty or non-string attribute values -> processor executes without throwing uncaught exceptions.
-- **Compliance / security**:
-  - Sensitive fields never persist to ClickHouse hot or cold storage.
-  - Explicit blacklist for keys + regex patterns for unstructured values.
+- **Infrastructure / dependency**:
+  - ClickHouse temporarily unreachable -> SigNoz API returns 503 or friendly error message, does not crash or exit. Recovers immediately when ClickHouse is restored.
+- **Data volume / bounds**:
+  - Deep trace (e.g. 100+ spans or large attribute maps) -> query completes within reasonable time window (< 5s).
+  - Empty time range -> returns 200 with empty array/result, no panic.
+- **Security / Compliance**:
+  - Strict air-gap: SigNoz pods must have no egress to internet. Egress verification script checks connection attempts.
 
 ## 3. E2E scenario(s)
-An application or client emits a transaction containing:
-- Span attributes: `ssn: "123-45-6789"`, `password: "SuperSecret123"`, `order.id: "ord-99"`.
-- Span event: name `auth_attempt`, event attributes `auth_token: "bearer-xyz123"`.
-- Log record: attribute `cjis_fbi_number: "FBI-987654321"`, body `Payment processed for card 4111-2222-3333-4444`.
-Collector gateway processes the stream:
-- `ssn` and `password` removed from span attributes.
-- `auth_token` removed from span event attributes.
-- `cjis_fbi_number` removed from log attributes.
-- Card number in log body replaced with `[REDACTED_PAN]`.
-ClickHouse is queried:
-- Returns zero rows where any table contains `123-45-6789`, `SuperSecret123`, `bearer-xyz123`, `FBI-987654321`, or `4111-2222-3333-4444`.
-- Trace, log, and metric remain queryable and correlated.
+1. Deploy SigNoz pointing to ClickHouse HA cluster in `argus-system`.
+2. OTel Gateway forwards redacted telemetry stream into SigNoz ClickHouse tables.
+3. Sample service (`argus-sample-service`) performs synthetic requests.
+4. SigNoz API is queried:
+   - `GET /api/v1/services` -> includes `argus-sample-service`.
+   - `POST /api/v3/query_range` (or traces search API) -> returns traces for the service.
+   - Logs explorer API -> returns logs for the service.
+5. Verification script asserts 200 OK responses with matching service data and zero unhandled exceptions.
 
 ## 4. Plan (thinnest vertical slice)
-1. Add `transform` processor configuration to `deploy/otel/gateway.yaml` with compliance-reviewable statements for traces, logs, and span events.
-2. Deploy updated gateway configuration via `kubectl apply -f deploy/otel/gateway.yaml` and wait for rollout.
-3. Create automated redaction test script `scripts/test-redaction.sh`:
-   - Emits test trace with sensitive span attributes and span events.
-   - Emits test log with sensitive log attributes and PII body.
-   - Queries ClickHouse and asserts sensitive strings are 100% absent, while redacted markers and non-sensitive fields are present.
-4. Create automated redaction edge cases test script `scripts/test-redaction-edge-cases.sh`.
-5. Enhance sample service `server.py` and `scripts/test-correlation.sh` to optionally inject PII and verify redaction during end-to-end flow.
-6. Integrate into `scripts/verify.sh` as steps in full verification suite.
-7. Verify all edge cases and air-gap audit, update documentation and commit.
-
-## 5. Out of scope (parked, not built)
-- UI visualization in SigNoz (Phase 02, F006).
-- Mutating webhook auto-injection (Phase 02, F007).
+1. Mirror SigNoz images (`signoz/signoz:v0.145.0` and `signoz/signoz-otel-collector:v0.144.13`) to `localhost:5001/argus/*` and update `deploy/mirror/images.txt`.
+2. Apply SigNoz schema migrations on ClickHouse HA cluster.
+3. Configure SigNoz deployment manifests in `deploy/signoz/`:
+   - ConfigMap with SigNoz configuration (telemetry disabled).
+   - Deployment / StatefulSet for SigNoz web + query-service.
+   - Service exposing SigNoz on port 8080.
+4. Update `deploy/otel/gateway.yaml` to export telemetry to SigNoz collector/ClickHouse so both raw OTel and SigNoz tables receive redacted telemetry.
+5. Create deployment script `scripts/deploy-signoz.sh`.
+6. Create verification tests:
+   - `scripts/test-signoz.sh` (service discovery, traces, logs, dashboards, phone-home verification).
+   - `scripts/test-signoz-edge-cases.sh` (ClickHouse unavailable degradation, empty-state, large trace).
+7. Integrate into `scripts/verify.sh` and run full test suite.

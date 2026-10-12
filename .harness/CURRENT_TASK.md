@@ -1,26 +1,22 @@
 # CURRENT TASK
 
-**Feature**: F005 — PII/CJIS redaction at ingest
-**Phase**: Phase 01 — Foundation
-**Status**: IN PROGRESS
+**Feature**: F006 — SigNoz UI over ClickHouse
+**Phase**: Phase 02 — Coverage
+**Status**: COMPLETE
 
-## Exact next step
-1. Commit completed F004 implementation on branch `feat/F004`.
-2. Create and checkout git branch `feat/F005`.
-3. Write `verification/sprint-contract.md` for F005 mapping acceptance criteria:
-   - Redaction/transform processor in OTel gateway pipeline masks/strips sensitive fields (SSN, credit cards, CJIS identifiers, auth tokens, passwords) before ClickHouse export.
-   - Test proving sensitive fields present in OTLP input are provably absent from ClickHouse storage.
-   - Redaction runs on logs, trace attributes, and span events.
-   - Config is reviewable by compliance persona (clear regex/field list rules).
-   - Edge cases: nested attributes, field in log body vs attribute, redaction failure drops rather than leaks.
-4. Implement redaction processor configuration in `deploy/otel/gateway.yaml` (using `redaction` or `transform` processor).
-5. Implement `scripts/test-redaction.sh` and `scripts/test-redaction-edge-cases.sh`.
-6. Integrate into `scripts/verify.sh` and run full suite.
+## Completed steps
+1. Sprint contract written in `verification/sprint-contract.md`.
+2. Verified latest images mirrored to air-gapped registry `localhost:5001/argus/*`:
+   - `signoz/signoz:v0.145.0`
+   - `signoz/signoz-otel-collector:v0.144.13`
+   - `clickhouse/clickhouse-server:25.12.5`
+3. ClickHouse HA cluster upgraded to 25.12.5 with `cluster` alias, inter-node auth, and experimental JSON settings.
+4. SigNoz schema migrations executed cleanly across all signal tables (`signoz_traces`, `signoz_logs`, `signoz_metrics`, `signoz_meter`, `signoz_metadata`, `signoz_analytics`).
+5. SigNoz collector (`deploy/signoz/signoz-otel-collector.yaml`) and SigNoz server (`deploy/signoz/signoz.yaml`) deployed and running healthy.
+6. OpenTelemetry Gateway configured to forward redacted telemetry to SigNoz collector.
+7. Declarative deployer `scripts/deploy-signoz.sh`, functional verification `scripts/test-signoz.sh`, and edge cases `scripts/test-signoz-edge-cases.sh` implemented and passing.
+8. Full 13-step `./scripts/verify.sh` test suite green with zero regressions.
+9. Verification evidence captured in `.harness/evidence/F006/`.
 
-## Acceptance (summary)
-See `phases/PHASE-01-FOUNDATION.md` -> F005 for full criteria and the signed
-`verification/sprint-contract.md` for this feature.
-
-## Definition of done
-Every acceptance item met + evidence in `CHANGELOG.md` + Evaluator PASS + check-architecture
-clean + PR reviewed clean (inert until a remote + gh exist). See `AGENTS.md`.
+## Next step
+Commit F006 on branch `feat/F006`, merge or advance to next feature `F007` (Zero-code auto-instrumentation via OTel Operator annotation + onboarding runbook for app teams).

@@ -4,13 +4,13 @@ Make the platform see everything with minimal per-app effort, and make onboardin
 service a one-line change. Depends on a green Phase 01 spine.
 
 ## F006 — SigNoz UI over ClickHouse
-**Status**: NOT STARTED
+**Status**: COMPLETE
 ### Acceptance criteria
-- [ ] SigNoz deployed (air-gapped images), reading the Phase 01 ClickHouse, showing APM, logs, traces, and dashboards for the sample service.
-- [ ] Usage telemetry / phone-home disabled; verified no egress.
-- [ ] Edge cases: ClickHouse unavailable (UI degrades, no crash), empty-state, large trace.
-- [ ] E2E: user opens the service in the UI and sees its traces/logs/metrics.
-- [ ] FULL verify green.
+- [x] SigNoz deployed (air-gapped images), reading the Phase 01 ClickHouse, showing APM, logs, traces, and dashboards for the sample service.
+- [x] Usage telemetry / phone-home disabled; verified no egress.
+- [x] Edge cases: ClickHouse unavailable (UI degrades, no crash), empty-state, large trace.
+- [x] E2E: user opens the service in the UI and sees its traces/logs/metrics.
+- [x] FULL verify green.
 ### Evidence expected
 UI screenshots/paths under `.harness/evidence/F006/`; egress check output.
 

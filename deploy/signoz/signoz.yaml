@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signoz
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: signoz
+    app.kubernetes.io/part-of: argus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: signoz
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: signoz
+        app.kubernetes.io/part-of: argus
+    spec:
+      containers:
+        - name: signoz
+          image: localhost:5001/argus/signoz:v0.145.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_HOST
+              value: "clickhouse-argus-clickhouse"
+            - name: CLICKHOUSE_PORT
+              value: "9000"
+            - name: CLICKHOUSE_HTTP_PORT
+              value: "8123"
+            - name: CLICKHOUSE_USER
+              value: "default"
+            - name: CLICKHOUSE_PASSWORD
+              value: "argus123"
+            - name: CLICKHOUSE_CLUSTER
+              value: "cluster"
+            - name: CLICKHOUSE_DATABASE
+              value: "signoz_metrics"
+            - name: CLICKHOUSE_TRACE_DATABASE
+              value: "signoz_traces"
+            - name: CLICKHOUSE_LOG_DATABASE
+              value: "signoz_logs"
+            - name: CLICKHOUSE_METER_DATABASE
+              value: "signoz_meter"
+            - name: CLICKHOUSE_SECURE
+              value: "false"
+            - name: SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN
+              value: "tcp://default:argus123@clickhouse-argus-clickhouse:9000"
+            - name: SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_CLUSTER
+              value: "cluster"
+            - name: TELEMETRY_ENABLED
+              value: "false"
+            - name: REPORT_USAGE
+              value: "false"
+            - name: SIGNOZ_TELEMETRY
+              value: "false"
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: grpc-internal
+              containerPort: 8085
+          readinessProbe:
+            httpGet:
+              path: /api/v1/version
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/v1/version
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: signoz-db
+              mountPath: /var/lib/signoz/
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: signoz-db
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: signoz
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: signoz
+    app.kubernetes.io/part-of: argus
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: signoz
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: grpc-internal
+      port: 8085
+      targetPort: 8085
+      protocol: TCP

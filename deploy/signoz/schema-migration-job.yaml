@@ -1,0 +1,59 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: signoz-schema-migrator
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: signoz-schema-migrator
+    app.kubernetes.io/part-of: argus
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: signoz-schema-migrator
+        app.kubernetes.io/part-of: argus
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: ready
+          image: localhost:5001/argus/signoz-otel-collector:v0.144.13
+          imagePullPolicy: IfNotPresent
+          args:
+            - "migrate"
+            - "ready"
+            - "--clickhouse-dsn=tcp://default:argus123@clickhouse-argus-clickhouse:9000"
+            - "--clickhouse-cluster=cluster"
+            - "--clickhouse-replication=true"
+        - name: bootstrap
+          image: localhost:5001/argus/signoz-otel-collector:v0.144.13
+          imagePullPolicy: IfNotPresent
+          args:
+            - "migrate"
+            - "bootstrap"
+            - "--clickhouse-dsn=tcp://default:argus123@clickhouse-argus-clickhouse:9000"
+            - "--clickhouse-cluster=cluster"
+            - "--clickhouse-replication=true"
+        - name: sync
+          image: localhost:5001/argus/signoz-otel-collector:v0.144.13
+          imagePullPolicy: IfNotPresent
+          args:
+            - "migrate"
+            - "sync"
+            - "up"
+            - "--clickhouse-dsn=tcp://default:argus123@clickhouse-argus-clickhouse:9000"
+            - "--clickhouse-cluster=cluster"
+            - "--clickhouse-replication=true"
+            - "--timeout=5m"
+      containers:
+        - name: async
+          image: localhost:5001/argus/signoz-otel-collector:v0.144.13
+          imagePullPolicy: IfNotPresent
+          args:
+            - "migrate"
+            - "async"
+            - "up"
+            - "--clickhouse-dsn=tcp://default:argus123@clickhouse-argus-clickhouse:9000"
+            - "--clickhouse-cluster=cluster"
+            - "--clickhouse-replication=true"
+            - "--timeout=5m"

@@ -4,23 +4,23 @@
 
 ## Where we are
 - **Phase**: Phase 02 — Coverage
-- **Active feature**: F006 — SigNoz deployed, reading ClickHouse: APM, logs, traces, dashboards (IN PROGRESS)
-- **Overall progress**: 5 / 21 features COMPLETE (24%)
-- **Milestone status**: Phase 01 (Foundation: F001-F005) is 100% COMPLETE.
+- **Active feature**: F006 — SigNoz deployed, reading ClickHouse: APM, logs, traces, dashboards (COMPLETE)
+- **Overall progress**: 6 / 21 features COMPLETE (29%)
+- **Milestone status**: Phase 01 (Foundation: F001-F005) is 100% COMPLETE. F006 is 100% COMPLETE.
 
 ## Last verified
 - **Date**: 2026-10-12
-- **init**: PASS — `scripts/init.sh` green (validates cluster v1.36.1, mirror health, 7 CRDs, 3 operator deployments Ready, ClickHouse HA Completed & Ready, ClickHouse Keeper Ready, OpenTelemetry Gateway & Node DaemonSet Ready, Sample Instrumented Service Ready, 100% mirrored image origins)
-- **Full suite + check-architecture**: PASS — `scripts/verify.sh` green (all 11 steps: check-architecture + test-edge-cases + test-clickhouse-tiering + test-clickhouse-edge-cases + test-otel-pipeline + test-otel-edge-cases + test-correlation + test-correlation-edge-cases + test-redaction + test-redaction-edge-cases + init)
-- **E2E**: PASS — Full Phase 01 smoke test passed (init green + correlated, redacted metric+trace+log).
-- **Git**: branch `feat/F005` -> ready to commit and switch to `feat/F006`
+- **init**: PASS — `scripts/init.sh` green (validates cluster v1.36.1, mirror health, 7 CRDs, 3 operator deployments Ready, ClickHouse HA Completed & Ready, ClickHouse Keeper Ready, OpenTelemetry Gateway & Node DaemonSet Ready, Sample Instrumented Service Ready, SigNoz UI & Collector Ready, 100% mirrored image origins)
+- **Full suite + check-architecture**: PASS — `scripts/verify.sh` green (all 13 steps: check-architecture + test-edge-cases + test-clickhouse-tiering + test-clickhouse-edge-cases + test-otel-pipeline + test-otel-edge-cases + test-correlation + test-correlation-edge-cases + test-redaction + test-redaction-edge-cases + test-signoz + test-signoz-edge-cases + init)
+- **E2E**: PASS — SigNoz APM, traces, logs query, and air-gap verification green.
+- **Git**: branch `feat/F006` -> ready to commit
 
 ## Next step
-Write sprint contract for F006 (`verification/sprint-contract.md`), then deploy SigNoz
-(frontend, query-service) into `argus-system` connected to our existing ClickHouse HA cluster:
-- Mirror latest verified SigNoz images (`signoz/frontend`, `signoz/query-service`) to `localhost:5001/argus/*`.
-- Deploy SigNoz pointing to `clickhouse-argus-clickhouse:9000` with user `default` and password `argus123`.
-- Verify SigNoz UI and API read traces, logs, and metrics directly from ClickHouse.
+Begin Feature F007 — Zero-code auto-instrumentation via OTel Operator annotation + onboarding runbook for app teams:
+- Create `Instrumentation` CR for auto-instrumentation (Python/Java/Node) in `deploy/otel/instrumentation.yaml`.
+- Add auto-instrumentation pod annotation to sample workload.
+- Verify traces and metrics appear in SigNoz without manual code instrumentation.
+- Write runbook for application teams.
 See CURRENT_TASK.md.
 
 ## Open blockers

@@ -91,6 +91,12 @@ echo "    Simulating node failure: killing pod '${POD}'..."
 kubectl delete pod "${POD}" -n "${NAMESPACE}" --wait=true
 
 echo "    Awaiting replacement pod restart and readiness..."
+for _ in $(seq 1 30); do
+  if kubectl get "pod/${POD}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
 kubectl wait --for=condition=Ready "pod/${POD}" -n "${NAMESPACE}" --timeout=120s
 
 echo "    Querying surviving data after pod restart..."

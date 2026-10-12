@@ -1,0 +1,71 @@
+[
+  {
+    "startTimestampMillis": 1791827188890,
+    "endTimestampMillis": 1791827188980,
+    "columns": [
+      "__time",
+      "SpanId",
+      "TraceId",
+      "ServiceName",
+      "Name",
+      "Kind",
+      "DurationNano",
+      "TagsKeys",
+      "TagsValues",
+      "References",
+      "Events",
+      "HasError",
+      "StatusMessage",
+      "StatusCodeString",
+      "SpanKind"
+    ],
+    "events": [
+      [
+        1791827188935,
+        "9b4070154ab13ca8",
+        "14fefb4976baf6925e4f717881dff62c",
+        "argus-sample-service",
+        "process_order",
+        "1",
+        "45000000",
+        [
+          "k8s.pod.uid",
+          "service.name",
+          "service.version",
+          "order.amount",
+          "k8s.node.name",
+          "k8s.deployment.name",
+          "k8s.namespace.name",
+          "order.id",
+          "order.currency",
+          "http.method",
+          "http.target",
+          "k8s.pod.name"
+        ],
+        [
+          "389e3f34-d6b4-4391-9aab-84b31a018fae",
+          "argus-sample-service",
+          "1.0.0",
+          "99.99",
+          "docker-desktop",
+          "argus-sample-service",
+          "argus-system",
+          "test-1234",
+          "USD",
+          "POST",
+          "/order",
+          "argus-sample-service-54446bd8c7-8pm9v"
+        ],
+        [
+          "{TraceId=14fefb4976baf6925e4f717881dff62c, SpanId=, RefType=CHILD_OF}"
+        ],
+        [],
+        false,
+        "",
+        "Ok",
+        "Internal"
+      ]
+    ],
+    "isSubTree": false
+  }
+]

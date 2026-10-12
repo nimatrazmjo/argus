@@ -1,0 +1,210 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: signoz-otel-collector-config
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: signoz-otel-collector
+    app.kubernetes.io/part-of: argus
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch:
+        send_batch_size: 10000
+        timeout: 1s
+      batch/meter:
+        send_batch_size: 5000
+        timeout: 1s
+      signozspanmetrics/delta:
+        metrics_exporter: signozclickhousemetrics
+        latency_histogram_buckets: [100us, 1ms, 2ms, 6ms, 10ms, 50ms, 100ms, 250ms, 500ms, 1000ms, 2000ms, 5s, 10s]
+        dimensions_cache_size: 50000
+        dimensions:
+          - name: service.namespace
+            default: default
+          - name: deployment.environment
+            default: default
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+      signozspanmapper:
+        groups: []
+      signozllmpricing:
+        attrs:
+          model: gen_ai.request.model
+          in: gen_ai.usage.input_tokens
+          out: gen_ai.usage.output_tokens
+          cache_read: gen_ai.usage.cache_read.input_tokens
+          cache_write: gen_ai.usage.cache_creation.input_tokens
+        default_pricing:
+          rules: []
+        output_attrs:
+          in: signoz.gen_ai.usage.input_tokens.cost
+          out: signoz.gen_ai.usage.output_tokens.cost
+          cache_read: signoz.gen_ai.usage.cache_read.input_tokens.cost
+          cache_write: signoz.gen_ai.usage.cache_write.input_tokens.cost
+          total: signoz.gen_ai.usage.tokens.cost
+
+    connectors:
+      signozmeter:
+        metrics_flush_interval: 1h
+        dimensions:
+          - name: service.name
+          - name: deployment.environment
+          - name: host.name
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
+    exporters:
+      clickhousetraces:
+        datasource: tcp://default:argus123@clickhouse-argus-clickhouse:9000/signoz_traces
+        low_cardinal_exception_grouping: false
+        use_new_schema: true
+      signozclickhousemetrics:
+        dsn: tcp://default:argus123@clickhouse-argus-clickhouse:9000/signoz_metrics
+        timeout: 45s
+      clickhouselogsexporter:
+        dsn: tcp://default:argus123@clickhouse-argus-clickhouse:9000/signoz_logs
+        timeout: 10s
+        use_new_schema: true
+      metadataexporter:
+        enabled: true
+        dsn: tcp://default:argus123@clickhouse-argus-clickhouse:9000/signoz_metadata
+        timeout: 10s
+        tenant_id: default
+        cache:
+          provider: in_memory
+      signozclickhousemeter:
+        dsn: tcp://default:argus123@clickhouse-argus-clickhouse:9000/signoz_meter
+        timeout: 45s
+        sending_queue:
+          enabled: false
+
+    service:
+      telemetry:
+        logs:
+          encoding: json
+      extensions: [health_check]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [signozspanmetrics/delta, signozspanmapper, signozllmpricing, batch]
+          exporters: [clickhousetraces, metadataexporter, signozmeter]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [metadataexporter, signozclickhousemetrics, signozmeter]
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [clickhouselogsexporter, metadataexporter, signozmeter]
+        metrics/meter:
+          receivers: [signozmeter]
+          processors: [batch/meter]
+          exporters: [signozclickhousemeter]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signoz-otel-collector
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: signoz-otel-collector
+    app.kubernetes.io/part-of: argus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: signoz-otel-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: signoz-otel-collector
+        app.kubernetes.io/part-of: argus
+    spec:
+      containers:
+        - name: signoz-otel-collector
+          image: localhost:5001/argus/signoz-otel-collector:v0.144.13
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--config=/etc/otel/config.yaml"
+          env:
+            - name: CLICKHOUSE_HOST
+              value: "clickhouse-argus-clickhouse"
+            - name: CLICKHOUSE_PORT
+              value: "9000"
+            - name: CLICKHOUSE_USER
+              value: "default"
+            - name: CLICKHOUSE_PASSWORD
+              value: "argus123"
+            - name: CLICKHOUSE_DATABASE
+              value: "signoz_metrics"
+            - name: CLICKHOUSE_TRACE_DATABASE
+              value: "signoz_traces"
+            - name: CLICKHOUSE_LOG_DATABASE
+              value: "signoz_logs"
+            - name: CLICKHOUSE_METER_DATABASE
+              value: "signoz_meter"
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+            - name: health-check
+              containerPort: 13133
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otel
+          resources:
+            requests:
+              cpu: 100m
+              memory: 200Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: config
+          configMap:
+            name: signoz-otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: signoz-otel-collector
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: signoz-otel-collector
+    app.kubernetes.io/part-of: argus
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: signoz-otel-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP

@@ -15,9 +15,13 @@ quay.io/prometheus-operator/admission-webhook:v0.94.1
 ghcr.io/jkroepke/kube-webhook-certgen:1.8.9
 
 # ClickHouse Server & S3 Cold Storage
-clickhouse/clickhouse-server:24.8.4.13
+clickhouse/clickhouse-server:25.12.5
 chrislusf/seaweedfs:latest
 
 # Base Images & Sample Microservices
 python:3.12-alpine
 localhost:5001/argus/sample-service:1.0.0
+
+# SigNoz APM, Traces, Logs & Dashboards
+signoz/signoz:v0.145.0
+signoz/signoz-otel-collector:v0.144.13

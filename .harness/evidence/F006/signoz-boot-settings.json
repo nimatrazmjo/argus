@@ -1,0 +1,22 @@
+{
+  "posthog": {
+    "enabled": false,
+    "key": "",
+    "apiHost": "",
+    "uiHost": ""
+  },
+  "appcues": {
+    "enabled": false,
+    "appId": ""
+  },
+  "sentry": {
+    "enabled": false,
+    "dsn": "",
+    "tunnel": ""
+  },
+  "pylon": {
+    "enabled": false,
+    "appId": "",
+    "identitySecret": ""
+  }
+}
