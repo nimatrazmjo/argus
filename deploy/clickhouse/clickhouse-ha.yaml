@@ -1,0 +1,69 @@
+apiVersion: "clickhouse.altinity.com/v1"
+kind: "ClickHouseInstallation"
+metadata:
+  name: "argus-clickhouse"
+  namespace: "argus-system"
+spec:
+  defaults:
+    templates:
+      podTemplate: clickhouse-template
+      dataVolumeClaimTemplate: data-storage
+  configuration:
+    zookeeper:
+      nodes:
+        - host: chk-argus-keeper-keeper-cluster-0-0
+          port: 2181
+    users:
+      default/password: "argus123"
+      default/networks/ip: "::/0"
+    files:
+      storage.xml: |
+        <clickhouse>
+          <storage_configuration>
+            <disks>
+              <default>
+                <type>local</type>
+              </default>
+              <s3_cold>
+                <type>s3</type>
+                <endpoint>http://argus-s3.argus-system.svc.cluster.local:8333/argus-cold-storage/data/</endpoint>
+                <access_key_id>any</access_key_id>
+                <secret_access_key>any</secret_access_key>
+              </s3_cold>
+            </disks>
+            <policies>
+              <tiered_hot_cold>
+                <volumes>
+                  <hot>
+                    <disk>default</disk>
+                  </hot>
+                  <cold>
+                    <disk>s3_cold</disk>
+                  </cold>
+                </volumes>
+                <move_factor>0.2</move_factor>
+              </tiered_hot_cold>
+            </policies>
+          </storage_configuration>
+        </clickhouse>
+    clusters:
+      - name: "argus-cluster"
+        layout:
+          shardsCount: 1
+          replicasCount: 2
+  templates:
+    podTemplates:
+      - name: clickhouse-template
+        spec:
+          containers:
+            - name: clickhouse
+              image: localhost:5001/argus/clickhouse-server:24.8.4.13
+              imagePullPolicy: IfNotPresent
+    volumeClaimTemplates:
+      - name: data-storage
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi

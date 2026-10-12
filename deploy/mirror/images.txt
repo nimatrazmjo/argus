@@ -12,3 +12,7 @@ quay.io/prometheus-operator/prometheus-operator:v0.94.1
 quay.io/prometheus-operator/prometheus-config-reloader:v0.94.1
 quay.io/prometheus-operator/admission-webhook:v0.94.1
 ghcr.io/jkroepke/kube-webhook-certgen:1.8.9
+
+# ClickHouse Server & S3 Cold Storage
+clickhouse/clickhouse-server:24.8.4.13
+chrislusf/seaweedfs:latest

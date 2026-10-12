@@ -11,7 +11,7 @@ echo "        ARGUS PLATFORM BASELINE READINESS (init.sh)              "
 echo "================================================================="
 
 # 1. Check Git working tree
-echo "[1/7] Inspecting git repository state..."
+echo "[1/8] Inspecting git repository state..."
 if [ -d .git ]; then
   CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
   DIRTY_COUNT=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
@@ -26,7 +26,7 @@ else
 fi
 
 # 2. Check cluster access
-echo "[2/7] Validating Kubernetes cluster connectivity..."
+echo "[2/8] Validating Kubernetes cluster connectivity..."
 if ! kubectl cluster-info >/dev/null 2>&1; then
   echo "      ERROR: Cannot connect to Kubernetes cluster." >&2
   FAILED=1
@@ -36,7 +36,7 @@ else
 fi
 
 # 3. Check internal mirror registry
-echo "[3/7] Validating air-gapped image mirror (http://${MIRROR_REGISTRY}/v2/)..."
+echo "[3/8] Validating air-gapped image mirror (http://${MIRROR_REGISTRY}/v2/)..."
 if ! curl -s -f "http://${MIRROR_REGISTRY}/v2/" >/dev/null 2>&1; then
   echo "      ERROR: Mirror registry at http://${MIRROR_REGISTRY}/v2/ is unreachable." >&2
   FAILED=1
@@ -46,7 +46,7 @@ else
 fi
 
 # 4. Check required CRDs
-echo "[4/7] Validating required Custom Resource Definitions (CRDs)..."
+echo "[4/8] Validating required Custom Resource Definitions (CRDs)..."
 REQUIRED_CRDS=(
   "opentelemetrycollectors.opentelemetry.io"
   "instrumentations.opentelemetry.io"
@@ -75,7 +75,7 @@ else
 fi
 
 # 5. Check operator Deployments in namespace
-echo "[5/7] Validating operator rollout status in namespace '${NAMESPACE}'..."
+echo "[5/8] Validating operator rollout status in namespace '${NAMESPACE}'..."
 if ! kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
   echo "      ERROR: Namespace '${NAMESPACE}' does not exist." >&2
   FAILED=1
@@ -112,8 +112,40 @@ else
   done
 fi
 
-# 6. Audit pod image origins (Air-gap / Mirror compliance)
-echo "[6/7] Auditing image origins (air-gap compliance)..."
+# 6. Check ClickHouse & Keeper component readiness (if deployed)
+echo "[6/8] Validating ClickHouse HA and Keeper readiness (if deployed)..."
+if kubectl get chi argus-clickhouse -n "${NAMESPACE}" >/dev/null 2>&1; then
+  CHI_STATUS=$(kubectl get chi argus-clickhouse -n "${NAMESPACE}" -o jsonpath='{.status.status}' 2>/dev/null || echo "Unknown")
+  if [ "${CHI_STATUS}" == "Completed" ]; then
+    echo "      ClickHouseInstallation 'argus-clickhouse': Status Completed"
+  else
+    echo "      ERROR: ClickHouseInstallation 'argus-clickhouse' status is '${CHI_STATUS}' (expected Completed)" >&2
+    FAILED=1
+  fi
+  for ch_pod in chi-argus-clickhouse-argus-cluster-0-0-0 chi-argus-clickhouse-argus-cluster-0-1-0; do
+    if kubectl wait --for=condition=Ready "pod/${ch_pod}" -n "${NAMESPACE}" --timeout=15s >/dev/null 2>&1; then
+      echo "      Pod '${ch_pod}': Ready"
+    else
+      echo "      ERROR: Pod '${ch_pod}' is not Ready" >&2
+      FAILED=1
+    fi
+  done
+else
+  echo "      ClickHouseInstallation not deployed yet (skipping)."
+fi
+
+if kubectl get chk argus-keeper -n "${NAMESPACE}" >/dev/null 2>&1; then
+  KEEPER_READY=$(kubectl get pod -l clickhouse-keeper.altinity.com/chk=argus-keeper -n "${NAMESPACE}" -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || echo "False")
+  if [ "${KEEPER_READY}" == "True" ]; then
+    echo "      ClickHouse Keeper: Ready"
+  else
+    echo "      ERROR: ClickHouse Keeper pod is not Ready" >&2
+    FAILED=1
+  fi
+fi
+
+# 7. Audit pod image origins (Air-gap / Mirror compliance)
+echo "[7/8] Auditing image origins (air-gap compliance)..."
 UNMIRRORED_IMAGES=0
 if kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
   POD_IMAGES=$(kubectl get pods -n "${NAMESPACE}" -o jsonpath='{range .items[*].spec.containers[*]}{.image}{"\n"}{end}' 2>/dev/null || true)
@@ -138,8 +170,8 @@ if kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
   fi
 fi
 
-# 7. Check architecture boundaries & Roadmap hygiene
-echo "[7/7] Checking architecture boundaries and roadmap consistency..."
+# 8. Check architecture boundaries & Roadmap hygiene
+echo "[8/8] Checking architecture boundaries and roadmap consistency..."
 if [ -f "scripts/check-architecture.sh" ]; then
   ./scripts/check-architecture.sh
 fi

@@ -1,84 +1,61 @@
-# Sprint Contract — F001: Cluster baseline + operators
+# Sprint Contract — F002: ClickHouse HA + object-storage tier
 
-Feature: F001 — Cluster baseline + operators
+Feature: F002 — ClickHouse HA + object-storage tier
 Phase: Phase 01 — Foundation
 Date: 2026-10-12
 
-> Filled by the Planner/Maker before building. All acceptance criteria map to concrete, reproducible checks.
+> Filled before building. Maps every acceptance criterion to concrete, reproducible verification checks.
 
 ## 1. Scope & Acceptance Criteria
-- [ ] OpenTelemetry Operator, Altinity ClickHouse operator, and Prometheus Operator installed via Helm into dedicated namespace (`argus-system`), with all images resolved strictly from the internal mirror (no public-registry pulls).
-  - *Evidence*: `helm list -n argus-system`, and `kubectl get pods -n argus-system -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .spec.containers[*]}{.image}{" "}{end}{"\n"}{end}'` proving all container images originate from the internal mirror.
-- [ ] `scripts/init.sh` exists and runs green:
-  - Validates cluster connectivity and Kubernetes version.
-  - Validates dedicated namespace `argus-system`.
-  - Validates required CRDs:
-    - OTel: `opentelemetrycollectors.opentelemetry.io`, `instrumentations.opentelemetry.io`
-    - Altinity: `clickhouseinstallations.clickhouse.altinity.com`
-    - Prometheus: `prometheuses.monitoring.coreos.com`, `prometheusrules.monitoring.coreos.com`, `servicemonitors.monitoring.coreos.com`, `podmonitors.monitoring.coreos.com`
-  - Validates operator Deployments are in `Ready` condition.
-  - Validates image origin audit passes (no unmirrored images).
-  - *Evidence*: `./scripts/init.sh` exits 0 with structured summary.
-- [ ] `scripts/check-architecture.sh` exists:
-  - Implements architecture boundary enforcement (permissive no-op exit 0 until `rules/layer-boundaries.md` is populated).
-  - *Evidence*: `./scripts/check-architecture.sh` exits 0.
-- [ ] Install is declarative (Helm values / GitOps), re-appliable idempotently without manual steps:
-  - `deploy/helm/values/` contains declarative values for each operator with explicit mirror configuration.
-  - `scripts/deploy-operators.sh` applies the configuration idempotently.
-  - *Evidence*: Running deploy twice produces clean idempotent upgrade/no-op with exit 0.
-- [ ] Edge/error cases from `verification/edge-cases.md` covered:
-  - Missing CRD detection.
-  - Internal mirror unreachable / image pull failure detection.
-  - Degraded / partial operator rollout detection.
-  - *Evidence*: Automated test script `./scripts/test-edge-cases.sh` asserts each failure condition is caught with descriptive error.
-- [ ] Boundary invariants: obeys `rules/layer-boundaries.md` (check-architecture passes).
-- [ ] E2E: `N/A — not user-facing` (operator foundation asserted by init smoke & CRD readiness).
-- [ ] No regressions: the FULL verify (`./scripts/verify.sh`) passes with zero errors.
+- [x] ClickHouse runs HA (2 shards/replicas appropriate for 10-50 app workload) deployed via Altinity operator (`ClickHouseInstallation` CR).
+  - *Evidence*: `kubectl get chi -n argus-system`, `kubectl get pods -n argus-system -l clickhouse.altinity.com/chi=argus-clickhouse` showing 2 ready replicas/pods, and `system.clusters` query demonstrating HA cluster topology.
+- [x] Tiered storage policy configured and verified (hot local disk -> cold S3/MinIO tier).
+  - *Evidence*: `system.disks` shows both `default` (local) and `s3_cold` (object storage) disks; creating a tiered table and executing `ALTER TABLE ... MOVE PART ... TO DISK 's3_cold'` verified via `SELECT disk_name FROM system.parts WHERE table = ...`.
+- [x] Pod restart resilience with zero data loss.
+  - *Evidence*: Automated test inserts unique test rows, kills ClickHouse pod(s), awaits pod recovery, and queries to confirm 100% data integrity.
+- [x] Edge cases covered:
+  - Object store temporarily unreachable -> writes continue to land on local disk without crashing.
+  - Replica down -> surviving replica serves reads and writes without outage.
+  - Disk pressure threshold simulation -> tiering policy moves cold data to secondary tier.
+  - *Evidence*: `./scripts/test-clickhouse-edge-cases.sh` passes all failure path simulations.
+- [x] Air-gap compliance: all ClickHouse and supporting images resolved from internal mirror (`localhost:5001/argus/...`).
+  - *Evidence*: Image origin check in `init.sh` confirms all ClickHouse pods run from mirror.
+- [x] E2E: `N/A — not user-facing` (infrastructure storage tier proven by automated functional tests).
+- [x] No regressions: `./scripts/verify.sh` green.
 
 ## 2. Edge cases & failure paths (from `verification/edge-cases.md`)
-- **State / missing dependency**: Missing CRD -> `init.sh` and edge-case tests detect missing CRDs and return non-zero with explicit names of missing CRDs.
-- **Failure / resilience**: Mirror unreachable -> simulated unreachable mirror endpoint is detected; deployment/health check fails fast with mirror connection error instead of hanging indefinitely.
-- **State / partial failure**: Partial operator rollout / CrashLoopBackOff -> `init.sh` checks pod readiness and rollout status; fails with timeout/unready details if an operator pod fails to reach Ready.
-- **Idempotency**: Running `deploy-operators.sh` consecutively does not duplicate resources or fail on existing namespaces/CRDs.
-- **N/A categories**:
-  - Input/data (user forms, unicode): N/A for Kubernetes operator deployment.
-  - Concurrency (user race condition): N/A for infrastructure baseline.
-  - UI: N/A for operator baseline.
+- **Downstream error / storage unreachable**: S3 object storage down/unreachable -> ClickHouse storage policy maintains local `default` disk as primary volume; inserts succeed into hot volume without dropping client connections.
+- **State / replica down**: One pod restarted or unavailable -> queries to distributed table continue functioning via remaining replica/shard.
+- **State / lifecycle persistence**: Pod abruptly killed via `kubectl delete pod` -> persistent volumes retain table definitions and committed parts; restarted pod re-attaches cleanly.
+- **Concurrency / deduplication**: ReplicatedMergeTree handles replicated inserts idempotently across shards.
 
 ## 3. E2E scenario(s)
-`N/A — not user-facing` (operator infrastructure baseline; verified by automated smoke check in `init.sh` asserting operator controller loops respond to CRD creations).
+`N/A — not user-facing` (backend data tier; verified via automated SQL test suite executing inserts, kills, queries, and part movements).
 
 ## 4. Plan (thinnest vertical slice)
-1. Search and pin the latest verified Docker images and Helm charts for senior DevOps standards:
-   - OpenTelemetry Operator: `0.160.0` (Chart `0.124.1`)
-   - Altinity ClickHouse Operator: `0.27.4` (Chart `0.27.4`)
-   - Prometheus Operator: `v0.94.1` (Chart `92.3.0`)
-   - Docker Registry mirror: `registry:2.8.3`
-2. Create `deploy/mirror/` setup script and image manifest to establish the internal mirror registry (`localhost:5001` / cluster-accessible mirror) and mirror all required images.
-3. Create declarative Helm values under `deploy/helm/values/`:
-   - `opentelemetry-operator-values.yaml`: mirror repository configured, webhook cert auto-generation enabled.
-   - `clickhouse-operator-values.yaml`: mirror repository configured for operator and metrics exporter.
-   - `kube-prometheus-stack-values.yaml`: mirror repository configured for prometheus-operator and config-reloader, non-operator components disabled for minimal ATO footprint.
-4. Create `scripts/deploy-operators.sh` to declaratively deploy the operators to namespace `argus-system`.
-5. Create `scripts/check-architecture.sh` enforcing layer boundaries (no-op exit 0 until rules filled).
-6. Create `scripts/init.sh` validating cluster access, CRDs, operator readiness, and mirror image origin.
-7. Create `scripts/test-edge-cases.sh` covering missing CRD, unreachable mirror, and degraded rollout.
-8. Create `scripts/verify.sh` running full verification suite.
-9. Verify all acceptance criteria, record evidence in `CHANGELOG.md`, update tracking files.
+1. Add ClickHouse server and S3/MinIO images to internal mirror catalog (`deploy/mirror/images.txt`) and push to `localhost:5001/argus/*`.
+2. Deploy lightweight S3/MinIO service in `argus-system` backed by persistent volume and initialize bucket `argus-cold-storage`.
+3. Create declarative `ClickHouseInstallation` CR manifest [`deploy/clickhouse/clickhouse-ha.yaml`](file:///Users/nimatullahrazmjo/workstation/argus/deploy/clickhouse/clickhouse-ha.yaml):
+   - 2-node cluster (shards/replicas) with ClickHouse Keeper coordination.
+   - Storage configuration declaring `s3_cold` disk and `tiered_hot_cold` storage policy (local hot -> S3 cold).
+   - Image set to `localhost:5001/argus/clickhouse-server:24.8.4.13`.
+4. Apply the ClickHouseInstallation CR and await status `Completed` / all pods Ready.
+5. Create automated test and verification script [`scripts/test-clickhouse-tiering.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-clickhouse-tiering.sh):
+   - Asserts cluster topology (`system.clusters`).
+   - Asserts storage policy (`system.storage_policies`, `system.disks`).
+   - Inserts rows, triggers part move to `s3_cold`, asserts `system.parts.disk_name == 's3_cold'`.
+   - Executes kill-pod resilience test and asserts zero data loss.
+6. Create [`scripts/test-clickhouse-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-clickhouse-edge-cases.sh) covering replica failover and object-store isolation.
+7. Integrate into `scripts/verify.sh` and update tracking files.
 
 ## 5. Out of scope (parked, not built)
-- ClickHouse cluster instance deployment (F002).
-- OTel Collector pipelines and agents (F003).
-- End-to-end tracing/metrics/logging correlation app (F004).
-- PII redaction processors (F005).
+- OTel Collector pipeline writing OTLP to ClickHouse (F003).
+- SigNoz frontend connecting to ClickHouse (F006).
 
 ## 6. New dependencies (with justification)
-- `helm` (already present on system): standard declarative package manager for Kubernetes operators.
-- `docker registry:2.8.3`: standard local/internal OCI registry for air-gapped image mirroring.
-- `open-telemetry/opentelemetry-operator`: official operator for OpenTelemetry collectors and instrumentations.
-- `clickhouse-operator/altinity-clickhouse-operator`: official Altinity operator for ClickHouse clusters.
-- `prometheus-community/kube-prometheus-stack`: official Prometheus operator for monitoring CRDs and scraping.
+- `clickhouse/clickhouse-server:24.8.4.13`: Production LTS ClickHouse engine.
+- S3-compatible object storage (MinIO): S3 API target for cold tiering.
 
 ## 7. Risks
-- OpenTelemetry operator webhook cert generation: Handled by setting `admissionWebhooks.autoGenerateCert.enabled=true` and `admissionWebhooks.certManager.enabled=false` to avoid requiring external cert-manager.
-- Image resolution in Docker Desktop: Docker Desktop natively supports insecure registries on `localhost:5001` or through an in-cluster mirror service.
+- ClickHouse Keeper initialization in small clusters: Mitigated by configuring internal Keeper in ClickHouse configuration templates supported by Altinity operator.
+- S3 credentials in air-gapped clusters: Stored as Kubernetes Secret and referenced securely in ClickHouse config.

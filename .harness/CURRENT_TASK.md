@@ -1,18 +1,19 @@
 # CURRENT TASK
 
-**Feature**: F002 — ClickHouse HA + object-storage tier
+**Feature**: F003 — OTel Collector pipeline (ingest spine)
 **Phase**: Phase 01 — Foundation
 **Status**: IN PROGRESS
 
 ## Exact next step
-1. Write `verification/sprint-contract.md` for F002, mapping each acceptance item in
+1. Write `verification/sprint-contract.md` for F003, mapping each acceptance item in
    `phases/PHASE-01-FOUNDATION.md` to a concrete check.
-2. Define declarative ClickHouseInstallation CR manifest using Altinity operator schema with 2 shards/replicas.
-3. Configure local S3/MinIO tiered storage policy and automated part tiering verification.
-4. Implement resilience tests (insert -> restart pod -> verify persistence, edge cases).
+2. Check OTel Collector image (`localhost:5001/argus/opentelemetry-collector-k8s:0.160.0` or contrib with ClickHouse exporter).
+3. Create declarative OpenTelemetryCollector custom resources for node DaemonSet (cAdvisor/kubelet, filelog, OTLP receiver) and gateway Deployment (batch, k8sattributes processor, ClickHouse exporter).
+4. Verify OTLP metrics, logs, and traces flow from collector to ClickHouse with k8s resource attributes.
+5. Implement automated edge cases test battery for collector backpressure, crash loops, and malformed inputs.
 
 ## Acceptance (summary)
-See `phases/PHASE-01-FOUNDATION.md` -> F002 for full criteria and the signed
+See `phases/PHASE-01-FOUNDATION.md` -> F003 for full criteria and the signed
 `verification/sprint-contract.md` for this feature.
 
 ## Definition of done

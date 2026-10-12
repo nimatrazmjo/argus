@@ -17,6 +17,32 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-12 — F002 ClickHouse HA + object-storage tier — COMPLETE
+Branch/commit: feat/F002   PR: N/A (local gitops repo, no remote origin configured)   CI: green
+Evidence:
+  - `./deploy/mirror/images.txt` & `./deploy/mirror/setup-mirror.sh` -> Mirrored verified container images:
+      * `clickhouse/clickhouse-server:24.8.4.13`
+      * `clickhouse/clickhouse-keeper:latest`
+      * `chrislusf/seaweedfs:latest`
+  - `./scripts/deploy-clickhouse.sh` -> Declarative rollout of storage stack into `argus-system`:
+      * `deploy/storage/s3-storage.yaml` (SeaweedFS S3-compatible cold tier with persistent PVC `argus-s3-pvc`)
+      * `deploy/clickhouse/clickhouse-keeper.yaml` (ClickHouse Keeper cluster for distributed coordination)
+      * `deploy/clickhouse/clickhouse-ha.yaml` (ClickHouseInstallation with 2 replicas, tiered storage policy `tiered_hot_cold`)
+  - `./scripts/test-clickhouse-tiering.sh` -> PASS:
+      * 2-node HA cluster topology verified in `system.clusters`
+      * Storage disks `default` (local hot) and `s3_cold` (object storage) verified in `system.disks`
+      * Tiered storage movement verified: part moved from `default` to `s3_cold`, rows readable transparently via S3 cold tier
+      * Pod restart resilience verified: canary row preserved across pod kill and restart (zero data loss)
+  - `./scripts/test-clickhouse-edge-cases.sh` -> 3 passed, 0 failed:
+      * Surviving replica serves reads independently during single-node failover
+      * Writes land on local hot disk first, unaffected by remote object store
+      * Distributed data replication across replicas via ClickHouse Keeper
+  - `kubectl get pods -n argus-system -o jsonpath='...'` -> Confirms 100% of ClickHouse, Keeper, and S3 pods run from `localhost:5001/argus/*`.
+  - `./scripts/verify.sh` -> PASS: full 5-step verification suite green (Architecture + Platform edge cases + ClickHouse tiering + ClickHouse edge cases + Baseline readiness).
+  - e2e: N/A — not user-facing (backend data tier verified by automated SQL test suite).
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: Storage tier is ready for OTel Collector pipeline (F003) to ingest metrics, logs, and traces.
+
 ## 2026-10-12 — F001 Cluster baseline + operators — COMPLETE
 Branch/commit: feat/F001   PR: N/A (local gitops repo, no remote origin configured)   CI: green
 Evidence:

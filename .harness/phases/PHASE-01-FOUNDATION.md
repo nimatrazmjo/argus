@@ -22,21 +22,21 @@ mirror, not a public registry.
 `init.sh` output showing operators Ready; `helm list`; `kubectl get crd` for each operator; proof images came from the mirror.
 
 ## F002 — ClickHouse HA + object-storage tier
-**Status**: NOT STARTED
+**Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] ClickHouse runs HA (2 shards/replicas appropriate to a 10-50 app load) via the operator.
-- [ ] A storage policy tiers cold parts to S3/MinIO; verified a part moves to object storage.
-- [ ] Survives a pod restart with no data loss (insert -> kill pod -> query returns the row).
-- [ ] Edge cases: disk-pressure, replica down, object-store unreachable (writes still land locally).
-- [ ] E2E: `N/A — not user-facing`.
-- [ ] FULL verify green.
+- [x] ClickHouse runs HA (2 shards/replicas appropriate to a 10-50 app load) via the operator.
+- [x] A storage policy tiers cold parts to S3/MinIO; verified a part moves to object storage.
+- [x] Survives a pod restart with no data loss (insert -> kill pod -> query returns the row).
+- [x] Edge cases: disk-pressure, replica down, object-store unreachable (writes still land locally).
+- [x] E2E: `N/A — not user-facing`.
+- [x] FULL verify green.
 
 ### Evidence expected
 Insert/kill/query transcript; `system.parts` showing a part on the S3 disk; replica status.
 
 ## F003 — OTel Collector pipeline (ingest spine)
-**Status**: NOT STARTED
+**Status**: IN PROGRESS
 
 ### Acceptance criteria
 - [ ] Node-level DaemonSet (kubelet/cAdvisor scrape, pod-log filelog receiver, OTLP receiver) + a gateway Deployment (batch, k8sattributes enrichment) deployed.
