@@ -12,7 +12,7 @@
 - **init**: PASS — `scripts/init.sh` green (validates cluster v1.36.1, mirror health, 7 CRDs, 3 operator deployments Ready, image origins)
 - **Full suite + check-architecture**: PASS — `scripts/verify.sh` green (check-architecture + test-edge-cases + init)
 - **E2E**: N/A — not user-facing (operator infrastructure baseline verified by init smoke and CRD presence)
-- **Git**: branch `feat/F001`
+- **Git**: branch `feat/F001`, commit `278a75d` — working tree clean
 
 ## Next step
 Write the sprint contract for F002 (`verification/sprint-contract.md`), then implement
