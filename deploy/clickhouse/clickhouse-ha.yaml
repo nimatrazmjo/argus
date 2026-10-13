@@ -94,6 +94,29 @@ spec:
             - name: clickhouse
               image: localhost:5001/argus/clickhouse-server:25.12.5
               imagePullPolicy: IfNotPresent
+              resources:
+                requests:
+                  cpu: 200m
+                  memory: 512Mi
+                limits:
+                  cpu: "2"
+                  memory: 2560Mi
+              livenessProbe:
+                httpGet:
+                  path: /ping
+                  port: 8123
+                initialDelaySeconds: 120
+                periodSeconds: 10
+                timeoutSeconds: 5
+                failureThreshold: 30
+              readinessProbe:
+                httpGet:
+                  path: /ping
+                  port: 8123
+                initialDelaySeconds: 30
+                periodSeconds: 5
+                timeoutSeconds: 5
+                failureThreshold: 15
     volumeClaimTemplates:
       - name: data-storage
         spec:

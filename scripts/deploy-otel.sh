@@ -35,9 +35,13 @@ kubectl apply -f deploy/otel/gateway.yaml
 kubectl rollout status deployment/argus-gateway-collector -n "${NAMESPACE}" --timeout=120s
 
 # 5. Deploy Node DaemonSet Collector
-echo "--> [5/5] Deploying OpenTelemetry Node DaemonSet Collector..."
+echo "--> [5/6] Deploying OpenTelemetry Node DaemonSet Collector..."
 kubectl apply -f deploy/otel/node-daemonset.yaml
 kubectl rollout status daemonset/argus-node-collector-collector -n "${NAMESPACE}" --timeout=120s
+
+# 6. Deploy Instrumentation Custom Resources
+echo "--> [6/6] Applying OpenTelemetry Instrumentation Custom Resources..."
+kubectl apply -f deploy/otel/instrumentation.yaml
 
 echo "================================================================="
 echo "STATUS: PASS — OpenTelemetry Collector pipeline deployed successfully."

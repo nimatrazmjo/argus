@@ -1,0 +1,17 @@
+=================================================================
+   ARGUS AUTO-INSTRUMENTATION EDGE CASES & FAILURE PATHS BATTERY 
+=================================================================
+--> [1/5] Edge Case: Unsupported language annotation...
+    PASS: Pod handled cleanly by mutating webhook (0 init containers injected for unsupported lang).
+--> [2/5] Edge Case: Annotation typo / non-existent Instrumentation CR...
+    PASS: Non-existent CR safely ignored by webhook without disruption (injected: 0).
+--> [3/5] Edge Case: Verification of init-container resource bounds...
+    PASS: Init container bounds strictly enforced (CPU limit: 1, Memory limit: 512Mi).
+--> [4/5] Edge Case: Workload resilience during collector unavailability...
+Defaulted container "auto-service" out of: auto-service, opentelemetry-auto-instrumentation-python (init)
+    PASS: Application served HTTP 200 without blocking or crashing when collector was unreachable.
+--> [5/5] Edge Case: Auto-instrumentation across namespace boundaries...
+    PASS: Injected auto-agent in 'default' namespace using air-gapped image (localhost:5001/argus/autoinstrumentation-python:0.65b0).
+=================================================================
+STATUS: PASS — All Auto-Instrumentation edge cases passed.
+=================================================================

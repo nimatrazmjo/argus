@@ -17,6 +17,29 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-13 — F007 Zero-Code Auto-Instrumentation & Service Onboarding Runbook — COMPLETE
+Branch/commit: feat/F007   PR: N/A (local gitops repo, no remote origin configured)   CI: green
+Evidence:
+  - Air-gapped Mirror Registry:
+      * `ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.65b0` -> `localhost:5001/argus/autoinstrumentation-python:0.65b0`
+      * `ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0` -> `localhost:5001/argus/autoinstrumentation-nodejs:0.78.0`
+      * `ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2` -> `localhost:5001/argus/autoinstrumentation-java:2`
+      * `localhost:5001/argus/auto-service:1.0.0` (un-instrumented sample python microservice)
+  - Declarative Instrumentation Custom Resource:
+      * `deploy/otel/instrumentation.yaml` configured in `argus-system` and `default`.
+      * Targets gateway exporter at `http://argus-gateway-collector.argus-system.svc.cluster.local:4318`.
+      * Injects safe resource limits (100m CPU, 128Mi RAM) and w3c tracecontext/baggage propagators.
+  - Zero-Code Onboarding Runbook & Microservice:
+      * `docs/runbooks/service-onboarding.md` (one-line copy-paste guide for Python, Node.js, Java workloads with verification and troubleshooting steps).
+      * `deploy/sample-app/auto-instrumented-service.yaml` and `deploy/sample-app/auto-app/` with annotation `instrumentation.opentelemetry.io/inject-python: "true"`.
+  - Functional Tests & Evidence:
+      * `./scripts/test-auto-instrumentation.sh` -> PASS (7/7 steps: validated CR, verified mutating webhook injection of init-container and PYTHONPATH, generated synthetic HTTP transaction, verified 4 auto-instrumented spans in ClickHouse `signoz_traces.signoz_index_v3` with Trace ID, verified service discovery in SigNoz `/api/v1/services/list`, and retrieved trace by Trace ID via SigNoz API).
+      * `./scripts/test-auto-instrumentation-edge-cases.sh` -> PASS (5/5 edge cases: unsupported language annotation safely ignored, annotation typo ignored, init-container resource limits strictly enforced, workload resilience during collector downtime verified HTTP 200 without blocking or crashing, multi-namespace injection in `default` verified with air-gapped image).
+      * `./scripts/verify.sh` -> PASS: 15/15 verification steps green.
+      * Evidence captured in `.harness/evidence/F007/` (`injected-pod-spec.json`, `clickhouse-auto-spans.json`, `signoz-services-list.json`, `signoz-auto-trace.json`, `edge-cases-output.txt`).
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F007 is COMPLETE! Transitioning to F008 (eBPF safety net via Beyla for network-level service map).
+
 ## 2026-10-12 — F006 SigNoz UI over ClickHouse HA — COMPLETE
 Branch/commit: feat/F006   PR: N/A (local gitops repo, no remote origin configured)   CI: green
 Evidence:

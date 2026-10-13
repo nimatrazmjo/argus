@@ -1,0 +1,103 @@
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: argus-instrumentation
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-instrumentation
+    app.kubernetes.io/part-of: argus
+spec:
+  exporter:
+    endpoint: http://argus-gateway-collector.argus-system.svc.cluster.local:4318
+  propagators:
+    - tracecontext
+    - baggage
+    - b3
+  sampler:
+    type: parentbased_always_on
+  env:
+    - name: OTEL_EXPORTER_OTLP_INSECURE
+      value: "true"
+    - name: OTEL_PYTHON_DISABLED_INSTRUMENTATIONS
+      value: "system_metrics"
+    - name: OTEL_BSP_SCHEDULE_DELAY
+      value: "500"
+  python:
+    image: localhost:5001/argus/autoinstrumentation-python:0.65b0
+    resourceRequirements:
+      limits:
+        cpu: "1"
+        memory: 512Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  nodejs:
+    image: localhost:5001/argus/autoinstrumentation-nodejs:0.78.0
+    resourceRequirements:
+      limits:
+        cpu: "1"
+        memory: 512Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  java:
+    image: localhost:5001/argus/autoinstrumentation-java:2
+    resources:
+      limits:
+        cpu: "1"
+        memory: 512Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+---
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: argus-instrumentation
+  namespace: default
+  labels:
+    app.kubernetes.io/name: argus-instrumentation
+    app.kubernetes.io/part-of: argus
+spec:
+  exporter:
+    endpoint: http://argus-gateway-collector.argus-system.svc.cluster.local:4318
+  propagators:
+    - tracecontext
+    - baggage
+    - b3
+  sampler:
+    type: parentbased_always_on
+  env:
+    - name: OTEL_EXPORTER_OTLP_INSECURE
+      value: "true"
+    - name: OTEL_PYTHON_DISABLED_INSTRUMENTATIONS
+      value: "system_metrics"
+    - name: OTEL_BSP_SCHEDULE_DELAY
+      value: "500"
+  python:
+    image: localhost:5001/argus/autoinstrumentation-python:0.65b0
+    resourceRequirements:
+      limits:
+        cpu: "1"
+        memory: 512Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  nodejs:
+    image: localhost:5001/argus/autoinstrumentation-nodejs:0.78.0
+    resourceRequirements:
+      limits:
+        cpu: "1"
+        memory: 512Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  java:
+    image: localhost:5001/argus/autoinstrumentation-java:2
+    resources:
+      limits:
+        cpu: "1"
+        memory: 512Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi

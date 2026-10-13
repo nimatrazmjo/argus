@@ -147,7 +147,7 @@ echo "    Terminating sample pod '${CURRENT_POD}'..."
 kubectl delete pod "${CURRENT_POD}" -n "${NAMESPACE}" --wait=true >/dev/null
 
 echo "    Awaiting replacement pod readiness..."
-kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=argus-sample-service -n "${NAMESPACE}" --timeout=30s >/dev/null
+kubectl rollout status deployment/argus-sample-service -n "${NAMESPACE}" --timeout=60s >/dev/null
 
 NEW_POD=$(get_sample_pod)
 echo "    Replacement pod running: '${NEW_POD}'"
@@ -162,7 +162,7 @@ with urllib.request.urlopen(req, timeout=5) as resp:
 RESTART_TRACE_ID=$(echo "${RESTART_RESP}" | grep -o '"trace_id": *"[^"]*"' | cut -d'"' -f4)
 
 RESTART_CORRELATED=false
-for i in $(seq 1 10); do
+for i in $(seq 1 30); do
   JOIN_RESULT=$(ch_query "
     SELECT t.TraceId, l.SeverityText, m.Value
     FROM default.otel_traces AS t

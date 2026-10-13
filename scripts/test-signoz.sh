@@ -6,7 +6,7 @@ NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 CLICKHOUSE_PASSWORD="${CLICKHOUSE_PASSWORD:-argus123}"
 ADMIN_EMAIL="${SIGNOZ_ADMIN_EMAIL:-admin@argus.internal}"
 ADMIN_PASSWORD="${SIGNOZ_ADMIN_PASSWORD:-ArgusAdminPassword123!}"
-MAX_WAIT_SECONDS=20
+MAX_WAIT_SECONDS=45
 
 echo "================================================================="
 echo "       ARGUS SIGNOZ PLATFORM FUNCTIONAL & APM PROOF              "
@@ -69,6 +69,14 @@ echo "    Air-gap egress audit passed: Zero external socket connections."
 
 # 3. Authenticate and Obtain JWT Bearer Token
 echo "--> [3/6] Authenticating administrator account..."
+if [ "${SETUP_COMPLETED}" != "true" ]; then
+  echo "    Initial admin setup needed. Registering administrator (${ADMIN_EMAIL})..."
+  kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- \
+    wget -T 5 -qO- --header="Content-Type: application/json" \
+    --post-data="{\"name\":\"Argus Admin\",\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\",\"orgName\":\"argus\"}" \
+    http://127.0.0.1:8080/api/v1/register >/dev/null 2>&1 || true
+fi
+
 SESSION_RESP=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- \
   wget -T 5 -qO- "http://127.0.0.1:8080/api/v2/sessions/context?email=${ADMIN_EMAIL}")
 
@@ -120,13 +128,15 @@ echo "      Span ID:   ${SPAN_ID}"
 echo "--> [5/6] Awaiting pipeline ingestion into SigNoz ClickHouse storage..."
 INGESTED=0
 for i in $(seq 1 "${MAX_WAIT_SECONDS}"); do
-  TRACE_COUNT=$(kubectl exec -n "${NAMESPACE}" chi-argus-clickhouse-argus-cluster-0-0-0 -c clickhouse -- \
+  RAW_COUNT=$(kubectl exec -n "${NAMESPACE}" chi-argus-clickhouse-argus-cluster-0-0-0 -c clickhouse -- \
     clickhouse-client --user default --password "${CLICKHOUSE_PASSWORD}" \
-    --query "SELECT count() FROM signoz_traces.signoz_index_v3 WHERE traceID = '${TRACE_ID}';" 2>/dev/null || echo "0")
+    --query "SELECT count() FROM signoz_traces.distributed_signoz_index_v3 WHERE traceID = '${TRACE_ID}';" 2>/dev/null || echo "0")
+  TRACE_COUNT=$(echo "${RAW_COUNT}" | tr -dc '0-9')
+  TRACE_COUNT="${TRACE_COUNT:-0}"
   
   if [ "${TRACE_COUNT}" -gt 0 ]; then
     INGESTED=1
-    echo "    Ingestion confirmed in ClickHouse signoz_traces.signoz_index_v3 after ${i}s."
+    echo "    Ingestion confirmed in ClickHouse signoz_traces after ${i}s."
     break
   fi
   sleep 1

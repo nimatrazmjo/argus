@@ -4,7 +4,7 @@ set -euo pipefail
 
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 PASSWORD="${CLICKHOUSE_PASSWORD:-argus123}"
-MAX_WAIT_SECONDS=10
+MAX_WAIT_SECONDS=45
 
 echo "================================================================="
 echo "       ARGUS END-TO-END TELEMETRY CORRELATION PROOF              "

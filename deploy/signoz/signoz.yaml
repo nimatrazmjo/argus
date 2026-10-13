@@ -83,7 +83,20 @@ spec:
               memory: 1Gi
       volumes:
         - name: signoz-db
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: signoz-storage
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: signoz-storage
+  namespace: argus-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 ---
 apiVersion: v1
 kind: Service

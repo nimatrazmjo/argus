@@ -20,6 +20,16 @@ fi
 INITIAL_RESTARTS=$(kubectl get pod "${SIGNOZ_POD}" -n "${NAMESPACE}" -o jsonpath='{.status.containerStatuses[0].restartCount}')
 
 # Authenticate to get token
+SETUP_STATUS=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- \
+  wget -T 3 -qO- http://127.0.0.1:8080/api/v1/version 2>/dev/null || echo "{}")
+IS_SETUP=$(echo "${SETUP_STATUS}" | jq -r '.setupCompleted // false' 2>/dev/null || echo "false")
+if [ "${IS_SETUP}" != "true" ]; then
+  kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- \
+    wget -T 5 -qO- --header="Content-Type: application/json" \
+    --post-data="{\"name\":\"Argus Admin\",\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\",\"orgName\":\"argus\"}" \
+    http://127.0.0.1:8080/api/v1/register >/dev/null 2>&1 || true
+fi
+
 SESSION_RESP=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- \
   wget -T 5 -qO- "http://127.0.0.1:8080/api/v2/sessions/context?email=${ADMIN_EMAIL}")
 ORG_ID=$(echo "${SESSION_RESP}" | jq -r '.data.orgs[0].id // empty')

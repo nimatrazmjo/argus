@@ -15,14 +15,14 @@ service a one-line change. Depends on a green Phase 01 spine.
 UI screenshots/paths under `.harness/evidence/F006/`; egress check output.
 
 ## F007 — Zero-code auto-instrumentation + onboarding runbook
-**Status**: NOT STARTED
+**Status**: COMPLETE
 ### Acceptance criteria
-- [ ] An `Instrumentation` CR is configured so a single pod annotation injects the OTel auto-agent (at least one language end to end, e.g. python/java/node).
-- [ ] Onboarding a new service = add one annotation + redeploy; the service appears in the UI with traces and k8s metadata, no code change.
-- [ ] A runbook for app teams documents the one-line step.
-- [ ] Edge cases: unsupported language (fails gracefully, documented), annotation typo, sidecar resource limits.
-- [ ] E2E: annotate a fresh sample app -> it appears in the UI.
-- [ ] FULL verify green.
+- [x] An `Instrumentation` CR is configured so a single pod annotation injects the OTel auto-agent (at least one language end to end, e.g. python/java/node).
+- [x] Onboarding a new service = add one annotation + redeploy; the service appears in the UI with traces and k8s metadata, no code change.
+- [x] A runbook for app teams documents the one-line step.
+- [x] Edge cases: unsupported language (fails gracefully, documented), annotation typo, sidecar resource limits.
+- [x] E2E: annotate a fresh sample app -> it appears in the UI.
+- [x] FULL verify green.
 ### Evidence expected
 Before/after of the annotated workload; the runbook; e2e onboarding test.
 

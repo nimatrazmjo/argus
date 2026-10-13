@@ -1,22 +1,19 @@
 # CURRENT TASK
 
-**Feature**: F006 — SigNoz UI over ClickHouse
+**Feature**: F008 — eBPF safety net (Beyla or Pixie): network-level service map for un-annotated services
 **Phase**: Phase 02 — Coverage
-**Status**: COMPLETE
+**Status**: IN PROGRESS
 
-## Completed steps
-1. Sprint contract written in `verification/sprint-contract.md`.
-2. Verified latest images mirrored to air-gapped registry `localhost:5001/argus/*`:
-   - `signoz/signoz:v0.145.0`
-   - `signoz/signoz-otel-collector:v0.144.13`
-   - `clickhouse/clickhouse-server:25.12.5`
-3. ClickHouse HA cluster upgraded to 25.12.5 with `cluster` alias, inter-node auth, and experimental JSON settings.
-4. SigNoz schema migrations executed cleanly across all signal tables (`signoz_traces`, `signoz_logs`, `signoz_metrics`, `signoz_meter`, `signoz_metadata`, `signoz_analytics`).
-5. SigNoz collector (`deploy/signoz/signoz-otel-collector.yaml`) and SigNoz server (`deploy/signoz/signoz.yaml`) deployed and running healthy.
-6. OpenTelemetry Gateway configured to forward redacted telemetry to SigNoz collector.
-7. Declarative deployer `scripts/deploy-signoz.sh`, functional verification `scripts/test-signoz.sh`, and edge cases `scripts/test-signoz-edge-cases.sh` implemented and passing.
-8. Full 13-step `./scripts/verify.sh` test suite green with zero regressions.
-9. Verification evidence captured in `.harness/evidence/F006/`.
+## Active Work
+1. [x] Complete F007: Zero-code auto-instrumentation via OTel Operator + onboarding runbook (100% green).
+2. [x] Pre-flight architectural research for F008 (Beyla vs Pixie ADR, image catalog, DaemonSet specs, eBPF security contexts).
+3. [ ] Commit F007 on branch `feat/F007`.
+4. [ ] Checkout branch `feat/F008`.
+5. [ ] Mirror Beyla image (`grafana/beyla:2.2.4` -> `localhost:5001/argus/beyla:2.2.4`) and update `deploy/mirror/images.txt`.
+6. [ ] Record ADR-0005 (`docs/decisions/ADR-0005-ebpf-safety-net-beyla.md`).
+7. [ ] Deploy Beyla DaemonSet (`deploy/ebpf/beyla.yaml`).
+8. [ ] Implement verification test scripts (`scripts/test-ebpf.sh` and `scripts/test-ebpf-edge-cases.sh`) and add to `scripts/verify.sh`.
+9. [ ] Run full 17-step `./scripts/verify.sh` and capture evidence in `.harness/evidence/F008/`.
 
-## Next step
-Commit F006 on branch `feat/F006`, merge or advance to next feature `F007` (Zero-code auto-instrumentation via OTel Operator annotation + onboarding runbook for app teams).
+## Next immediate step
+Commit `feat/F007` and branch to `feat/F008`.

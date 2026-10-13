@@ -4,7 +4,7 @@ All features across all phases, with permanent ids and status. This is the sourc
 for **scope**. Statuses: `NOT STARTED` · `IN PROGRESS` · `BLOCKED` · `IN REVIEW` ·
 `COMPLETE` · `DEPRECATED`.
 
-**Progress**: 6 / 21 COMPLETE (29%)
+**Progress**: 7 / 21 COMPLETE (33%)
 
 > The requirement: a self-hosted, air-gapped Datadog-equivalent for internal DHS use, running
 > entirely in Kubernetes. Spine = OpenTelemetry Collector -> ClickHouse -> SigNoz. Phases are
@@ -20,8 +20,8 @@ for **scope**. Statuses: `NOT STARTED` · `IN PROGRESS` · `BLOCKED` · `IN REVI
 
 ## Phase 02 — Coverage (see everything; onboarding is one line)
 - [x] **F006** — SigNoz deployed, reading ClickHouse: APM, logs, traces, dashboards — `COMPLETE`
-- [ ] **F007** — Zero-code auto-instrumentation via OTel Operator annotation; onboarding runbook for app teams — `NOT STARTED`
-- [ ] **F008** — eBPF safety net (Beyla or Pixie): network-level service map for un-annotated services — `NOT STARTED`
+- [x] **F007** — Zero-code auto-instrumentation via OTel Operator annotation; onboarding runbook for app teams — `COMPLETE`
+- [ ] **F008** — eBPF safety net (Beyla or Pixie): network-level service map for un-annotated services — `IN PROGRESS`
 - [ ] **F009** — Infra metrics: node-exporter + kube-state-metrics into the store — `NOT STARTED`
 - [ ] **F010** — Continuous profiling (Pyroscope) — `NOT STARTED`
 

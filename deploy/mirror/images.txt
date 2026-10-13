@@ -21,7 +21,13 @@ chrislusf/seaweedfs:latest
 # Base Images & Sample Microservices
 python:3.12-alpine
 localhost:5001/argus/sample-service:1.0.0
+localhost:5001/argus/auto-service:1.0.0
 
 # SigNoz APM, Traces, Logs & Dashboards
 signoz/signoz:v0.145.0
 signoz/signoz-otel-collector:v0.144.13
+
+# OpenTelemetry Auto-Instrumentation
+ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.65b0
+ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
+ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2

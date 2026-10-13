@@ -1,0 +1,26 @@
+{
+  "name": "argus-auto-service-859fb8bfd8-rvfkp",
+  "initContainers": [
+    "opentelemetry-auto-instrumentation-python"
+  ],
+  "env": [
+    "OTEL_NODE_IP",
+    "OTEL_POD_IP",
+    "PORT",
+    "PYTHONPATH",
+    "OTEL_EXPORTER_OTLP_INSECURE",
+    "OTEL_PYTHON_DISABLED_INSTRUMENTATIONS",
+    "OTEL_BSP_SCHEDULE_DELAY",
+    "OTEL_EXPORTER_OTLP_PROTOCOL",
+    "OTEL_TRACES_EXPORTER",
+    "OTEL_METRICS_EXPORTER",
+    "OTEL_LOGS_EXPORTER",
+    "OTEL_SERVICE_NAME",
+    "OTEL_EXPORTER_OTLP_ENDPOINT",
+    "OTEL_RESOURCE_ATTRIBUTES_POD_NAME",
+    "OTEL_RESOURCE_ATTRIBUTES_NODE_NAME",
+    "OTEL_PROPAGATORS",
+    "OTEL_TRACES_SAMPLER",
+    "OTEL_RESOURCE_ATTRIBUTES"
+  ]
+}

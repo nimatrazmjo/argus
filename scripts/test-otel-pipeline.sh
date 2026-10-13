@@ -37,6 +37,13 @@ kubectl rollout status deployment/argus-gateway-collector -n "${NAMESPACE}" --ti
 kubectl rollout status daemonset/argus-node-collector-collector -n "${NAMESPACE}" --timeout=60s
 echo "    Gateway Deployment and Node DaemonSet are Ready."
 
+# Ensure ClickHouse replicated tables are active and synchronized with Keeper
+for p in "${POD_0}" "${POD_1}"; do
+  for tbl in otel_traces otel_logs otel_metrics_sum otel_metrics_gauge; do
+    kubectl exec -n "${NAMESPACE}" "${p}" -c clickhouse -- clickhouse-client --password="${PASSWORD}" --query="SYSTEM RESTORE REPLICA default.${tbl}" 2>/dev/null || true
+  done
+done
+
 # 2. Ingest and Verify Canary Trace with K8s Resource Attributes
 echo "--> [2/5] Testing OTLP Trace Ingestion and K8s Attribute Enrichment..."
 RUN_ID="$(date +%s)"

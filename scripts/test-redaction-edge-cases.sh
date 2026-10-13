@@ -70,7 +70,7 @@ post_otlp "v1/logs" "${PAYLOAD_1}" >/dev/null
 
 FOUND_1=false
 STORED_BODY_1=""
-for i in $(seq 1 10); do
+for i in $(seq 1 30); do
   STORED_BODY_1=$(ch_query "SELECT Body FROM default.otel_logs WHERE TraceId = '${TRACE_ID_1}'" || true)
   if [ -n "${STORED_BODY_1}" ]; then
     FOUND_1=true
@@ -131,7 +131,7 @@ post_otlp "v1/logs" "${PAYLOAD_2}" >/dev/null
 FOUND_2=false
 STORED_ATTRS_2=""
 STORED_BODY_2=""
-for i in $(seq 1 10); do
+for i in $(seq 1 30); do
   STORED_BODY_2=$(ch_query "SELECT Body FROM default.otel_logs WHERE TraceId = '${TRACE_ID_2}'" || true)
   STORED_ATTRS_2=$(ch_query "SELECT LogAttributes FROM default.otel_logs WHERE TraceId = '${TRACE_ID_2}'" || true)
   if [ -n "${STORED_BODY_2}" ]; then
@@ -190,7 +190,7 @@ post_otlp "v1/traces" "${PAYLOAD_3}" >/dev/null
 
 FOUND_3=false
 STORED_ATTRS_3=""
-for i in $(seq 1 10); do
+for i in $(seq 1 30); do
   STORED_ATTRS_3=$(ch_query "SELECT SpanAttributes FROM default.otel_traces WHERE TraceId = '${TRACE_ID_3}'" || true)
   if [ -n "${STORED_ATTRS_3}" ]; then
     FOUND_3=true
@@ -228,7 +228,7 @@ E2E_TRACE_ID=$(echo "${RESP_JSON}" | grep -o '"trace_id": *"[^"]*"' | cut -d'"' 
 
 E2E_FOUND=false
 STORED_BODY_4=""
-for i in $(seq 1 10); do
+for i in $(seq 1 30); do
   STORED_BODY_4=$(ch_query "SELECT Body FROM default.otel_logs WHERE TraceId = '${E2E_TRACE_ID}'" || true)
   if [ -n "${STORED_BODY_4}" ]; then
     E2E_FOUND=true

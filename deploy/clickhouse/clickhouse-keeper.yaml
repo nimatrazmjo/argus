@@ -4,14 +4,14 @@ metadata:
   name: "argus-keeper"
   namespace: "argus-system"
 spec:
-  defaults:
-    templates:
-      podTemplate: keeper-template
   configuration:
     clusters:
       - name: "keeper-cluster"
         layout:
           replicasCount: 1
+        templates:
+          podTemplate: keeper-template
+          dataVolumeClaimTemplate: keeper-storage
   templates:
     podTemplates:
       - name: keeper-template
@@ -20,3 +20,19 @@ spec:
             - name: clickhouse-keeper
               image: localhost:5001/argus/clickhouse-keeper:latest
               imagePullPolicy: IfNotPresent
+              livenessProbe:
+                httpGet:
+                  path: /ready
+                  port: 9182
+                initialDelaySeconds: 10
+                periodSeconds: 10
+                timeoutSeconds: 5
+                failureThreshold: 10
+    volumeClaimTemplates:
+      - name: keeper-storage
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi

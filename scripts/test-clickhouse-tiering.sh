@@ -16,14 +16,14 @@ ch_query() {
   local attempts=0
   local max_attempts=15
   while [ $attempts -lt $max_attempts ]; do
-    if out=$(kubectl exec -n "${NAMESPACE}" "${POD}" -c clickhouse -- clickhouse-client --password="${PASSWORD}" --query="${sql}" 2>/dev/null); then
+    if out=$(kubectl exec --request-timeout=30s -n "${NAMESPACE}" "${POD}" -c clickhouse -- clickhouse-client --receive_timeout=30 --send_timeout=30 --password="${PASSWORD}" --query="${sql}" 2>/dev/null); then
       echo "$out"
       return 0
     fi
     attempts=$((attempts + 1))
-    sleep 1
+    sleep 2
   done
-  kubectl exec -n "${NAMESPACE}" "${POD}" -c clickhouse -- clickhouse-client --password="${PASSWORD}" --query="${sql}"
+  kubectl exec --request-timeout=30s -n "${NAMESPACE}" "${POD}" -c clickhouse -- clickhouse-client --receive_timeout=30 --send_timeout=30 --password="${PASSWORD}" --query="${sql}"
 }
 
 # 1. Verify HA Cluster Topology
@@ -66,9 +66,17 @@ echo "    Initial part landed on disk: '${INITIAL_DISK}'"
 
 PART_NAME=$(ch_query "SELECT name FROM system.parts WHERE table = 'test_tiering' AND active = 1 LIMIT 1")
 echo "    Moving part '${PART_NAME}' to disk 's3_cold'..."
-ch_query "ALTER TABLE test_tiering MOVE PART '${PART_NAME}' TO DISK 's3_cold'"
+ch_query "ALTER TABLE test_tiering MOVE PART '${PART_NAME}' TO DISK 's3_cold'" || true
 
-NEW_DISK=$(ch_query "SELECT disk_name FROM system.parts WHERE table = 'test_tiering' AND active = 1 LIMIT 1")
+NEW_DISK=""
+for _ in $(seq 1 30); do
+  NEW_DISK=$(ch_query "SELECT disk_name FROM system.parts WHERE table = 'test_tiering' AND active = 1 LIMIT 1" || true)
+  if [ "$NEW_DISK" = "s3_cold" ]; then
+    break
+  fi
+  sleep 1
+done
+
 echo "    Part position after move: '${NEW_DISK}'"
 if [ "$NEW_DISK" != "s3_cold" ]; then
   echo "    ERROR: Part move failed. Disk is '${NEW_DISK}', expected 's3_cold'." >&2

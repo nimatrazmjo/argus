@@ -1,67 +1,72 @@
-# Sprint Contract — F006: SigNoz UI over ClickHouse
+# Sprint Contract — F007: Zero-Code Auto-Instrumentation & Service Onboarding
 
-Feature: F006 — SigNoz UI over ClickHouse
+Feature: F007 — Zero-code auto-instrumentation via OTel Operator annotation; onboarding runbook for app teams
 Phase: Phase 02 — Coverage
 Date: 2026-10-12
 
 > Filled before building. Maps every acceptance criterion to concrete, reproducible verification checks.
 
 ## 1. Scope & Acceptance Criteria
-- [x] SigNoz deployed (air-gapped images from `localhost:5001/argus/*`), reading the Phase 01 ClickHouse HA cluster.
-  - Manifests located in `deploy/signoz/`.
-  - SigNoz web frontend and query-service reachable on port 8080 (ClusterIP / port-forward).
-  - Telemetry store / schema migrations applied against ClickHouse HA.
-- [x] Telemetry store integration:
-  - SigNoz connected to `clickhouse-argus-clickhouse:9000` (user `default`, password `argus123`).
-  - Redacted telemetry from OpenTelemetry gateway is fed into SigNoz ClickHouse storage.
-  - SigNoz shows APM, logs, traces, and service map for `argus-sample-service`.
-- [x] Usage telemetry / phone-home disabled:
-  - Phone-home, analytics, and telemetry explicitly disabled via environment configuration (`TELEMETRY_ENABLED=false`, `SIGNOZ_TELEMETRY=false`, `REPORT_USAGE=false`).
-  - Verified no outbound egress traffic to public internet / analytics endpoints.
-- [x] Edge cases covered (`scripts/test-signoz-edge-cases.sh`):
-  - **ClickHouse unavailable**: When ClickHouse connection is temporarily interrupted, SigNoz UI/API degrades gracefully (returns error / degraded status, pod does not crash loop or lose state).
-  - **Empty-state handling**: Services / queries with no telemetry return clean empty responses without unhandled 500 exceptions or UI crashes.
-  - **Large trace handling**: Spans with large payloads or deep call stacks query and render within SLA without memory exhaustion or timeouts.
-- [x] E2E integration:
-  - User / client queries SigNoz API / UI:
-    - Service list endpoint `/api/v1/services` returns `argus-sample-service`.
-    - Traces query returns traces for `argus-sample-service`.
-    - Logs query returns logs for `argus-sample-service`.
-    - Metrics query returns metrics / dashboard data.
-- [x] Air-gap compliance:
-  - 100% of container images resolved from internal mirror (`localhost:5001/argus/*`). Zero public pulls at runtime.
-- [x] No regressions:
-  - Full suite `./scripts/verify.sh` green (all steps pass).
+- [x] **Instrumentation CR configured** (`deploy/otel/instrumentation.yaml`):
+  - Uses air-gapped mirrored images from `localhost:5001/argus/*`:
+    - Python: `localhost:5001/argus/autoinstrumentation-python:0.65b0`
+    - Node.js: `localhost:5001/argus/autoinstrumentation-nodejs:0.78.0`
+    - Java: `localhost:5001/argus/autoinstrumentation-java:2`
+  - Targets the Argus OTel Gateway at `http://argus-gateway-collector.argus-system.svc.cluster.local:4318`.
+  - Configures propagators (`tracecontext`, `baggage`, `b3`) and sampler (`parentbased_always_on`).
+  - Sets safe init-container resource limits (e.g. 100m CPU, 128Mi RAM).
+  - Injects k8s resource attributes (`k8s.pod.name`, `k8s.namespace.name`, `k8s.node.name`).
+- [x] **Zero-Code Onboarding via Pod Annotation**:
+  - Adding `instrumentation.opentelemetry.io/inject-python: "true"` (or `inject-nodejs: "true"`, `inject-java: "true"`) injects the auto-agent without modifying application code or Dockerfile.
+  - Pod starts successfully, mounts the agent bundle, and sends OTLP spans directly to the gateway.
+  - Telemetry passes through the gateway redaction processor and lands in ClickHouse & SigNoz.
+- [x] **Onboarding Runbook** (`docs/runbooks/service-onboarding.md`):
+  - Plain English, 1-line copy-paste onboarding instructions for DHS application developers.
+  - Covers Python, Node.js, and Java workloads.
+  - Explains verification via SigNoz UI / API, troubleshooting tips, and air-gapped configuration.
+- [x] **Edge Cases & Failure Paths** (`scripts/test-auto-instrumentation-edge-cases.sh`):
+  - **Unsupported language**: Unrecognized annotation fails gracefully without pod disruption.
+  - **Annotation typo / invalid target**: Typo does not crash the admission controller or affect unaffected pods.
+  - **Init container resource constraints**: Resource bounds verified; pod stays within quota.
+  - **OTel Gateway unavailable**: Workload continues serving HTTP requests without crashing when collector endpoint is degraded.
+- [x] **E2E Integration** (`scripts/test-auto-instrumentation.sh`):
+  - Deploy a completely un-instrumented Python service (zero OTel imports, standard Python HTTP server).
+  - Assert baseline has no init-containers or OTel env vars.
+  - Apply auto-instrumentation annotation.
+  - Mutating webhook injects `opentelemetry-auto-instrumentation-python`.
+  - Generate HTTP traffic against the service.
+  - Verify spans land in ClickHouse (`signoz_traces.signoz_index_v3`) with k8s metadata and correct service name.
+  - Verify service appears in SigNoz `/api/v1/services`.
+- [x] **Air-Gap Strictness**:
+  - 100% of images resolve from `localhost:5001/argus/*`.
+- [x] **Regression Suite**:
+  - All steps in `./scripts/verify.sh` pass cleanly.
 
-## 2. Edge cases & failure paths (from `verification/edge-cases.md`)
-- **Infrastructure / dependency**:
-  - ClickHouse temporarily unreachable -> SigNoz API returns 503 or friendly error message, does not crash or exit. Recovers immediately when ClickHouse is restored.
-- **Data volume / bounds**:
-  - Deep trace (e.g. 100+ spans or large attribute maps) -> query completes within reasonable time window (< 5s).
-  - Empty time range -> returns 200 with empty array/result, no panic.
-- **Security / Compliance**:
-  - Strict air-gap: SigNoz pods must have no egress to internet. Egress verification script checks connection attempts.
+## 2. Edge Cases & Failure Paths (from `verification/edge-cases.md`)
+- **Mutating Webhook Resilience**:
+  - Webhook failures must not take down the entire cluster. `failurePolicy: Ignore` on pod mutation webhook ensures apps can still launch even if the operator is temporarily down.
+- **Resource Constraints**:
+  - Init containers have CPU requests/limits to prevent memory exhaustion on resource-constrained worker nodes.
+- **Collector Endpoint Down**:
+  - OTel auto-instrumentation SDKs drop spans asynchronously without blocking HTTP request execution if collector is unavailable.
 
-## 3. E2E scenario(s)
-1. Deploy SigNoz pointing to ClickHouse HA cluster in `argus-system`.
-2. OTel Gateway forwards redacted telemetry stream into SigNoz ClickHouse tables.
-3. Sample service (`argus-sample-service`) performs synthetic requests.
-4. SigNoz API is queried:
-   - `GET /api/v1/services` -> includes `argus-sample-service`.
-   - `POST /api/v3/query_range` (or traces search API) -> returns traces for the service.
-   - Logs explorer API -> returns logs for the service.
-5. Verification script asserts 200 OK responses with matching service data and zero unhandled exceptions.
+## 3. E2E Scenario
+1. Deploy `Instrumentation` CR in `argus-system`.
+2. Deploy a zero-code test application (`argus-auto-service`) containing no OpenTelemetry libraries.
+3. Annotate the deployment with `instrumentation.opentelemetry.io/inject-python: "true"`.
+4. Kubernetes mutating webhook injects the auto-agent init container and sets `PYTHONPATH` / `OTEL_*` env vars.
+5. Service pod becomes `Ready` (1/1).
+6. Send synthetic HTTP requests (`curl http://<service-ip>:8080/auto-test`).
+7. Verify spans are queryable in ClickHouse and service is listed in SigNoz UI / API.
+8. Capture verification evidence in `.harness/evidence/F007/`.
 
 ## 4. Plan (thinnest vertical slice)
-1. Mirror SigNoz images (`signoz/signoz:v0.145.0` and `signoz/signoz-otel-collector:v0.144.13`) to `localhost:5001/argus/*` and update `deploy/mirror/images.txt`.
-2. Apply SigNoz schema migrations on ClickHouse HA cluster.
-3. Configure SigNoz deployment manifests in `deploy/signoz/`:
-   - ConfigMap with SigNoz configuration (telemetry disabled).
-   - Deployment / StatefulSet for SigNoz web + query-service.
-   - Service exposing SigNoz on port 8080.
-4. Update `deploy/otel/gateway.yaml` to export telemetry to SigNoz collector/ClickHouse so both raw OTel and SigNoz tables receive redacted telemetry.
-5. Create deployment script `scripts/deploy-signoz.sh`.
-6. Create verification tests:
-   - `scripts/test-signoz.sh` (service discovery, traces, logs, dashboards, phone-home verification).
-   - `scripts/test-signoz-edge-cases.sh` (ClickHouse unavailable degradation, empty-state, large trace).
-7. Integrate into `scripts/verify.sh` and run full test suite.
+1. Mirror latest auto-instrumentation images (`python:0.65b0`, `nodejs:0.78.0`, `java:2`) to `localhost:5001/argus/*` and update `deploy/mirror/images.txt`. (Done)
+2. Create `deploy/otel/instrumentation.yaml` with the `Instrumentation` custom resource.
+3. Apply `deploy/otel/instrumentation.yaml` in `argus-system`.
+4. Create sample un-instrumented app manifest `deploy/sample-app/auto-instrumented-service.yaml`.
+5. Create comprehensive runbook `docs/runbooks/service-onboarding.md`.
+6. Write functional test `scripts/test-auto-instrumentation.sh`.
+7. Write edge case test `scripts/test-auto-instrumentation-edge-cases.sh`.
+8. Integrate into `scripts/verify.sh`.
+9. Execute full test suite, collect evidence, update harness docs, and commit.
