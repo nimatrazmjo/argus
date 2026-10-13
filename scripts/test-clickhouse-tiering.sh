@@ -57,8 +57,8 @@ echo "    Verified 'default' (hot local) and 's3_cold' (object storage) disks."
 
 # 3. Create Tiered Table & Insert Data
 echo "--> [3/5] Testing Tiered Storage (insert hot -> verify -> move to s3_cold)..."
-ch_query "DROP TABLE IF EXISTS test_tiering"
-ch_query "CREATE TABLE test_tiering (id UInt64, metric_name String, value Float64, timestamp DateTime) ENGINE = MergeTree() ORDER BY id SETTINGS storage_policy = 'tiered_hot_cold'"
+ch_query "DROP TABLE IF EXISTS test_tiering SYNC" || true
+ch_query "CREATE TABLE IF NOT EXISTS test_tiering (id UInt64, metric_name String, value Float64, timestamp DateTime) ENGINE = MergeTree() ORDER BY id SETTINGS storage_policy = 'tiered_hot_cold'"
 ch_query "INSERT INTO test_tiering VALUES (1, 'cpu_load', 42.5, now()), (2, 'memory_usage', 88.1, now()), (3, 'disk_io', 12.3, now())"
 
 INITIAL_DISK=$(ch_query "SELECT disk_name FROM system.parts WHERE table = 'test_tiering' AND active = 1 LIMIT 1")

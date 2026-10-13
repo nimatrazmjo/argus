@@ -1,72 +1,53 @@
-# Sprint Contract — F007: Zero-Code Auto-Instrumentation & Service Onboarding
+# Sprint Contract — F008: eBPF Safety Net (Service Map Floor)
 
-Feature: F007 — Zero-code auto-instrumentation via OTel Operator annotation; onboarding runbook for app teams
+Feature: F008 — eBPF safety net (Beyla): network-level service map for un-annotated services
 Phase: Phase 02 — Coverage
-Date: 2026-10-12
+Date: 2026-10-13
 
 > Filled before building. Maps every acceptance criterion to concrete, reproducible verification checks.
 
 ## 1. Scope & Acceptance Criteria
-- [x] **Instrumentation CR configured** (`deploy/otel/instrumentation.yaml`):
-  - Uses air-gapped mirrored images from `localhost:5001/argus/*`:
-    - Python: `localhost:5001/argus/autoinstrumentation-python:0.65b0`
-    - Node.js: `localhost:5001/argus/autoinstrumentation-nodejs:0.78.0`
-    - Java: `localhost:5001/argus/autoinstrumentation-java:2`
-  - Targets the Argus OTel Gateway at `http://argus-gateway-collector.argus-system.svc.cluster.local:4318`.
-  - Configures propagators (`tracecontext`, `baggage`, `b3`) and sampler (`parentbased_always_on`).
-  - Sets safe init-container resource limits (e.g. 100m CPU, 128Mi RAM).
-  - Injects k8s resource attributes (`k8s.pod.name`, `k8s.namespace.name`, `k8s.node.name`).
-- [x] **Zero-Code Onboarding via Pod Annotation**:
-  - Adding `instrumentation.opentelemetry.io/inject-python: "true"` (or `inject-nodejs: "true"`, `inject-java: "true"`) injects the auto-agent without modifying application code or Dockerfile.
-  - Pod starts successfully, mounts the agent bundle, and sends OTLP spans directly to the gateway.
-  - Telemetry passes through the gateway redaction processor and lands in ClickHouse & SigNoz.
-- [x] **Onboarding Runbook** (`docs/runbooks/service-onboarding.md`):
-  - Plain English, 1-line copy-paste onboarding instructions for DHS application developers.
-  - Covers Python, Node.js, and Java workloads.
-  - Explains verification via SigNoz UI / API, troubleshooting tips, and air-gapped configuration.
-- [x] **Edge Cases & Failure Paths** (`scripts/test-auto-instrumentation-edge-cases.sh`):
-  - **Unsupported language**: Unrecognized annotation fails gracefully without pod disruption.
-  - **Annotation typo / invalid target**: Typo does not crash the admission controller or affect unaffected pods.
-  - **Init container resource constraints**: Resource bounds verified; pod stays within quota.
-  - **OTel Gateway unavailable**: Workload continues serving HTTP requests without crashing when collector endpoint is degraded.
-- [x] **E2E Integration** (`scripts/test-auto-instrumentation.sh`):
-  - Deploy a completely un-instrumented Python service (zero OTel imports, standard Python HTTP server).
-  - Assert baseline has no init-containers or OTel env vars.
-  - Apply auto-instrumentation annotation.
-  - Mutating webhook injects `opentelemetry-auto-instrumentation-python`.
-  - Generate HTTP traffic against the service.
-  - Verify spans land in ClickHouse (`signoz_traces.signoz_index_v3`) with k8s metadata and correct service name.
-  - Verify service appears in SigNoz `/api/v1/services`.
-- [x] **Air-Gap Strictness**:
-  - 100% of images resolve from `localhost:5001/argus/*`.
+- [x] **Architecture Decision Record (ADR-0005)**:
+  - Document evaluation of Grafana Beyla vs. Pixie.
+  - Record decision to adopt Grafana Beyla for low footprint, native OTLP export, and air-gapped simplicity.
+  - Documented in `docs/decisions/ADR-0005-ebpf-safety-net-beyla.md` and `.harness/DECISIONS.md`.
+- [x] **Air-Gapped Mirroring of Grafana Beyla**:
+  - Image `grafana/beyla:2.2.4` mirrored to `localhost:5001/argus/beyla:2.2.4`.
+  - Added to `deploy/mirror/images.txt`.
+- [x] **Declarative eBPF DaemonSet Deployment (`deploy/ebpf/beyla.yaml`)**:
+  - ServiceAccount, ClusterRole, and ClusterRoleBinding for Kubernetes metadata discovery.
+  - ConfigMap with discovery rules targeting HTTP/TCP open ports (80, 443, 8000-9999), excluding kube-system.
+  - DaemonSet with `hostPID: true`, bounded capabilities (`BPF`, `PERFMON`, `NET_ADMIN`, `SYS_PTRACE`, `SYS_RESOURCE`, `DAC_READ_SEARCH`), and mounts for `/sys/fs/cgroup`, `/sys/kernel/debug`, `/sys/kernel/tracing`.
+  - OTLP traces and metrics sink pointed to `http://argus-gateway-collector.argus-system.svc.cluster.local:4318`.
+- [x] **End-to-End Service Map Floor Verification (`scripts/test-ebpf.sh`)**:
+  - Deploy completely un-annotated microservice (`argus-unannotated-service`) with zero OTel SDK imports and zero pod annotations.
+  - Assert pod has 0 init containers and 0 OTel env vars.
+  - Generate synthetic HTTP transactions against the un-annotated service.
+  - eBPF probe captures kernel socket traffic and exports OTLP spans/flow metrics to `argus-gateway-collector`.
+  - Gateway passes spans through redaction processor into ClickHouse (`signoz_traces.signoz_index_v3` / `signoz_metrics.samples_v4`).
+  - Verify un-annotated service appears in SigNoz APM service catalog (`/api/v1/services/list`) and dependency map.
+- [x] **Edge Cases & Failure Paths (`scripts/test-ebpf-edge-cases.sh`)**:
+  - **Graceful degradation on unsupported node**: Beyla degrades gracefully without capabilities, never panicking the host kernel.
+  - **High-traffic service overhead bounded**: DaemonSet enforces strict CPU (200m) and memory (256Mi) limits.
+  - **Dynamic pod lifecycle**: Beyla handles dynamic pod creation/deletion without crash looping.
+  - **Collector partition / outage resilience**: Asynchronous ring buffer drops telemetry under collector outage without blocking app sockets.
+  - **Air-gap compliance**: Verified 0 external egress connections from Beyla daemon.
 - [x] **Regression Suite**:
-  - All steps in `./scripts/verify.sh` pass cleanly.
+  - Full `./scripts/verify.sh` passes cleanly (17/17 steps).
 
 ## 2. Edge Cases & Failure Paths (from `verification/edge-cases.md`)
-- **Mutating Webhook Resilience**:
-  - Webhook failures must not take down the entire cluster. `failurePolicy: Ignore` on pod mutation webhook ensures apps can still launch even if the operator is temporarily down.
+- **Kernel / eBPF Capabilities Unavailable**:
+  - Pod without BPF capabilities logs an error and exits cleanly without destabilizing host kernel or other containers.
 - **Resource Constraints**:
-  - Init containers have CPU requests/limits to prevent memory exhaustion on resource-constrained worker nodes.
-- **Collector Endpoint Down**:
-  - OTel auto-instrumentation SDKs drop spans asynchronously without blocking HTTP request execution if collector is unavailable.
+  - DaemonSet memory bound to 256Mi, CPU bound to 200m to prevent node memory exhaustion.
+- **Collector Outage**:
+  - Non-blocking ring buffer in kernel ensures applications experience zero latency degradation if the collector fails.
 
 ## 3. E2E Scenario
-1. Deploy `Instrumentation` CR in `argus-system`.
-2. Deploy a zero-code test application (`argus-auto-service`) containing no OpenTelemetry libraries.
-3. Annotate the deployment with `instrumentation.opentelemetry.io/inject-python: "true"`.
-4. Kubernetes mutating webhook injects the auto-agent init container and sets `PYTHONPATH` / `OTEL_*` env vars.
-5. Service pod becomes `Ready` (1/1).
-6. Send synthetic HTTP requests (`curl http://<service-ip>:8080/auto-test`).
-7. Verify spans are queryable in ClickHouse and service is listed in SigNoz UI / API.
-8. Capture verification evidence in `.harness/evidence/F007/`.
-
-## 4. Plan (thinnest vertical slice)
-1. Mirror latest auto-instrumentation images (`python:0.65b0`, `nodejs:0.78.0`, `java:2`) to `localhost:5001/argus/*` and update `deploy/mirror/images.txt`. (Done)
-2. Create `deploy/otel/instrumentation.yaml` with the `Instrumentation` custom resource.
-3. Apply `deploy/otel/instrumentation.yaml` in `argus-system`.
-4. Create sample un-instrumented app manifest `deploy/sample-app/auto-instrumented-service.yaml`.
-5. Create comprehensive runbook `docs/runbooks/service-onboarding.md`.
-6. Write functional test `scripts/test-auto-instrumentation.sh`.
-7. Write edge case test `scripts/test-auto-instrumentation-edge-cases.sh`.
-8. Integrate into `scripts/verify.sh`.
-9. Execute full test suite, collect evidence, update harness docs, and commit.
+1. Deploy `deploy/ebpf/beyla.yaml` to `argus-system`.
+2. Deploy raw un-instrumented test workload `argus-unannotated-service` (no annotations, no SDKs).
+3. Send HTTP traffic from `argus-sample-service` to `argus-unannotated-service:8085/healthz`.
+4. Verify Beyla kernel probes synthesize OTLP spans/flow metrics.
+5. Verify metrics/spans land in ClickHouse `signoz_metrics.samples_v4` / `signoz_traces.signoz_index_v3`.
+6. Verify service catalog is queried in SigNoz APM catalog (`/api/v1/services/list`).
+7. Clean up test workload and collect evidence in `.harness/evidence/F008/`.

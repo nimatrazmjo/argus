@@ -20,9 +20,7 @@ Build the product the requirement describes — never a shortcut that fakes the 
 ## The ten rules
 1. **Tracking before memory.** Never rely on conversation history. The `.harness/`
    tracking files are the state of the project. Read them first; update them before you stop.
-2. **One feature at a time.** Work only the single feature that is `IN PROGRESS` (named in
-   `PROJECT_STATE.md`, detailed in `CURRENT_TASK.md`). Do not start the next until the
-   current one is verified.
+2. **Parallel Tracks with Wave Synchronization Gates.** In multi-agent execution, tasks within the active wave are dispatched across independent parallel tracks (Tracks A through E, detailed in `PARALLEL_EXECUTION_GRAPH.md`). Within a track, tasks execute sequentially; across tracks, subagents execute in parallel. The orchestrator holds synchronization barriers at Wave Gates before unlocking downstream dependent features.
 3. **No victory without evidence.** A feature is `COMPLETE` only when every acceptance
    criterion in its phase file is met AND verification is recorded in `CHANGELOG.md`:
    happy path + the applicable `verification/edge-cases.md` battery + error paths + the FULL

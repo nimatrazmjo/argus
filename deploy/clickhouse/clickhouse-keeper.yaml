@@ -3,6 +3,8 @@ kind: "ClickHouseKeeperInstallation"
 metadata:
   name: "argus-keeper"
   namespace: "argus-system"
+  annotations:
+    argus.io/reconcile-trigger: "1"
 spec:
   configuration:
     clusters:
@@ -20,6 +22,14 @@ spec:
             - name: clickhouse-keeper
               image: localhost:5001/argus/clickhouse-keeper:latest
               imagePullPolicy: IfNotPresent
+              startupProbe:
+                httpGet:
+                  path: /ready
+                  port: 9182
+                initialDelaySeconds: 5
+                periodSeconds: 5
+                timeoutSeconds: 5
+                failureThreshold: 60
               livenessProbe:
                 httpGet:
                   path: /ready
@@ -27,7 +37,7 @@ spec:
                 initialDelaySeconds: 10
                 periodSeconds: 10
                 timeoutSeconds: 5
-                failureThreshold: 10
+                failureThreshold: 15
     volumeClaimTemplates:
       - name: keeper-storage
         spec:

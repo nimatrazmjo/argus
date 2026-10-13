@@ -9,16 +9,18 @@ conversation history.
 rules + specs. A coding agent reads it, then writes the app one verified feature at a time.
 
 ## Read order (every session starts here)
-1. `PROJECT_STATE.md` — **MASTER FILE.** Where the project is. Read this before anything.
-2. `CURRENT_TASK.md` — the one feature to work on next.
-3. `ROADMAP.md` — all features across the phases, with status.
-4. The active `phases/PHASE-XX-*.md` — acceptance criteria.
-5. `DECISIONS.md` + `BLOCKERS.md`, then inspect the real code.
+1. [`PROJECT_STATE.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PROJECT_STATE.md) — **MASTER FILE.** Where the project is. Read this before anything.
+2. [`PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md) — master parallel dependency graph, tracks, and wave gates.
+3. [`CURRENT_TASK.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/CURRENT_TASK.md) — the current wave and features to work on next.
+4. [`ROADMAP.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/ROADMAP.md) — all features across the phases, with status and concurrency tags.
+5. The active `phases/PHASE-XX-*.md` — acceptance criteria.
+6. [`DECISIONS.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/DECISIONS.md) + [`BLOCKERS.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/BLOCKERS.md), then inspect the real code.
 
 ## Layout
 ```
 .harness/
 ├── PROJECT_STATE.md   # MASTER: where we are (read first)
+├── PARALLEL_EXECUTION_GRAPH.md # Master parallel vs sequential dependency matrix & wave gates
 ├── ROADMAP.md         # all phases/features + status (source of truth for scope)
 ├── CURRENT_TASK.md    # the one feature in progress + next step
 ├── CHANGELOG.md       # completed-implementation history (evidence)
@@ -39,14 +41,14 @@ rules + specs. A coding agent reads it, then writes the app one verified feature
 ```
 
 ## The tracking system (why it exists)
-The project must not depend on chat history to know what's done. `PROJECT_STATE.md`
-answers "where am I?", `ROADMAP.md` answers "where am I going?", `CURRENT_TASK.md`
+The project must not depend on chat history to know what's done. [`PROJECT_STATE.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PROJECT_STATE.md)
+answers "where am I?", [`ROADMAP.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/ROADMAP.md) answers "where am I going?", [`CURRENT_TASK.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/CURRENT_TASK.md)
 answers "what do I do now?". After implementing and verifying, the agent updates the
 tracking files and picks the next task. A brand-new session can enter the repo and
 continue with no prior context.
 
 ## The idea in one line
-Rules-first entry points (`AGENTS.md`/`CLAUDE.md`/`rules/`), an agent-readable workspace
+Rules-first entry points ([`AGENTS.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/AGENTS.md)/[`CLAUDE.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/CLAUDE.md)/`rules/`), an agent-readable workspace
 (this tree), multi-session continuity (the tracking files), runtime feedback + scope
 control (`rules/` + `scripts/`), self-verification + role separation (`verification/`),
 automated loops (`loops/`), and the workflow drawn as a graph (`graph/`).

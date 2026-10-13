@@ -17,6 +17,34 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-13 — HARNESS ARCHITECTURE: Parallel vs Sequential Execution Graph & Subagent Protocol
+Branch/commit: chore/parallel-execution-harness   PR: N/A   CI: green
+Evidence:
+  - Architecture Specification:
+      * `.harness/PARALLEL_EXECUTION_GRAPH.md` stood up defining 5 Execution Tracks (Tracks A-E), 5 Waves, and hard Synchronization Gates (G1-G5).
+      * Complete 21-Feature Dependency Matrix (F001-F021) with execution mode, prerequisites, concurrent candidates, and downstream blockers.
+      * Conflict & Concurrency Analysis: Port collisions (zero), Kubernetes resource/CRD write locks (zero), ClickHouse schema/MV locks (zero).
+      * Multi-Agent Subagent Execution Protocol: Orchestrator dispatching parallel subagents across tracks and enforcing barrier waits at synchronization gates.
+  - Tracking & Phase Updates:
+      * `ROADMAP.md` updated to 8/21 COMPLETE (38%) with explicit `[SEQUENTIAL GATE]` and `[PARALLEL TRACK X]` annotations for all 21 features.
+      * `PROJECT_STATE.md` and `CURRENT_TASK.md` updated with active Wave 2 parallel dispatch packages (F009 || F010 || F011 || F014).
+      * `PHASE-02-COVERAGE.md`, `PHASE-03-OPERATIONAL.md`, `PHASE-04-FRONTEND-SIGNALS.md`, `PHASE-05-AIOPS.md`, and `rules/scope-guard.md` aligned with the parallel graph.
+
+## 2026-10-13 — F008 eBPF Safety Net (Beyla) — COMPLETE
+Branch/commit: feat/F008   PR: N/A   CI: green
+Evidence:
+  - Architecture Decision:
+      * `docs/decisions/ADR-0005-ebpf-safety-net-beyla.md` (and `.harness/architecture/decisions/ADR-0005-ebpf-safety-net-beyla.md`) evaluating Grafana Beyla vs Pixie for kernel-level service map floor.
+  - Air-gapped Image Mirroring:
+      * `grafana/beyla:2.2.4` mirrored to `localhost:5001/argus/beyla:2.2.4` in `deploy/mirror/images.txt`.
+  - Deployment & DaemonSet:
+      * `deploy/ebpf/beyla.yaml` deployed in `argus-system` with BPF capabilities (`SYS_ADMIN`, `SYS_PTRACE`, `NET_ADMIN`) and OpenTelemetry exporter targeting the gateway.
+  - Test Suites & Full Verification:
+      * `./scripts/test-ebpf.sh` and `./scripts/test-ebpf-edge-cases.sh` created and integrated into `./scripts/verify.sh` (17-step full suite green).
+      * Evidence captured under `.harness/evidence/F008/` (`signoz-services-ebpf.json`, `edge-cases-output.txt`).
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F008 is COMPLETE! Wave 1 is 100% complete (8/21 features). Unlocks Wave 2 parallel dispatch.
+
 ## 2026-10-13 — F007 Zero-Code Auto-Instrumentation & Service Onboarding Runbook — COMPLETE
 Branch/commit: feat/F007   PR: N/A (local gitops repo, no remote origin configured)   CI: green
 Evidence:

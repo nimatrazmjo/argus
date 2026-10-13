@@ -3,33 +3,40 @@
 > Read this first, every session. Rewrite it for a cold reader before you stop.
 
 ## Where we are
-- **Phase**: Phase 02 — Coverage
-- **Active feature**: F007 — Zero-code auto-instrumentation via OTel Operator annotation; onboarding runbook for app teams (COMPLETE)
-- **Overall progress**: 7 / 21 features COMPLETE (33%)
-- **Milestone status**: Phase 01 (Foundation: F001-F005) is 100% COMPLETE. F006 and F007 are 100% COMPLETE.
+- **Execution Architecture**: Multi-Track Concurrent Execution Model (see [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md))
+- **Active Wave**: **Wave 2 — Concurrent Coverage & Operations Foundation**
+- **Active Features (Ready for Parallel Dispatch)**:
+  - **Track A**: `F009` — Infra metrics (`node-exporter` + `kube-state-metrics`)
+  - **Track A**: `F010` — Continuous profiling (`Pyroscope`)
+  - **Track B**: `F011` — Alerting / monitors (firing-state + dedup, threshold rules)
+  - **Track C**: `F014` — Retention + downsampling (hot/cold tiering, materialized views rollups, log filter)
+- **Overall progress**: 8 / 21 features COMPLETE (38%)
+- **Milestone status**:
+  - **Wave 1 (Foundation & Core Coverage)**: 100% COMPLETE (F001 through F008 all complete and verified).
+  - **Sync Gate G1**: **PASSED**. Air-gap compliant core spine operational (OTel -> ClickHouse HA -> SigNoz + Auto-Instrumentation + eBPF Beyla).
+  - **Wave 2**: Active — Dispatched across Track A, Track B, Track C.
 
 ## Last verified
 - **Date**: 2026-10-13
-- **init**: PASS — `scripts/init.sh` green (validates cluster v1.36.1, mirror health, 7 CRDs, 3 operator deployments Ready, ClickHouse HA Completed & Ready, ClickHouse Keeper Ready, OpenTelemetry Gateway & Node DaemonSet Ready, Sample Instrumented Service Ready, SigNoz UI & Collector Ready, 100% mirrored image origins)
-- **Full suite + check-architecture**: PASS — `scripts/verify.sh` green (all 15 steps: check-architecture + test-edge-cases + test-clickhouse-tiering + test-clickhouse-edge-cases + test-otel-pipeline + test-otel-edge-cases + test-correlation + test-correlation-edge-cases + test-redaction + test-redaction-edge-cases + test-signoz + test-signoz-edge-cases + test-auto-instrumentation + test-auto-instrumentation-edge-cases + init)
-- **E2E**: PASS — Zero-code auto-instrumentation end-to-end verified with Trace ID generation, ClickHouse ingestion, SigNoz service catalog discovery, and trace query.
-- **Git**: branch `feat/F007` -> ready to commit
+- **Gate G1 Status**: PASS — Baseline air-gapped spine and coverage core fully operational.
+- **init**: PASS — `scripts/init.sh` green (validates cluster v1.36.1, mirror health, CRDs present, Altinity ClickHouse HA Ready, Keeper Ready, OTel Gateway & Node DaemonSet Ready, Beyla eBPF DaemonSet Ready, SigNoz UI & Query Ready, 100% mirrored image origins `localhost:5001/argus/*`).
+- **Full suite + check-architecture**: PASS — `scripts/verify.sh` green (17-step verification suite including baseline, edge cases, ClickHouse storage tiering, OTel pipelines, trace/metric/log correlation, CJIS/PII redaction, SigNoz APM, auto-instrumentation, and Beyla eBPF network maps).
+- **Evidence**: Captured under `.harness/evidence/` (F001 through F008).
 
-## Next step
-Begin Feature F008 — eBPF safety net (Beyla): network-level service map for un-annotated services:
-- Mirror Grafana Beyla (`grafana/beyla:2.2.4` -> `localhost:5001/argus/beyla:2.2.4`) and update `deploy/mirror/images.txt`.
-- Record ADR-0005 (`docs/decisions/ADR-0005-ebpf-safety-net-beyla.md`).
-- Deploy Beyla DaemonSet (`deploy/ebpf/beyla.yaml`).
-- Write `scripts/test-ebpf.sh` and `scripts/test-ebpf-edge-cases.sh`.
-- Update `scripts/verify.sh`.
-See CURRENT_TASK.md.
+## Parallel Execution Strategy (Wave 2)
+The orchestrator dispatches independent subagents across three non-interfering tracks:
+1. **Track A (Subagents 1 & 2)**: Expand signal collection with host/cluster infrastructure metrics (F009) and continuous CPU/memory profiling (F010).
+2. **Track B (Subagent 3)**: Stand up the alert evaluation, threshold monitoring, and deduplication engine (F011).
+3. **Track C (Subagent 4)**: Implement storage retention TTLs, S3 cold storage policies, metric rollup materialized views, and collector log-level filtering (F014).
+
+All four features execute concurrently without port collisions, CRD contention, or database locks. Upon completion, the orchestrator verifies **Gate G2** before unlocking Wave 3.
 
 ## Open blockers
-See `BLOCKERS.md`. None. Internal image mirror (`localhost:5001`) and ClickHouse HA cluster are healthy and ready.
+See `BLOCKERS.md`. None. Cluster, internal registry mirror, ClickHouse HA, and SigNoz are fully operational.
 
-## Notes for the next agent
+## Notes for agents
 - Archetype is **DevOps/IaC (archetype B)**.
-- Baseline operators for OpenTelemetry (0.160.0), Altinity ClickHouse (0.27.4), and Prometheus (v0.94.1) are deployed and Ready in `argus-system`.
-- Air-gap compliance is enforced: 100% of container images in `argus-system` resolve from `localhost:5001/argus/...`.
-- `deploy/mirror/setup-mirror.sh` and `deploy/mirror/images.txt` maintain the air-gapped catalog.
-- Toolchain commands and verification scripts (`init.sh`, `verify.sh`, `test-edge-cases.sh`, `check-architecture.sh`, `deploy-operators.sh`) are implemented and documented in `CLAUDE.md`.
+- Strict air-gap enforcement: 100% of container images must resolve from `localhost:5001/argus/*`.
+- Multi-agent orchestration protocol defined in `.harness/PARALLEL_EXECUTION_GRAPH.md`.
+- Concurrency rules: features within the active wave on separate tracks run in parallel; features with dependencies wait at synchronization gates.
+- Every completed feature must fulfill its definition of done: phase criteria met, test scripts added to `scripts/verify.sh`, edge cases verified, evidence captured under `.harness/evidence/<FID>/`.

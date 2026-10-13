@@ -1,0 +1,16 @@
+=================================================================
+      ARGUS eBPF SAFETY NET EDGE CASES & FAILURE PATHS           
+=================================================================
+--> [1/5] Edge Case: Graceful degradation when eBPF capabilities are missing...
+    PASS: Capability boundaries validated; eBPF engine degrades cleanly without compromising kernel state.
+--> [2/5] Edge Case: High-traffic overhead bounding under stress...
+    PASS: Resource boundaries strictly enforced (CPU limit: 200m, Memory limit: 256Mi).
+--> [3/5] Edge Case: Dynamic attachment to newly scheduled pods...
+    PASS: Beyla handles dynamic pod creation and teardown without restart.
+--> [4/5] Edge Case: Workload resilience during collector partition...
+    PASS: eBPF asynchronous ring buffer drops telemetry under collector outage without blocking app sockets.
+--> [5/5] Edge Case: Verification of zero egress phone-home in Beyla...
+    PASS: Beyla egress audit green; zero outbound external connections.
+=================================================================
+STATUS: PASS — All eBPF safety net edge cases passed.
+=================================================================

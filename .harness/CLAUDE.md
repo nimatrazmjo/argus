@@ -50,7 +50,7 @@ These are the exact commands `init`, the loops, and the Checker run. Keep this t
 | Progress % | see `scripts/SCRIPTS.md` → progress-counter |
 
 ## Current target
-Phase 01 — Foundation. Feature F001 — Cluster baseline + operators. Details live in `CURRENT_TASK.md`.
+Wave 02 — Concurrent Coverage & Operations Foundation (`F009` \|\| `F010` \|\| `F011` \|\| `F014`). Details live in `CURRENT_TASK.md` and `PARALLEL_EXECUTION_GRAPH.md`.
 
 ## Before you stop
 Run the Session-completion protocol in `AGENTS.md`: update PROJECT_STATE, CURRENT_TASK,
