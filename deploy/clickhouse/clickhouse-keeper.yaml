@@ -4,7 +4,7 @@ metadata:
   name: "argus-keeper"
   namespace: "argus-system"
   annotations:
-    argus.io/reconcile-trigger: "1"
+    argus.io/reconcile-trigger: "2"
 spec:
   configuration:
     clusters:
@@ -23,17 +23,15 @@ spec:
               image: localhost:5001/argus/clickhouse-keeper:latest
               imagePullPolicy: IfNotPresent
               startupProbe:
-                httpGet:
-                  path: /ready
-                  port: 9182
+                tcpSocket:
+                  port: 2181
                 initialDelaySeconds: 5
                 periodSeconds: 5
                 timeoutSeconds: 5
                 failureThreshold: 60
               livenessProbe:
-                httpGet:
-                  path: /ready
-                  port: 9182
+                tcpSocket:
+                  port: 2181
                 initialDelaySeconds: 10
                 periodSeconds: 10
                 timeoutSeconds: 5

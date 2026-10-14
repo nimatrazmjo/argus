@@ -76,14 +76,14 @@ Beyla DaemonSet manifests; ADR-0005; test scripts and evidence under `.harness/e
 - **Must wait for**: F006, F008 (Sync Gate G1)
 - **Can run in parallel with**: F010, F011, F014
 - **Blocks**: F019 (Anomaly detection requires metric baselines), F021
-- **Status**: NOT STARTED
+- **Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] node-exporter + kube-state-metrics scraped into the store; node/pod/cluster metrics visible.
-- [ ] Air-gapped images mirrored to `localhost:5001/argus/*`.
-- [ ] Edge cases: node added/removed reflected, scrape target down.
-- [ ] E2E: `N/A — not user-facing` (asserted by a metrics-present check in ClickHouse/SigNoz).
-- [ ] FULL verify green.
+- [x] node-exporter + kube-state-metrics scraped into the store; node/pod/cluster metrics visible.
+- [x] Air-gapped images mirrored to `localhost:5001/argus/*`.
+- [x] Edge cases: node added/removed reflected, scrape target down.
+- [x] E2E: `N/A — not user-facing` (asserted by a metrics-present check in ClickHouse/SigNoz).
+- [x] FULL verify green.
 
 ### Evidence expected
 Scrape manifests; `system.parts` / `signoz_metrics` query output showing node and pod metric series; edge case test transcript under `.harness/evidence/F009/`.

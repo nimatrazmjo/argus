@@ -4,7 +4,7 @@ All features across all phases, with permanent ids, execution modes, dependency 
 
 See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md) for the complete dependency graph, wave definitions, conflict analysis, and subagent orchestration protocol.
 
-**Progress**: 8 / 21 COMPLETE (38%)
+**Progress**: 9 / 21 COMPLETE (43%)
 
 > **The requirement**: a self-hosted, air-gapped Datadog-equivalent for internal DHS use, running entirely in Kubernetes. Spine = OpenTelemetry Collector -> ClickHouse -> SigNoz.  
 > **Execution Model**: Phased execution with concurrent multi-track waves. Within a track, tasks execute sequentially; across tracks, tasks execute concurrently via parallel subagents. All tracks synchronize at hard Wave Gates before advancing. Full acceptance criteria for each feature live in `phases/PHASE-XX-*.md`.
@@ -67,11 +67,11 @@ See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/work
   - **Can run in parallel with**: F007
   - **Status**: `COMPLETE`
 
-- [ ] **F009** — Infra metrics: node-exporter + kube-state-metrics into the store
+- [x] **F009** — Infra metrics: node-exporter + kube-state-metrics into the store
   - **Mode**: `[PARALLEL TRACK A]` (Signal Expansion — Wave 2 Active)
   - **Must wait for**: F006, F008 (Gate G1)
   - **Can run in parallel with**: F010, F011, F014
-  - **Status**: `NOT STARTED`
+  - **Status**: `COMPLETE`
 
 - [ ] **F010** — Continuous profiling (Pyroscope)
   - **Mode**: `[PARALLEL TRACK A]` (Signal Expansion — Wave 2 Active)

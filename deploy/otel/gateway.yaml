@@ -17,6 +17,14 @@ spec:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
+      prometheus/kube-state-metrics:
+        config:
+          scrape_configs:
+            - job_name: 'kube-state-metrics'
+              scrape_interval: 30s
+              scrape_timeout: 25s
+              static_configs:
+                - targets: ['kube-state-metrics.argus-system.svc.cluster.local:8080']
 
     processors:
       memory_limiter:
@@ -103,7 +111,7 @@ spec:
           processors: [memory_limiter, k8sattributes, transform/redaction, batch]
           exporters: [clickhouse, otlp/signoz]
         metrics:
-          receivers: [otlp]
+          receivers: [otlp, prometheus/kube-state-metrics]
           processors: [memory_limiter, k8sattributes, batch]
           exporters: [clickhouse, otlp/signoz]
         logs:

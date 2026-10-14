@@ -1,0 +1,21 @@
+=================================================================
+   F009: INFRASTRUCTURE METRICS EDGE-CASES & RESILIENCE BATTERY  
+=================================================================
+--> Stage 1: Air-gap network isolation audit for metric collectors...
+  [PASS] 100% of infra-metrics workloads strictly reference localhost:5001/argus/*
+--> Stage 2: Scrape target outage and collector auto-recovery...
+  Temporarily scaling kube-state-metrics to 0 replicas to simulate cluster outage...
+deployment.apps/kube-state-metrics scaled
+  Gateway collector container restarts during scrape failure: 0
+  [PASS] Gateway collector survived missing Prometheus scrape target without crashing
+  Restoring kube-state-metrics deployment...
+deployment.apps/kube-state-metrics scaled
+  [PASS] kube-state-metrics restored (readyReplicas: 1) and collector resumed normal ingestion
+--> Stage 3: Collector memory stability under high metric throughput...
+  Gateway collector memory reading: under-limit
+  [PASS] Memory remains clamped under configured memory_limiter threshold
+--> Stage 4: Metric schema and series deduplication check...
+  [PASS] No duplicate raw metric declarations found
+=================================================================
+STATUS: ALL F009 EDGE-CASE BATTERIES PASSED (100% GREEN)
+=================================================================
