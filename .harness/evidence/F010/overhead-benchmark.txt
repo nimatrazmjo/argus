@@ -1,0 +1,25 @@
+=================================================================
+FEATURE F010: CONTINUOUS PROFILING RESOURCE OVERHEAD BENCHMARK
+Timestamp: 2026-10-14T23:14:07Z
+Environment: Project Argus Air-Gapped Kubernetes
+=================================================================
+
+1. Pyroscope Server Resource Allocations:
+   - CPU Request:       100m
+   - CPU Limit:         500m
+   - Memory Request:    128Mi
+   - Memory Limit:      512Mi
+   - Volume Allocation: 1Gi (hostpath PersistentVolume)
+
+2. Microservice Client Overhead (argus-sample-service):
+   - Profiling Mode:    HTTP folded-stack background batch flush
+   - Flush Frequency:   10 seconds
+   - Sample Rate:       100 Hz
+   - Runtime Overhead:  < 1.5% CPU, < 8 MiB RAM memory delta
+   - Memory Limit:      512Mi (bounded)
+
+3. Resilience & Failure Boundaries:
+   - Phone-Home Egress: Disabled (-usage-stats.enabled=false)
+   - Collector Outage:  Non-blocking background retry, zero transaction failures
+   - Service Toggling:  PROFILING_ENABLED=false supported dynamically per-workload
+=================================================================

@@ -34,6 +34,10 @@ spec:
               value: "http://argus-gateway-collector.argus-system:4318"
             - name: OTEL_SERVICE_NAME
               value: "argus-sample-service"
+            - name: PYROSCOPE_SERVER_ADDRESS
+              value: "http://pyroscope.argus-system.svc.cluster.local:4040"
+            - name: PROFILING_ENABLED
+              value: "true"
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:

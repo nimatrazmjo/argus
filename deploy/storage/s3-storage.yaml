@@ -39,6 +39,8 @@ metadata:
     app.kubernetes.io/part-of: argus
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argus-s3
@@ -56,6 +58,8 @@ spec:
             - "server"
             - "-s3"
             - "-dir=/data"
+            - "-ip=localhost"
+            - "-ip.bind=0.0.0.0"
           ports:
             - containerPort: 8333
               name: s3
@@ -68,6 +72,7 @@ spec:
               port: 8333
             initialDelaySeconds: 2
             periodSeconds: 5
+            timeoutSeconds: 5
       volumes:
         - name: s3-data
           persistentVolumeClaim:

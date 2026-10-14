@@ -85,7 +85,7 @@ spec:
       - name: "argus-cluster"
         layout:
           shardsCount: 1
-          replicasCount: 2
+          replicasCount: 1
   templates:
     podTemplates:
       - name: clickhouse-template

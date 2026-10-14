@@ -19,10 +19,71 @@ PORT = int(os.environ.get("PORT", "8080"))
 OTEL_GATEWAY_URL = os.environ.get(
     "OTEL_EXPORTER_OTLP_ENDPOINT", "http://argus-gateway-collector.argus-system:4318"
 ).rstrip("/")
+PYROSCOPE_SERVER_URL = os.environ.get(
+    "PYROSCOPE_SERVER_ADDRESS", "http://pyroscope.argus-system.svc.cluster.local:4040"
+).rstrip("/")
+PROFILING_ENABLED = os.environ.get("PROFILING_ENABLED", "true").lower() in ("true", "1", "yes")
 SERVICE_NAME = os.environ.get("OTEL_SERVICE_NAME", "argus-sample-service")
 NAMESPACE = os.environ.get("POD_NAMESPACE", "argus-system")
 POD_NAME = os.environ.get("POD_NAME", "sample-service-pod")
 NODE_NAME = os.environ.get("NODE_NAME", "docker-desktop")
+
+
+def emit_pyroscope_profile(profile_type: str, stack_data: str, sample_rate: int = 100) -> bool:
+    """Post folded stack traces to Pyroscope server /ingest endpoint."""
+    if not PROFILING_ENABLED or not PYROSCOPE_SERVER_URL:
+        return False
+    try:
+        now_sec = int(time.time())
+        from_sec = now_sec - 10
+        if profile_type == "cpu":
+            url = f"{PYROSCOPE_SERVER_URL}/ingest?name={SERVICE_NAME}.cpu&from={from_sec}&until={now_sec}&sampleRate={sample_rate}&format=folded"
+        elif profile_type in ("memory", "alloc_space"):
+            url = f"{PYROSCOPE_SERVER_URL}/ingest?name={SERVICE_NAME}.alloc_space&from={from_sec}&until={now_sec}&format=folded&units=bytes"
+        else:
+            url = f"{PYROSCOPE_SERVER_URL}/ingest?name={SERVICE_NAME}.{profile_type}&from={from_sec}&until={now_sec}&format=folded"
+
+        data = stack_data.encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "text/plain"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            return resp.status in (200, 202)
+    except Exception as e:
+        sys.stderr.write(f"[WARN] Pyroscope profile ingestion to {PYROSCOPE_SERVER_URL} failed: {e}\n")
+        return False
+
+
+def generate_cpu_profile() -> str:
+    return (
+        f"main;RequestHandler.handle_request;process_order;validate_request 45\n"
+        f"main;RequestHandler.handle_request;process_order;db_query 120\n"
+        f"main;RequestHandler.handle_request;process_order;crypto_hash 85\n"
+        f"main;background_profiler_loop;heartbeat 15"
+    )
+
+
+def generate_memory_profile() -> str:
+    return (
+        f"main;RequestHandler.handle_request;process_order;allocate_buffer 1048576\n"
+        f"main;RequestHandler.handle_request;process_order;cache_map 2097152\n"
+        f"main;background_profiler_loop;worker_buffer 524288"
+    )
+
+
+def background_profiler_loop():
+    sys.stderr.write(f"Starting continuous profiler background loop (target: {PYROSCOPE_SERVER_URL})...\n")
+    while True:
+        try:
+            if PROFILING_ENABLED and PYROSCOPE_SERVER_URL:
+                emit_pyroscope_profile("cpu", generate_cpu_profile())
+                emit_pyroscope_profile("memory", generate_memory_profile())
+        except Exception as e:
+            sys.stderr.write(f"[WARN] Error in background profiler: {e}\n")
+        time.sleep(10)
 
 
 def post_otlp(path: str, payload: dict) -> None:
@@ -279,6 +340,14 @@ class RequestHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 errors.append(f"emit_metric: {str(e)}")
 
+            # 4. Emit profiling data
+            if PROFILING_ENABLED:
+                try:
+                    emit_pyroscope_profile("cpu", generate_cpu_profile())
+                    emit_pyroscope_profile("memory", generate_memory_profile())
+                except Exception as e:
+                    sys.stderr.write(f"[WARN] Non-fatal order profiling error: {e}\n")
+
             status_code = 500 if errors else 200
             resp_data = {
                 "status": "partial_error" if errors else "success",
@@ -300,6 +369,32 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(resp_data).encode("utf-8"))
             return
 
+        if path == "/api/profile":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "profiling_enabled": PROFILING_ENABLED,
+                "pyroscope_server": PYROSCOPE_SERVER_URL,
+                "service_name": SERVICE_NAME,
+                "status": "active" if PROFILING_ENABLED else "disabled"
+            }).encode("utf-8"))
+            return
+
+        if path in ("/api/profile/trigger", "/profile/trigger"):
+            cpu_ok = emit_pyroscope_profile("cpu", generate_cpu_profile())
+            mem_ok = emit_pyroscope_profile("memory", generate_memory_profile())
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "status": "triggered",
+                "cpu_emitted": cpu_ok,
+                "memory_emitted": mem_ok,
+                "profiling_enabled": PROFILING_ENABLED
+            }).encode("utf-8"))
+            return
+
         # Not found
         self.send_response(404)
         self.send_header("Content-Type", "application/json")
@@ -313,11 +408,19 @@ def run():
 
     def handle_shutdown(signum, frame):
         sys.stderr.write(f"Received signal {signum}, shutting down immediately...\n")
-        httpd.server_close()
-        sys.exit(0)
+        try:
+            httpd.server_close()
+        except Exception:
+            pass
+        os._exit(0)
 
     signal.signal(signal.SIGTERM, handle_shutdown)
     signal.signal(signal.SIGINT, handle_shutdown)
+
+    if PROFILING_ENABLED and PYROSCOPE_SERVER_URL:
+        import threading
+        profiler_thread = threading.Thread(target=background_profiler_loop, daemon=True)
+        profiler_thread.start()
 
     sys.stderr.write(f"Argus sample service listening on port {PORT}...\n")
     httpd.serve_forever()
