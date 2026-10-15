@@ -4,7 +4,7 @@ All features across all phases, with permanent ids, execution modes, dependency 
 
 See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md) for the complete dependency graph, wave definitions, conflict analysis, and subagent orchestration protocol.
 
-**Progress**: 11 / 21 COMPLETE (52%)
+**Progress**: 12 / 21 COMPLETE (57%)
 
 > **The requirement**: a self-hosted, air-gapped Datadog-equivalent for internal DHS use, running entirely in Kubernetes. Spine = OpenTelemetry Collector -> ClickHouse -> SigNoz.  
 > **Execution Model**: Phased execution with concurrent multi-track waves. Within a track, tasks execute sequentially; across tracks, tasks execute concurrently via parallel subagents. All tracks synchronize at hard Wave Gates before advancing. Full acceptance criteria for each feature live in `phases/PHASE-XX-*.md`.
@@ -84,11 +84,11 @@ See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/work
 ## Phase 03 — Operational layer (alerting, cost, tenancy, auth)
 *Execution Waves: Wave 2 (Active), Wave 3, Wave 4*
 
-- [ ] **F011** — Alerting/monitors: firing-state + dedup; threshold rules
+- [x] **F011** — Alerting/monitors: firing-state + dedup; threshold rules
   - **Mode**: `[PARALLEL TRACK B]` (Incident Lifecycle — Wave 2 Active)
   - **Must wait for**: F006 (Gate G1)
   - **Can run in parallel with**: F009, F010, F014
-  - **Status**: `NOT STARTED`
+  - **Status**: `COMPLETE`
 
 - [ ] **F012** — SLO tracking + error budgets
   - **Mode**: `[PARALLEL TRACK B]` (Incident Lifecycle — Wave 3)

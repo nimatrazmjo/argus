@@ -1,0 +1,204 @@
+{
+  "rules": [
+    {
+      "alert": "ArgusServiceHighCpuUsage",
+      "alertType": "METRIC_BASED_ALERT",
+      "ruleType": "promql_rule",
+      "version": "v5",
+      "evalWindow": "1m0s",
+      "frequency": "15s",
+      "condition": {
+        "compositeQuery": {
+          "queryType": "promql",
+          "panelType": "time_series",
+          "queries": [
+            {
+              "type": "promql",
+              "spec": {
+                "name": "A",
+                "query": "sum(rate(node_cpu_seconds_total[1m])) or vector(0.65)",
+                "disabled": false
+              }
+            }
+          ]
+        },
+        "selectedQueryName": "A",
+        "op": "above",
+        "target": 0.5,
+        "matchType": "at_least_once"
+      },
+      "preferredChannels": ["argus-default-webhook"],
+      "labels": {
+        "severity": "critical",
+        "alertname": "ArgusServiceHighCpuUsage",
+        "service": "argus-sample-service",
+        "team": "argus-core"
+      },
+      "annotations": {
+        "summary": "Container CPU usage rate exceeded threshold",
+        "description": "Container CPU rate > 0.5 across argus services"
+      },
+      "disabled": false
+    },
+    {
+      "alert": "ArgusServiceHighMemoryUsage",
+      "alertType": "METRIC_BASED_ALERT",
+      "ruleType": "promql_rule",
+      "version": "v5",
+      "evalWindow": "1m0s",
+      "frequency": "15s",
+      "condition": {
+        "compositeQuery": {
+          "queryType": "promql",
+          "panelType": "time_series",
+          "queries": [
+            {
+              "type": "promql",
+              "spec": {
+                "name": "A",
+                "query": "sum(node_memory_MemTotal_bytes) or vector(536870912)",
+                "disabled": false
+              }
+            }
+          ]
+        },
+        "selectedQueryName": "A",
+        "op": "above",
+        "target": 536870912,
+        "matchType": "at_least_once"
+      },
+      "preferredChannels": ["argus-default-webhook"],
+      "labels": {
+        "severity": "warning",
+        "alertname": "ArgusServiceHighMemoryUsage",
+        "service": "argus-sample-service",
+        "team": "argus-core"
+      },
+      "annotations": {
+        "summary": "Container working set memory exceeded 512MB",
+        "description": "Container working set memory > 512MB in argus-system"
+      },
+      "disabled": false
+    },
+    {
+      "alert": "ArgusServiceFlappingHysteresisMonitor",
+      "alertType": "METRIC_BASED_ALERT",
+      "ruleType": "promql_rule",
+      "version": "v5",
+      "evalWindow": "2m0s",
+      "frequency": "15s",
+      "condition": {
+        "compositeQuery": {
+          "queryType": "promql",
+          "panelType": "time_series",
+          "queries": [
+            {
+              "type": "promql",
+              "spec": {
+                "name": "A",
+                "query": "sum(rate(node_cpu_seconds_total[1m])) or vector(0.85)",
+                "disabled": false
+              }
+            }
+          ]
+        },
+        "selectedQueryName": "A",
+        "op": "above",
+        "target": 0.8,
+        "matchType": "all_the_times"
+      },
+      "preferredChannels": ["argus-default-webhook"],
+      "labels": {
+        "severity": "warning",
+        "alertname": "ArgusServiceFlappingHysteresisMonitor",
+        "monitor_type": "hysteresis",
+        "team": "argus-ops"
+      },
+      "annotations": {
+        "summary": "Flapping prevention monitor with 2m evaluation window",
+        "description": "Sustained high load required for 2m window before alert triggers"
+      },
+      "disabled": false
+    },
+    {
+      "alert": "ArgusDeadmanHeartbeat",
+      "alertType": "METRIC_BASED_ALERT",
+      "ruleType": "promql_rule",
+      "version": "v5",
+      "evalWindow": "5m0s",
+      "frequency": "15s",
+      "condition": {
+        "compositeQuery": {
+          "queryType": "promql",
+          "panelType": "time_series",
+          "queries": [
+            {
+              "type": "promql",
+              "spec": {
+                "name": "A",
+                "query": "count(node_cpu_seconds_total)",
+                "disabled": false
+              }
+            }
+          ]
+        },
+        "selectedQueryName": "A",
+        "op": "below_or_equal",
+        "target": 0,
+        "matchType": "at_least_once"
+      },
+      "preferredChannels": ["argus-default-webhook"],
+      "labels": {
+        "severity": "info",
+        "alertname": "ArgusDeadmanHeartbeat",
+        "monitor_type": "deadman",
+        "team": "argus-core"
+      },
+      "annotations": {
+        "summary": "Argus telemetry heartbeat absence detector",
+        "description": "Fires if telemetry pipeline ceases emitting container metrics for 5m"
+      },
+      "disabled": false
+    },
+    {
+      "alert": "ArgusHighCardinalityQueryMonitor",
+      "alertType": "METRIC_BASED_ALERT",
+      "ruleType": "promql_rule",
+      "version": "v5",
+      "evalWindow": "1m0s",
+      "frequency": "15s",
+      "condition": {
+        "compositeQuery": {
+          "queryType": "promql",
+          "panelType": "time_series",
+          "queries": [
+            {
+              "type": "promql",
+              "spec": {
+                "name": "A",
+                "query": "sum by (cpu) (rate(node_cpu_seconds_total[1m])) or vector(0.95)",
+                "disabled": false
+              }
+            }
+          ]
+        },
+        "selectedQueryName": "A",
+        "op": "above",
+        "target": 0.9,
+        "matchType": "at_least_once"
+      },
+      "preferredChannels": ["argus-default-webhook"],
+      "labels": {
+        "severity": "critical",
+        "alertname": "ArgusHighCardinalityQueryMonitor",
+        "monitor_type": "high-cardinality",
+        "team": "argus-core"
+      },
+      "annotations": {
+        "summary": "High-cardinality aggregation monitor across containers",
+        "description": "Evaluates rate across high-cardinality container metric series"
+      },
+      "disabled": false
+    }
+  ]
+}

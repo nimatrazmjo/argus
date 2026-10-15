@@ -1,0 +1,68 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argus-alert-rules
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-alerting
+    app.kubernetes.io/part-of: argus
+    prometheus: k8s
+    role: alert-rules
+spec:
+  groups:
+    - name: argus.services.rules
+      rules:
+        - alert: ArgusServiceHighCpuUsage
+          expr: sum by (pod, namespace) (rate(container_cpu_usage_seconds_total{namespace="argus-system"}[1m])) > 0.5
+          for: 1m
+          labels:
+            severity: critical
+            service: argus-sample-service
+            team: argus-core
+          annotations:
+            summary: "Container CPU usage rate exceeded threshold"
+            description: "Container CPU rate > 0.5 across argus services"
+
+        - alert: ArgusServiceHighMemoryUsage
+          expr: container_memory_working_set_bytes{namespace="argus-system"} > 536870912
+          for: 1m
+          labels:
+            severity: warning
+            service: argus-sample-service
+            team: argus-core
+          annotations:
+            summary: "Container working set memory exceeded 512MB"
+            description: "Container working set memory > 512MB in argus-system"
+
+        - alert: ArgusServiceFlappingHysteresisMonitor
+          expr: sum by (pod) (rate(container_cpu_usage_seconds_total{namespace="argus-system"}[2m])) > 0.8
+          for: 2m
+          labels:
+            severity: warning
+            monitor_type: hysteresis
+            team: argus-ops
+          annotations:
+            summary: "Flapping prevention monitor with 2m evaluation window"
+            description: "Sustained high load required for 2m window before alert triggers"
+
+        - alert: ArgusDeadmanHeartbeat
+          expr: count(container_cpu_usage_seconds_total{namespace="argus-system"}) == 0
+          for: 5m
+          labels:
+            severity: info
+            monitor_type: deadman
+            team: argus-core
+          annotations:
+            summary: "Argus telemetry heartbeat absence detector"
+            description: "Fires if telemetry pipeline ceases emitting container metrics for 5m"
+
+        - alert: ArgusHighCardinalityQueryMonitor
+          expr: sum by (pod, container, image) (rate(container_cpu_usage_seconds_total{namespace="argus-system"}[1m])) > 0.9
+          for: 1m
+          labels:
+            severity: critical
+            monitor_type: high-cardinality
+            team: argus-core
+          annotations:
+            summary: "High-cardinality aggregation monitor across containers"
+            description: "Evaluates rate across high-cardinality container metric series"

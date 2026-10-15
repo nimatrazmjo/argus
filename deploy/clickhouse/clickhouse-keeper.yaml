@@ -23,26 +23,26 @@ spec:
               image: localhost:5001/argus/clickhouse-keeper:latest
               imagePullPolicy: IfNotPresent
               startupProbe:
-                tcpSocket:
-                  port: 2181
+                exec:
+                  command: ['/bin/sh', '-c', 'echo ruok | nc 127.0.0.1 2181 | grep imok']
                 initialDelaySeconds: 5
                 periodSeconds: 5
                 timeoutSeconds: 5
                 failureThreshold: 60
               livenessProbe:
-                tcpSocket:
-                  port: 2181
-                initialDelaySeconds: 10
-                periodSeconds: 10
+                exec:
+                  command: ['/bin/sh', '-c', 'echo ruok | nc 127.0.0.1 2181 | grep imok']
+                initialDelaySeconds: 15
+                periodSeconds: 20
                 timeoutSeconds: 5
-                failureThreshold: 15
+                failureThreshold: 10
               readinessProbe:
-                tcpSocket:
-                  port: 2181
-                initialDelaySeconds: 5
-                periodSeconds: 5
+                exec:
+                  command: ['/bin/sh', '-c', 'echo ruok | nc 127.0.0.1 2181 | grep imok']
+                initialDelaySeconds: 10
+                periodSeconds: 15
                 timeoutSeconds: 5
-                failureThreshold: 30
+                failureThreshold: 10
     volumeClaimTemplates:
       - name: keeper-storage
         spec:

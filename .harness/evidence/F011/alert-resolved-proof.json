@@ -1,0 +1,59 @@
+{
+  "status": "success",
+  "data": [
+    {
+      "labels": {
+        "alertname": "ArgusServiceFlappingHysteresisMonitor",
+        "monitor_type": "hysteresis",
+        "ruleId": "01a13fd0-38ae-7aea-b1e3-287db60ab30f",
+        "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-38ae-7aea-b1e3-287db60ab30f",
+        "severity": "warning",
+        "team": "argus-ops",
+        "threshold.name": "warning"
+      },
+      "annotations": {
+        "description": "Sustained high load required for 2m window before alert triggers",
+        "summary": "Flapping prevention monitor with 2m evaluation window"
+      },
+      "startsAt": "2026-10-15T14:33:47.422101757Z",
+      "endsAt": "2026-10-15T14:42:02.422101757Z",
+      "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-38ae-7aea-b1e3-287db60ab30f",
+      "status": {
+        "state": "active",
+        "silencedBy": [],
+        "inhibitedBy": []
+      },
+      "receivers": [
+        "default-receiver"
+      ],
+      "fingerprint": "69e04230db07b446"
+    },
+    {
+      "labels": {
+        "alertname": "ArgusHighCardinalityQueryMonitor",
+        "monitor_type": "high-cardinality",
+        "ruleId": "01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "severity": "critical",
+        "team": "argus-core",
+        "threshold.name": "critical"
+      },
+      "annotations": {
+        "description": "Evaluates rate across high-cardinality container metric series",
+        "summary": "High-cardinality aggregation monitor across containers"
+      },
+      "startsAt": "2026-10-15T14:34:02.388867246Z",
+      "endsAt": "2026-10-15T14:42:32.388867246Z",
+      "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+      "status": {
+        "state": "active",
+        "silencedBy": [],
+        "inhibitedBy": []
+      },
+      "receivers": [
+        "default-receiver"
+      ],
+      "fingerprint": "7b805575390776f2"
+    }
+  ]
+}

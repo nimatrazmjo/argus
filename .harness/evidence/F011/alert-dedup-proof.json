@@ -1,0 +1,29 @@
+[
+  {
+    "labels": {
+      "alertname": "ArgusServiceHighCpuUsage",
+      "ruleId": "01a13fcb-0c47-7029-af3c-e0aa06a16319",
+      "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fcb-0c47-7029-af3c-e0aa06a16319",
+      "service": "argus-sample-service",
+      "severity": "critical",
+      "team": "argus-core",
+      "threshold.name": "critical"
+    },
+    "annotations": {
+      "description": "Container CPU rate > 0.5 across argus services",
+      "summary": "Container CPU usage rate exceeded threshold"
+    },
+    "startsAt": "2026-10-15T14:36:35.882353807Z",
+    "endsAt": "2026-10-15T14:42:35.882353807Z",
+    "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fcb-0c47-7029-af3c-e0aa06a16319",
+    "status": {
+      "state": "active",
+      "silencedBy": [],
+      "inhibitedBy": []
+    },
+    "receivers": [
+      "default-receiver"
+    ],
+    "fingerprint": "59e6de8553ef18b8"
+  }
+]

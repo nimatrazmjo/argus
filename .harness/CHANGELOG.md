@@ -17,7 +17,54 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
-## 2026-10-13 — HARNESS ARCHITECTURE: Parallel vs Sequential Execution Graph & Subagent Protocol
+## 2026-10-15 — F011 Alerting & Monitors (Firing State + Dedup, Threshold Rules) — COMPLETE
+Branch/commit: main @ HEAD   PR: N/A   CI: green
+Evidence:
+  - Architecture Decision & Manifests:
+      * `docs/decisions/ADR-0007-alerting-and-monitors-signoz.md` documenting SigNoz Ruler + Alertmanager deduplication engine.
+      * `deploy/alerting/rules.json`: Declarative JSON alert rules covering CPU threshold, memory threshold, flapping hysteresis (2m window), deadman absence monitoring, and high-cardinality containers.
+      * `deploy/alerting/apply-rules.sh`: Declarative synchronization script updating SigNoz Ruler and applying Kubernetes `PrometheusRule` CRD.
+      * `deploy/alerting/prometheus-rules.yaml`: Kubernetes-native `monitoring.coreos.com/v1` PrometheusRule manifests.
+  - End-to-End Verification:
+      * `scripts/test-alerting.sh` + `scripts/run_alert_e2e.py`: Verified metric breach -> firing transition -> Alertmanager deduplication -> recovery/resolution lifecycle.
+      * Generated evidence artifacts: `.harness/evidence/F011/alert-firing-proof.json`, `.harness/evidence/F011/alert-dedup-proof.json`, `.harness/evidence/F011/alert-resolved-proof.json`.
+  - Edge Cases & Resilience Battery:
+      * `scripts/test-alerting-edge-cases.sh`: Verified flapping prevention (2m evaluation window), deadman absence handling (inverted comparison on zero metrics), and high-cardinality aggregation query performance (<5000ms latency requirement). Evidence saved to `.harness/evidence/F011/edge-cases-verification.txt`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F011 is COMPLETE! Wave 2 is 100% complete (12/21 features — 57%). Synchronization Gate G2 is PASSED.
+
+## 2026-10-15 — F014 Tiered Retention Policies, Downsampling Materialized Views & Log Filtering — COMPLETE
+Branch/commit: main @ c02c5ae   PR: N/A   CI: green
+Evidence:
+  - Storage Policies & Materialized Views:
+      * `deploy/clickhouse/retention-policies.sql`: Hot NVMe local SSD -> Cold S3/SeaweedFS tiered volume migration and drop TTLs.
+      * Materialized views for 1-minute (`otel_metrics_1m`, `signoz_metrics.samples_1m`) and 1-hour rollups.
+      * `deploy/otel/processors/filter-processor.yaml`: Collector log-level filter dropping debug noise at ingest.
+  - Test Suites & Verification:
+      * `scripts/test-retention-downsampling.sh`: Verified volume tiering, TTL syntax, downsampling table rollups.
+      * `scripts/test-retention-edge-cases.sh`: Verified S3 failover, backpressure under high volume, and log filter accuracy. Evidence in `.harness/evidence/F014/`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+
+## 2026-10-14 — F010 Continuous Profiling via Grafana Pyroscope — COMPLETE
+Branch/commit: main @ 7b624e1   PR: N/A   CI: green
+Evidence:
+  - Architecture Decision & Deployment:
+      * `docs/decisions/ADR-0006-continuous-profiling-pyroscope.md` selecting Grafana Pyroscope in single-binary mode.
+      * `deploy/profiling/pyroscope.yaml`: Monolithic deployment in `argus-system` with dedicated PVC, air-gapped image mirror (`localhost:5001/argus/pyroscope:1.7.1`), usage reporting disabled.
+  - Verification & Edge Cases:
+      * `scripts/test-profiling.sh` + `scripts/test-profiling-edge-cases.sh`: Ingested folded and pprof stack traces, verified FlameQL render API returning CPU and memory flame graphs. Evidence in `.harness/evidence/F010/`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+
+## 2026-10-14 — F009 Infrastructure Metrics via node-exporter & kube-state-metrics — COMPLETE
+Branch/commit: main @ 3a4a000   PR: N/A   CI: green
+Evidence:
+  - Deployment & Pipelines:
+      * `deploy/infra-metrics/node-exporter.yaml` (DaemonSet) and `deploy/infra-metrics/kube-state-metrics.yaml` (Deployment) using air-gapped mirror images.
+      * OTel node scraper and gateway scraping pipelines routing metrics into ClickHouse and SigNoz.
+  - Verification & Edge Cases:
+      * `scripts/test-infra-metrics.sh` + `scripts/test-infra-metrics-edge-cases.sh`: 100% green verification across node and cluster metrics. Evidence in `.harness/evidence/F009/`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+
 Branch/commit: chore/parallel-execution-harness   PR: N/A   CI: green
 Evidence:
   - Architecture Specification:

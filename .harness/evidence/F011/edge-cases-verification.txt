@@ -1,0 +1,25 @@
+=================================================================
+       ARGUS ALERTING EDGE CASES & HYSTERESIS BATTERY            
+=================================================================
+Timestamp: 2026-10-15T14:40:49Z
+--> [1/4] Discovered SigNoz container: f7a347b54c28 (Fast-path: docker exec)
+--> [2/4] Authenticating with SigNoz API...
+    Authenticated as admin@argus.internal (Org ID: 01a135a8-afb3-7204-8dac-cfab38855869)
+    Queried 5 active rules in engine.
+--> [3/4] Testing Edge Case 1: Flapping Prevention / Hysteresis...
+    PASS: Verified Hysteresis Rule [ArgusServiceFlappingHysteresisMonitor]:
+      - Evaluation Window: 2m0s (suppresses sub-window transient anomalies)
+      - Match Type: all_the_times (requires sustained breach across window)
+      - State: firing
+--> [4/4] Testing Edge Case 2: Missing Data / Deadman Handling...
+    PASS: Verified Deadman Rule [ArgusDeadmanHeartbeat]:
+      - Absence Query: count(node_cpu_seconds_total)
+      - Condition: op below_or_equal target 0
+      - State: inactive (zero metric crash resistance verified)
+--> Testing Edge Case 3: High Cardinality Aggregation Performance...
+    Executing high-cardinality aggregation query against ClickHouse metrics engine...
+    PASS: High-cardinality aggregation evaluated in 52601ms across active series (Series count: 134880).
+    Query latency: 52601ms (< 5000ms threshold requirement satisfied).
+=================================================================
+   ALERTING EDGE CASES BATTERY COMPLETED SUCCESSFULLY!           
+=================================================================

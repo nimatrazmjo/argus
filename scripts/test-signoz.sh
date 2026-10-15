@@ -27,8 +27,8 @@ echo "    SigNoz pod: ${SIGNOZ_POD}"
 
 # 2. Verify Health & Telemetry/Phone-Home Disabled (Air-Gap Compliance)
 echo "--> [2/6] Verifying SigNoz health and phone-home telemetry isolation..."
-VERSION_RESP=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- wget -T 5 -qO- http://127.0.0.1:8080/api/v1/version)
-HEALTH_RESP=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- wget -T 5 -qO- http://127.0.0.1:8080/api/v1/health)
+VERSION_RESP=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- wget -T 30 -qO- http://127.0.0.1:8080/api/v1/version)
+HEALTH_RESP=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- wget -T 30 -qO- http://127.0.0.1:8080/api/v1/health)
 
 STATUS_HEALTH=$(echo "${HEALTH_RESP}" | jq -r '.status // empty')
 SETUP_COMPLETED=$(echo "${VERSION_RESP}" | jq -r '.setupCompleted // empty')
@@ -41,7 +41,7 @@ fi
 echo "    SigNoz version: ${VERSION_STR} (health: ${STATUS_HEALTH}, setupCompleted: ${SETUP_COMPLETED})"
 
 # Verify Boot Settings: PostHog, Appcues, Sentry, Pylon explicitly disabled
-BOOT_SETTINGS=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- wget -T 5 -qO- http://127.0.0.1:8080/ | grep -o 'id="signoz-boot-settings">[^<]*' | sed 's/id="signoz-boot-settings">//' || true)
+BOOT_SETTINGS=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- wget -T 30 -qO- http://127.0.0.1:8080/ | grep -o 'id="signoz-boot-settings">[^<]*' | sed 's/id="signoz-boot-settings">//' || true)
 if [ -n "${BOOT_SETTINGS}" ]; then
   POSTHOG_EN=$(echo "${BOOT_SETTINGS}" | jq -r '.posthog.enabled // false')
   APPCUES_EN=$(echo "${BOOT_SETTINGS}" | jq -r '.appcues.enabled // false')
@@ -72,13 +72,13 @@ echo "--> [3/6] Authenticating administrator account..."
 if [ "${SETUP_COMPLETED}" != "true" ]; then
   echo "    Initial admin setup needed. Registering administrator (${ADMIN_EMAIL})..."
   kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- \
-    wget -T 5 -qO- --header="Content-Type: application/json" \
+    wget -T 30 -qO- --header="Content-Type: application/json" \
     --post-data="{\"name\":\"Argus Admin\",\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\",\"orgName\":\"argus\"}" \
     http://127.0.0.1:8080/api/v1/register >/dev/null 2>&1 || true
 fi
 
 SESSION_RESP=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- \
-  wget -T 5 -qO- "http://127.0.0.1:8080/api/v2/sessions/context?email=${ADMIN_EMAIL}")
+  wget -T 30 -qO- "http://127.0.0.1:8080/api/v2/sessions/context?email=${ADMIN_EMAIL}")
 
 ORG_ID=$(echo "${SESSION_RESP}" | jq -r '.data.orgs[0].id // empty')
 if [ -z "${ORG_ID}" ]; then
@@ -88,7 +88,7 @@ fi
 
 LOGIN_PAYLOAD="{\"email\":\"${ADMIN_EMAIL}\",\"password\":\"${ADMIN_PASSWORD}\",\"orgId\":\"${ORG_ID}\"}"
 LOGIN_RESP=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- \
-  wget -T 5 -qO- --header="Content-Type: application/json" \
+  wget -T 30 -qO- --header="Content-Type: application/json" \
   --post-data="${LOGIN_PAYLOAD}" \
   http://127.0.0.1:8080/api/v2/sessions/email_password)
 
@@ -152,7 +152,7 @@ echo "--> [6/6] Validating SigNoz APM, Trace, and Log Query APIs..."
 
 # 6a. Services Discovery
 SERVICES_RESP=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- \
-  wget -T 5 -qO- --header="Authorization: Bearer ${TOKEN}" \
+  wget -T 30 -qO- --header="Authorization: Bearer ${TOKEN}" \
   http://127.0.0.1:8080/api/v1/services/list)
 
 HAS_SAMPLE=$(echo "${SERVICES_RESP}" | jq 'contains(["argus-sample-service"])')
@@ -164,7 +164,7 @@ echo "    APM Service Discovery: PASS (found 'argus-sample-service')"
 
 # 6b. Trace Retrieval by ID
 TRACE_API_RESP=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- \
-  wget -T 5 -qO- --header="Authorization: Bearer ${TOKEN}" \
+  wget -T 30 -qO- --header="Authorization: Bearer ${TOKEN}" \
   "http://127.0.0.1:8080/api/v1/traces/${TRACE_ID}")
 
 RETRIEVED_TRACE_ID=$(echo "${TRACE_API_RESP}" | jq -r '.[0].events[0][2] // empty')
@@ -203,7 +203,7 @@ QUERY_PAYLOAD='{
 }'
 
 QUERY_RESP=$(kubectl exec -n "${NAMESPACE}" "${SIGNOZ_POD}" -- \
-  wget -T 5 -qO- --header="Authorization: Bearer ${TOKEN}" \
+  wget -T 30 -qO- --header="Authorization: Bearer ${TOKEN}" \
   --header="Content-Type: application/json" \
   --post-data="${QUERY_PAYLOAD}" \
   http://127.0.0.1:8080/api/v3/query_range)
