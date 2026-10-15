@@ -1,0 +1,32 @@
+=================================================================
+   ARGUS FEATURE F014: RETENTION & DOWNSAMPLING VERIFICATION     
+=================================================================
+--> [1/5] Verifying ClickHouse Cluster Connectivity...
+    ClickHouse connection verified successfully.
+--> [2/5] Ensuring Schema & Retention Policies are Applied...
+    Applied deploy/clickhouse/retention-policies.sql successfully.
+--> [3/5] Verifying Tiered Storage Policies & TTL Settings...
+    [PASS] default.otel_logs: storage_policy='default', TTL verified.
+    [PASS] default.otel_metrics_1h: storage_policy='tiered_hot_cold', TTL verified.
+    [PASS] default.otel_metrics_1m: storage_policy='tiered_hot_cold', TTL verified.
+    [PASS] default.otel_metrics_gauge: storage_policy='default', TTL verified.
+    [PASS] default.otel_metrics_sum: storage_policy='default', TTL verified.
+    [PASS] default.otel_traces: storage_policy='default', TTL verified.
+    [PASS] signoz_metrics.samples_1h: storage_policy='tiered_hot_cold', TTL verified.
+    [PASS] signoz_metrics.samples_1m: storage_policy='tiered_hot_cold', TTL verified.
+    [PASS] system.disks: s3_cold volume configured.
+    [PASS] system.storage_policies: tiered_hot_cold policy verified.
+--> [4/5] Testing OpenTelemetry Metric Downsampling (Raw -> 1m -> 1h)...
+    OTel 1m Rollup: Count=22, Sum=435, Min=10, Max=30, Last=30
+    [PASS] OTel Raw -> 1m Rollup Materialized View verified.
+    OTel 1h Rollup: Count=22, Sum=435, Min=10, Max=30
+    [PASS] OTel 1m -> 1h Rollup Materialized View verified.
+--> [5/5] Testing SigNoz Metric Downsampling (Raw -> 1m -> 1h)...
+    SigNoz 1m Rollup: Count=12, Sum=2100, Min=100, Max=250, Last=250
+    [PASS] SigNoz Raw -> 1m Rollup Materialized View verified.
+    SigNoz 1h Rollup: Count=10, Sum=1750, Min=100, Max=250
+    [PASS] SigNoz 1m -> 1h Rollup Materialized View verified.
+=================================================================
+STATUS: ALL TESTS PASSED (100%)
+Feature F014 Retention & Downsampling Verified Successfully.
+=================================================================

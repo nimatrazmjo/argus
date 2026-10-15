@@ -82,6 +82,11 @@ spec:
               - replace_pattern(body, "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED_SSN]")
               - replace_pattern(body, "\\b(?:\\d[ -]*?){13,16}\\b", "[REDACTED_PAN]")
               - replace_pattern(body, "(?i)(password|secret|token|auth_token|api_key|cjis_fbi_number|ssn)=[^&\\s,;]+", "$$1=[REDACTED]")
+      filter/log_level:
+        error_mode: ignore
+        logs:
+          log_record:
+            - '((severity_number > 0 and severity_number <= 8) or severity_text == "DEBUG" or severity_text == "TRACE") and resource.attributes["service.name"] != "debug-service" and resource.attributes["service.name"] != "sample-debug-service" and resource.attributes["service.debug"] != "true" and resource.attributes["allow_debug"] != "true" and attributes["allow_debug"] != "true"'
       batch:
         timeout: 1s
         send_batch_size: 1024
@@ -116,5 +121,5 @@ spec:
           exporters: [clickhouse, otlp/signoz]
         logs:
           receivers: [otlp]
-          processors: [memory_limiter, k8sattributes, transform/redaction, batch]
+          processors: [memory_limiter, k8sattributes, filter/log_level, transform/redaction, batch]
           exporters: [clickhouse, otlp/signoz]

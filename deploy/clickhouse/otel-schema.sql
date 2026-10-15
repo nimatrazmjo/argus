@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS default.otel_traces (
 ) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/default/otel_traces', '{replica}')
 PARTITION BY toDate(Timestamp)
 ORDER BY (ServiceName, SpanName, toDateTime(Timestamp))
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
+TTL toDateTime(Timestamp) + INTERVAL 7 DAY TO VOLUME 'cold', toDateTime(Timestamp) + INTERVAL 30 DAY
+SETTINGS storage_policy = 'tiered_hot_cold', index_granularity = 8192, ttl_only_drop_parts = 1;
 
 CREATE TABLE IF NOT EXISTS default.otel_logs (
     Timestamp DateTime64(9) COMMENT 'Event timestamp with nanosecond precision' CODEC(Delta(8), ZSTD(1)),
@@ -55,7 +56,8 @@ CREATE TABLE IF NOT EXISTS default.otel_logs (
 ) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/default/otel_logs', '{replica}')
 PARTITION BY toDate(Timestamp)
 ORDER BY (toStartOfFiveMinutes(Timestamp), ServiceName, Timestamp)
-SETTINGS index_granularity = 8192, ttl_only_drop_parts = 1;
+TTL toDateTime(Timestamp) + INTERVAL 7 DAY TO VOLUME 'cold', toDateTime(Timestamp) + INTERVAL 30 DAY
+SETTINGS storage_policy = 'tiered_hot_cold', index_granularity = 8192, ttl_only_drop_parts = 1;
 
 CREATE TABLE IF NOT EXISTS default.otel_metrics_gauge (
     ResourceAttributes Map(LowCardinality(String), String) CODEC(ZSTD(1)),
@@ -84,7 +86,8 @@ CREATE TABLE IF NOT EXISTS default.otel_metrics_gauge (
 ) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/default/otel_metrics_gauge', '{replica}')
 PARTITION BY toDate(TimeUnix)
 ORDER BY (ServiceName, MetricName, toStartOfHour(TimeUnix), cityHash64(Attributes), TimeUnix)
-SETTINGS index_granularity=8192, ttl_only_drop_parts = 1;
+TTL TimeUnix + INTERVAL 7 DAY TO VOLUME 'cold', TimeUnix + INTERVAL 30 DAY
+SETTINGS storage_policy = 'tiered_hot_cold', index_granularity=8192, ttl_only_drop_parts = 1;
 
 CREATE TABLE IF NOT EXISTS default.otel_metrics_sum (
     ResourceAttributes Map(LowCardinality(String), String) CODEC(ZSTD(1)),
@@ -115,7 +118,8 @@ CREATE TABLE IF NOT EXISTS default.otel_metrics_sum (
 ) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/default/otel_metrics_sum', '{replica}')
 PARTITION BY toDate(TimeUnix)
 ORDER BY (ServiceName, MetricName, toStartOfHour(TimeUnix), cityHash64(Attributes), TimeUnix)
-SETTINGS index_granularity=8192, ttl_only_drop_parts = 1;
+TTL TimeUnix + INTERVAL 7 DAY TO VOLUME 'cold', TimeUnix + INTERVAL 30 DAY
+SETTINGS storage_policy = 'tiered_hot_cold', index_granularity=8192, ttl_only_drop_parts = 1;
 
 CREATE TABLE IF NOT EXISTS default.otel_metrics_histogram (
     ResourceAttributes Map(LowCardinality(String), String) CODEC(ZSTD(1)),
@@ -150,7 +154,8 @@ CREATE TABLE IF NOT EXISTS default.otel_metrics_histogram (
 ) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/default/otel_metrics_histogram', '{replica}')
 PARTITION BY toDate(TimeUnix)
 ORDER BY (ServiceName, MetricName, toStartOfHour(TimeUnix), cityHash64(Attributes), TimeUnix)
-SETTINGS index_granularity=8192, ttl_only_drop_parts = 1;
+TTL TimeUnix + INTERVAL 7 DAY TO VOLUME 'cold', TimeUnix + INTERVAL 30 DAY
+SETTINGS storage_policy = 'tiered_hot_cold', index_granularity=8192, ttl_only_drop_parts = 1;
 
 CREATE TABLE IF NOT EXISTS default.otel_metrics_summary (
     ResourceAttributes Map(LowCardinality(String), String) CODEC(ZSTD(1)),
@@ -177,7 +182,8 @@ CREATE TABLE IF NOT EXISTS default.otel_metrics_summary (
 ) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/default/otel_metrics_summary', '{replica}')
 PARTITION BY toDate(TimeUnix)
 ORDER BY (ServiceName, MetricName, toStartOfHour(TimeUnix), cityHash64(Attributes), TimeUnix)
-SETTINGS index_granularity=8192, ttl_only_drop_parts = 1;
+TTL TimeUnix + INTERVAL 7 DAY TO VOLUME 'cold', TimeUnix + INTERVAL 30 DAY
+SETTINGS storage_policy = 'tiered_hot_cold', index_granularity=8192, ttl_only_drop_parts = 1;
 
 CREATE TABLE IF NOT EXISTS default.otel_metrics_exp_histogram (
     ResourceAttributes Map(LowCardinality(String), String) CODEC(ZSTD(1)),
@@ -216,5 +222,6 @@ CREATE TABLE IF NOT EXISTS default.otel_metrics_exp_histogram (
 ) ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/default/otel_metrics_exp_histogram', '{replica}')
 PARTITION BY toDate(TimeUnix)
 ORDER BY (ServiceName, MetricName, toStartOfHour(TimeUnix), cityHash64(Attributes), TimeUnix)
-SETTINGS index_granularity=8192, ttl_only_drop_parts = 1;
+TTL TimeUnix + INTERVAL 7 DAY TO VOLUME 'cold', TimeUnix + INTERVAL 30 DAY
+SETTINGS storage_policy = 'tiered_hot_cold', index_granularity=8192, ttl_only_drop_parts = 1;
 

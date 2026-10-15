@@ -60,8 +60,20 @@ echo "--> Step 17/19: Running infrastructure metrics functional and E2E verifica
 echo "--> Step 18/19: Running infrastructure metrics edge cases and resilience battery..."
 ./scripts/test-infra-metrics-edge-cases.sh
 
-echo "--> Step 19/19: Running baseline readiness and air-gap operator audit..."
+echo "--> Step 19/23: Running baseline readiness and air-gap operator audit..."
 ./scripts/init.sh
+
+echo "--> Step 20/23: Running continuous profiling (Pyroscope) functional verification..."
+./scripts/test-profiling.sh
+
+echo "--> Step 21/23: Running continuous profiling edge cases and overhead battery..."
+./scripts/test-profiling-edge-cases.sh
+
+echo "--> Step 22/23: Running tiered retention policies and downsampling verification..."
+./scripts/test-retention-downsampling.sh
+
+echo "--> Step 23/23: Running tiered retention and log-level filter edge cases battery..."
+./scripts/test-retention-edge-cases.sh
 
 echo "================================================================="
 echo "STATUS: ALL VERIFICATIONS PASSED"

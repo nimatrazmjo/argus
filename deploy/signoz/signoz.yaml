@@ -8,6 +8,8 @@ metadata:
     app.kubernetes.io/part-of: argus
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: signoz
@@ -59,18 +61,28 @@ spec:
               containerPort: 8080
             - name: grpc-internal
               containerPort: 8085
-          readinessProbe:
-            httpGet:
-              path: /api/v1/version
-              port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          livenessProbe:
+          startupProbe:
             httpGet:
               path: /api/v1/version
               port: 8080
             initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/v1/version
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/v1/version
+              port: 8080
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
           volumeMounts:
             - name: signoz-db
               mountPath: /var/lib/signoz/
