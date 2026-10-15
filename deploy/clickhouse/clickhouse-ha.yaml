@@ -18,11 +18,9 @@ spec:
       default/networks/ip: "::/0"
       default/settings/allow_experimental_json_type: "1"
       default/settings/allow_experimental_object_type: "1"
-      default/settings/insert_distributed_sync: "1"
     profiles:
       default/allow_experimental_json_type: "1"
       default/allow_experimental_object_type: "1"
-      default/insert_distributed_sync: "1"
     files:
       "{users}/json.xml": |
         <clickhouse>
@@ -30,7 +28,6 @@ spec:
             <default>
               <allow_experimental_json_type>1</allow_experimental_json_type>
               <allow_experimental_object_type>1</allow_experimental_object_type>
-              <insert_distributed_sync>1</insert_distributed_sync>
             </default>
           </profiles>
         </clickhouse>

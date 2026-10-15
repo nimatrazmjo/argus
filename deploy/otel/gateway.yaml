@@ -82,6 +82,29 @@ spec:
               - replace_pattern(body, "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED_SSN]")
               - replace_pattern(body, "\\b(?:\\d[ -]*?){13,16}\\b", "[REDACTED_PAN]")
               - replace_pattern(body, "(?i)(password|secret|token|auth_token|api_key|cjis_fbi_number|ssn)=[^&\\s,;]+", "$$1=[REDACTED]")
+      transform/cardinality:
+        error_mode: ignore
+        metric_statements:
+          - context: datapoint
+            statements:
+              - delete_key(attributes, "user_guid")
+              - delete_key(attributes, "random_hash")
+              - delete_key(attributes, "session_id")
+              - delete_key(attributes, "cardinality_exploding_key")
+        trace_statements:
+          - context: span
+            statements:
+              - delete_key(attributes, "user_guid")
+              - delete_key(attributes, "random_hash")
+              - delete_key(attributes, "session_id")
+              - delete_key(attributes, "cardinality_exploding_key")
+        log_statements:
+          - context: log
+            statements:
+              - delete_key(attributes, "user_guid")
+              - delete_key(attributes, "random_hash")
+              - delete_key(attributes, "session_id")
+              - delete_key(attributes, "cardinality_exploding_key")
       filter/log_level:
         error_mode: ignore
         logs:
@@ -113,13 +136,13 @@ spec:
       pipelines:
         traces:
           receivers: [otlp]
-          processors: [memory_limiter, k8sattributes, transform/redaction, batch]
+          processors: [memory_limiter, k8sattributes, transform/redaction, transform/cardinality, batch]
           exporters: [clickhouse, otlp/signoz]
         metrics:
           receivers: [otlp, prometheus/kube-state-metrics]
-          processors: [memory_limiter, k8sattributes, batch]
+          processors: [memory_limiter, k8sattributes, transform/cardinality, batch]
           exporters: [clickhouse, otlp/signoz]
         logs:
           receivers: [otlp]
-          processors: [memory_limiter, k8sattributes, filter/log_level, transform/redaction, batch]
+          processors: [memory_limiter, k8sattributes, filter/log_level, transform/redaction, transform/cardinality, batch]
           exporters: [clickhouse, otlp/signoz]

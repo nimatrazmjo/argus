@@ -1,0 +1,76 @@
+[
+  {
+    "alert": "ArgusSyntheticProbeFailure",
+    "expr": "argus_synthetic_probe_success == 0",
+    "for": "30s",
+    "labels": {
+      "severity": "critical",
+      "component": "synthetics",
+      "tier": "frontend",
+      "rule_type": "threshold"
+    },
+    "annotations": {
+      "summary": "Synthetic Canary Probe Failed for argus-sample-service",
+      "description": "Blackbox multi-step synthetic canary transaction failed. Target service unavailable or returning non-200 responses.",
+      "runbook_url": "https://wiki.dhs.gov/sre/runbooks/synthetic-canary-failure"
+    },
+    "eval_window": "1m0s",
+    "condition": {
+      "compositeQuery": {
+        "builderQueries": {
+          "A": {
+            "queryName": "A",
+            "aggregateAttribute": {
+              "dataType": "float64",
+              "name": "argus_synthetic_probe_success",
+              "type": ""
+            },
+            "aggregateOperator": "avg",
+            "expression": "A",
+            "stepInterval": 60
+          }
+        }
+      },
+      "op": "below",
+      "target": 1,
+      "matchType": "1"
+    }
+  },
+  {
+    "alert": "ArgusSyntheticProbeLatencyDegraded",
+    "expr": "argus_synthetic_probe_duration_seconds > 1.5",
+    "for": "1m",
+    "labels": {
+      "severity": "warning",
+      "component": "synthetics",
+      "tier": "frontend",
+      "rule_type": "threshold"
+    },
+    "annotations": {
+      "summary": "Synthetic Canary Probe Latency Exceeded 1.5s SLA",
+      "description": "Multi-step synthetic transaction took longer than 1.5s SLA threshold.",
+      "runbook_url": "https://wiki.dhs.gov/sre/runbooks/synthetic-latency-degraded"
+    },
+    "eval_window": "2m0s",
+    "condition": {
+      "compositeQuery": {
+        "builderQueries": {
+          "A": {
+            "queryName": "A",
+            "aggregateAttribute": {
+              "dataType": "float64",
+              "name": "argus_synthetic_probe_duration_seconds",
+              "type": ""
+            },
+            "aggregateOperator": "avg",
+            "expression": "A",
+            "stepInterval": 60
+          }
+        }
+      },
+      "op": "above",
+      "target": 1.5,
+      "matchType": "1"
+    }
+  }
+]

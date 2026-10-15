@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-synthetic-prober
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-synthetic-prober
+    app.kubernetes.io/part-of: argus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-synthetic-prober
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-synthetic-prober
+        app.kubernetes.io/part-of: argus
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9115"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: prober
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "/app/synthetic_prober.py"]
+          env:
+            - name: PORT
+              value: "9115"
+            - name: SAMPLE_SERVICE_URL
+              value: "http://argus-sample-service.argus-system.svc.cluster.local:8080"
+            - name: PROBE_INTERVAL
+              value: "300"
+          ports:
+            - containerPort: 9115
+              name: metrics
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9115
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9115
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-synthetic-prober-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-synthetic-prober
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-synthetic-prober
+    app.kubernetes.io/part-of: argus
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: argus-synthetic-prober
+  ports:
+    - name: metrics
+      port: 9115
+      targetPort: 9115

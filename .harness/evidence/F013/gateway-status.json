@@ -1,0 +1,1 @@
+{"status": "healthy", "active_incidents_count": 1, "retry_queue_size": 0, "stats": {"alerts_received": 2, "incidents_created": 1, "incidents_resolved": 1, "duplicates_suppressed": 0, "retries_attempted": 0, "retries_succeeded": 0, "dispatches_failed": 0}}

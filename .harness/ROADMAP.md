@@ -4,7 +4,7 @@ All features across all phases, with permanent ids, execution modes, dependency 
 
 See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md) for the complete dependency graph, wave definitions, conflict analysis, and subagent orchestration protocol.
 
-**Progress**: 13 / 21 COMPLETE (62%)
+**Progress**: 16 / 21 COMPLETE (76%)
 
 > **The requirement**: a self-hosted, air-gapped Datadog-equivalent for internal DHS use, running entirely in Kubernetes. Spine = OpenTelemetry Collector -> ClickHouse -> SigNoz.  
 > **Execution Model**: Phased execution with concurrent multi-track waves. Within a track, tasks execute sequentially; across tracks, tasks execute concurrently via parallel subagents. All tracks synchronize at hard Wave Gates before advancing. Full acceptance criteria for each feature live in `phases/PHASE-XX-*.md`.
@@ -96,11 +96,11 @@ See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/work
   - **Can run in parallel with**: F013, F015, F017, F018
   - **Status**: `COMPLETE`
 
-- [ ] **F013** — Paging path: webhook to agency incident tooling (ServiceNow); optional Keep correlation front
+- [x] **F013** — Paging path: webhook to agency incident tooling (ServiceNow); optional Keep correlation front
   - **Mode**: `[PARALLEL TRACK B]` (Incident Lifecycle — Wave 3)
   - **Must wait for**: F011 (Requires firing alert events)
   - **Can run in parallel with**: F012, F015, F017, F018
-  - **Status**: `NOT STARTED`
+  - **Status**: `COMPLETE`
 
 - [x] **F014** — Retention + downsampling: tiered hot/cold (local -> S3), metric rollups via materialized views, default log-level filter
   - **Mode**: `[PARALLEL TRACK C]` (Data Governance & Storage — Wave 2 Active)
@@ -108,11 +108,11 @@ See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/work
   - **Can run in parallel with**: F009, F010, F011
   - **Status**: `COMPLETE`
 
-- [ ] **F015** — Multi-tenancy + per-tenant quotas; cardinality guardrails at ingest
+- [x] **F015** — Multi-tenancy + per-tenant quotas; cardinality guardrails at ingest
   - **Mode**: `[PARALLEL TRACK C]` (Data Governance & Storage — Wave 3)
   - **Must wait for**: F014 (Builds on storage policies and downsampling partitions)
   - **Can run in parallel with**: F012, F013, F017, F018
-  - **Status**: `NOT STARTED`
+  - **Status**: `COMPLETE`
 
 - [ ] **F016** — SSO/RBAC via agency IdP (SAML/OIDC, PIV/CAC), role separation
   - **Mode**: `[PARALLEL TRACK C]` (Data Governance & Security — Wave 4)
@@ -131,11 +131,11 @@ See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/work
   - **Can run in parallel with**: F012, F013, F015, F018
   - **Status**: `NOT STARTED`
 
-- [ ] **F018** — Synthetics: scheduled Playwright CronJobs + blackbox probes + results view
+- [x] **F018** — Synthetics: scheduled Playwright CronJobs + blackbox probes + results view
   - **Mode**: `[PARALLEL TRACK D]` (Frontend Signals — Wave 3)
   - **Must wait for**: F011 (Requires alerting engine to route probe breach notifications)
   - **Can run in parallel with**: F012, F013, F015, F017
-  - **Status**: `NOT STARTED`
+  - **Status**: `COMPLETE`
 
 ---
 

@@ -2,8 +2,8 @@
 
 **Wave**: **Wave 3 — Operational Depth & Frontend Signals**  
 **Execution Mode**: Parallel Multi-Subagent Dispatch (see [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md))  
-**Gate Status**: Gate G1 is **PASSED** (8/21 Complete — 38%). Gate G2 is **PASSED** (12/21 Complete — 57%).  
-**Active Wave Features**: `F013` (Track B) || `F015` (Track C) || `F017` (Track D) || `F018` (Track D)
+**Gate Status**: Gate G1 is **PASSED** (8/21 Complete — 38%). Gate G2 is **PASSED** (12/21 Complete — 57%). Progress: 16/21 Complete (76%).  
+**Active Wave Features**: `F017` (Track D — final remaining Wave 3 feature before Gate G3)
 
 ---
 
@@ -35,36 +35,34 @@
 
 ---
 
-## Active Wave 3 Parallel Work Packages
+## Completed in Wave 3 (4 Packages Verified 100% Green)
 
-The orchestrator dispatches parallel subagents across the independent tracks in Wave 3:
+### Package 1: Track B — Feature F012 (SLO Tracking & Error Budgets) — [COMPLETE]
+- **Status**: COMPLETE & VERIFIED. Evidence saved to `.harness/evidence/F012/`.
+- **Delivered**: `deploy/slo/slo-definition.json`, `deploy/slo/slo-rules.json`, `deploy/slo/apply-slo.sh`, `docs/decisions/ADR-0008-slo-tracking-and-error-budgets.md`, `scripts/test-slo.sh`, `scripts/test-slo-edge-cases.sh`, in-service `SLOTracker` & visual dashboard in `deploy/sample-app/app/server.py`.
 
-### Package 1: Track B — Feature F012 (SLO Tracking & Error Budgets)
-- **Scope**: Implement Service Level Objectives (SLO), burn-rate alerts, and error budgets against APM and infrastructure metrics.
-- **Target Files**: `deploy/slo/`, `scripts/test-slo.sh`, `scripts/test-slo-edge-cases.sh`.
-- **Prerequisites**: F011 (Gate G2 PASSED).
+### Package 2: Track B — Feature F013 (Paging Webhook & Incident Routing) — [COMPLETE]
+- **Status**: COMPLETE & VERIFIED. Evidence saved to `.harness/evidence/F013/`.
+- **Delivered**: `docs/decisions/ADR-0009-paging-and-incident-routing.md`, `deploy/paging/servicenow_mock.py`, `deploy/paging/paging_gateway.py`, `deploy/paging/paging-workloads.yaml`, `deploy/paging/apply-paging.sh`, `scripts/test-paging.sh`, `scripts/test-paging-edge-cases.sh`.
 
-### Package 2: Track B — Feature F013 (Paging Webhook & Incident Routing)
-- **Scope**: Implement incident paging webhooks to external/internal incident response tools (ServiceNow-compatible payload formats, optional Keep correlation interface).
-- **Target Files**: `deploy/paging/`, `scripts/test-paging.sh`, `scripts/test-paging-edge-cases.sh`.
-- **Prerequisites**: F011 (Gate G2 PASSED).
+### Package 3: Track C — Feature F015 (Multi-Tenancy, Quotas & Cardinality Guardrails) — [COMPLETE]
+- **Status**: COMPLETE & VERIFIED. Evidence saved to `.harness/evidence/F015/`.
+- **Delivered**: `docs/decisions/ADR-0010-multi-tenancy-and-cardinality-guardrails.md`, `deploy/tenancy/tenant-policies.sql`, `deploy/tenancy/apply-tenancy.sh`, `deploy/otel/gateway.yaml` (cardinality guardrail processor), `scripts/test-tenancy.sh`, `scripts/test-tenancy-edge-cases.sh`.
 
-### Package 3: Track C — Feature F015 (Multi-Tenancy, Quotas & Cardinality Guardrails)
-- **Scope**: Configure tenant isolation, per-tenant resource limits/quotas, and gateway ingestion cardinality guardrails.
-- **Target Files**: `deploy/tenancy/`, `deploy/otel/processors/cardinality-processor.yaml`, `scripts/test-tenancy.sh`.
-- **Prerequisites**: F014 (Gate G2 PASSED).
+### Package 4: Track D — Feature F018 (Synthetic Canary Probing & Prometheus Exporter) — [COMPLETE]
+- **Status**: COMPLETE & VERIFIED. Evidence saved to `.harness/evidence/F018/`.
+- **Delivered**: `docs/decisions/ADR-0011-synthetic-canary-probing.md`, `deploy/synthetics/synthetic_prober.py`, `deploy/synthetics/synthetic-rules.json`, `deploy/synthetics/synthetic-prober.yaml`, `deploy/synthetics/apply-synthetics.sh`, `scripts/test-synthetics.sh`, `scripts/test-synthetics-edge-cases.sh`.
 
-### Package 4: Track D — Feature F017 (Real User Monitoring / Session Replay)
+---
+
+## Remaining Wave 3 Package
+
+### Package 5: Track D — Feature F017 (Real User Monitoring / Session Replay)
 - **Scope**: Deploy RUM / session replay engine (OpenReplay/HyperDX) with PII redaction and frontend telemetry ingestion.
 - **Target Files**: `deploy/rum/`, `scripts/test-rum.sh`, `scripts/test-rum-edge-cases.sh`.
 - **Prerequisites**: F005, F006 (Gate G1 PASSED).
 
-### Package 5: Track D — Feature F018 (Synthetic Canary Probing via Playwright)
-- **Scope**: Scheduled Playwright CronJobs executing blackbox synthetic health probes with alerting integration on probe failure.
-- **Target Files**: `deploy/synthetics/`, `scripts/test-synthetics.sh`, `scripts/test-synthetics-edge-cases.sh`.
-- **Prerequisites**: F011 (Gate G2 PASSED).
-
 ---
 
 ## Next Immediate Step
-Launch Wave 3 parallel subagents via `invoke_subagent` for Track B (F012 SLOs / F013 Paging), Track C (F015 Multi-Tenancy), and Track D (F017 RUM / F018 Synthetics).
+Implement and verify Feature F017 (Real User Monitoring / Session Replay) to complete Wave 3 and achieve Synchronization Gate G3.

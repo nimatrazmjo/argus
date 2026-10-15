@@ -17,6 +17,68 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-15 — F018 Synthetic Canary Probing, Blackbox Workflows & Prometheus Exporter — COMPLETE
+Branch/commit: main @ HEAD   PR: N/A   CI: green (33/33 verification steps passed)
+Evidence:
+  - Architecture Decision & Implementation:
+      * `docs/decisions/ADR-0011-synthetic-canary-probing.md`: In-cluster synthetic canary daemon executing multi-step blackbox user workflows and exposing standard Prometheus metrics (:9115/metrics).
+      * `deploy/synthetics/synthetic_prober.py`: Daemon prober executing 3-step workflow (order API transaction -> visual SLO dashboard inspection -> authenticated bearer token validation) and serving Prometheus metrics (`argus_synthetic_probe_*`).
+      * `deploy/synthetics/synthetic-rules.json`: SigNoz Ruler alert rules for synthetic probe availability failures and latency degradation.
+      * `deploy/synthetics/synthetic-prober.yaml` & `deploy/synthetics/apply-synthetics.sh`: Kubernetes deployment, service, and sync controller.
+  - End-to-End Verification:
+      * `scripts/test-synthetics.sh` + `scripts/run_synthetics_e2e.py`: Verified multi-step probe execution (order_api, slo_dashboard, auth_validation) -> Prometheus metrics exposition (:9115/metrics) -> simulated target failure detection (`argus_synthetic_probe_success == 0`) -> automatic probe recovery (`argus_synthetic_probe_success == 1`).
+      * Generated evidence artifacts in `.harness/evidence/F018/`: `synthetic-metrics-raw.txt`, `synthetic-probe-success.json`, `synthetic-probe-failure.json`, `synthetic-rules.json`.
+  - Edge Cases & Resilience Battery:
+      * `scripts/test-synthetics-edge-cases.sh` + `scripts/run_synthetics_edge_cases.py`:
+          1. Connection refusal & unreachable host trapped safely without daemon crash.
+          2. Authenticated canary token verification on sample service.
+          3. Flaky check quarantine via hysteresis evaluation window (`for: 30s, window: 1m0s`).
+          4. Prometheus counter monotonicity and per-step latency metrics breakdown.
+      * Evidence saved to `.harness/evidence/F018/edge-cases-verification.txt`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F018 is COMPLETE.
+
+## 2026-10-15 — F015 Multi-Tenancy RLS, Per-Tenant Quotas & Cardinality Guardrails — COMPLETE
+Branch/commit: main @ HEAD   PR: N/A   CI: green (33/33 verification steps passed)
+Evidence:
+  - Architecture Decision & Implementation:
+      * `docs/decisions/ADR-0010-multi-tenancy-and-cardinality-guardrails.md`: Row-Level Security via ClickHouse `ROW POLICY`, per-tenant resource quotas (`tenant_quota`, `strict_test_quota`), and OTel gateway cardinality stripping processor.
+      * `deploy/tenancy/tenant-policies.sql`: SQL defining tenant accounts (`tenant_alpha`, `tenant_beta`, `tenant_quota_test`), RLS row policies on `otel_traces`, `otel_logs`, `otel_metrics_gauge` (`ResourceAttributes['tenant_id'] = currentUser()`), and quota enforcement (`MAX READ ROWS`).
+      * `deploy/tenancy/apply-tenancy.sh`: Declarative execution of tenancy policies against ClickHouse cluster.
+      * `deploy/otel/gateway.yaml`: Configured `transform/cardinality` processor stripping dangerous high-cardinality attributes (`user_guid`, `random_hash`, `session_id`, `cardinality_exploding_key`) at ingest.
+  - End-to-End Verification:
+      * `scripts/test-tenancy.sh` + `scripts/run_tenancy_e2e.py`: Verified cross-tenant row insertion (tenant_alpha vs tenant_beta) -> tenant_alpha RLS query (saw only tenant_alpha data, 0 rows leaked from beta) -> tenant_beta RLS query (saw only tenant_beta data, 0 rows leaked from alpha) -> admin cross-tenant visibility.
+      * Generated evidence artifacts in `.harness/evidence/F015/`: `tenant-alpha-proof.json`, `tenant-beta-proof.json`, `tenant-policies-applied.sql`.
+  - Edge Cases & Resilience Battery:
+      * `scripts/test-tenancy-edge-cases.sh` + `scripts/run_tenancy_edge_cases.py`:
+          1. Cardinality guardrail stripping: exploding attributes stripped at gateway before ingestion.
+          2. Per-tenant resource quota enforcement: `strict_test_quota` (10 rows max read) triggers ClickHouse `Code: 201 DB::Exception: Quota exceeded`.
+          3. Untagged telemetry quarantine: queries with empty tenant tags filtered out by RLS.
+      * Evidence saved to `.harness/evidence/F015/edge-cases-verification.txt`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F015 is COMPLETE.
+
+## 2026-10-15 — F013 Paging Webhook Path, Incident Routing & Deduplication — COMPLETE
+Branch/commit: main @ HEAD   PR: N/A   CI: green (33/33 verification steps passed)
+Evidence:
+  - Architecture Decision & Implementation:
+      * `docs/decisions/ADR-0009-paging-and-incident-routing.md`: Webhook translation gateway from Alertmanager to ServiceNow Table API format (`/api/now/table/incident`), in-memory exponential backoff retry queue for destination outages, and fingerprint deduplication.
+      * `deploy/paging/servicenow_mock.py`: Mock ServiceNow Table API with incident tracking and fault injection endpoint (`/api/simulate/fail`).
+      * `deploy/paging/paging_gateway.py`: Lightweight gateway translating Alertmanager alerts, deduplicating firing alerts, queuing failed dispatches with retry worker, and exposing Prometheus metrics on `:9099/metrics`.
+      * `deploy/paging/paging-workloads.yaml` & `deploy/paging/apply-paging.sh`: Kubernetes deployment and service definitions in `argus-system`.
+  - End-to-End Verification:
+      * `scripts/test-paging.sh` + `scripts/run_paging_e2e.py`: Verified alert trigger -> ServiceNow incident creation (INC0001001) -> duplicate alert suppression -> alert resolution (incident closed / resolved).
+      * Generated evidence artifacts in `.harness/evidence/F013/`: `servicenow-incident-created.json`, `servicenow-incident-resolved.json`, `paging-gateway-metrics.txt`.
+  - Edge Cases & Resilience Battery:
+      * `scripts/test-paging-edge-cases.sh` + `scripts/run_paging_edge_cases.py`:
+          1. Destination outage retry queue with exponential backoff: failure simulated on ServiceNow, alert queued in retry queue, recovery simulated, retry queue drained and incident successfully created.
+          2. Duplicate suppression window: repeated alerts with identical fingerprint suppressed.
+          3. Malformed alert payload resilience: bad JSON and missing fields handled gracefully without crash.
+          4. Prometheus metrics monotonicity: confirmed `argus_incidents_created_total`, `argus_incidents_resolved_total`, `argus_retry_queue_size`.
+      * Evidence saved to `.harness/evidence/F013/edge-cases-verification.txt`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F013 is COMPLETE.
+
 ## 2026-10-15 — F012 SLO Tracking, Error Budget Burndown & Burn Rate Monitors — COMPLETE
 Branch/commit: main @ HEAD   PR: N/A   CI: green (27/27 verification steps passed)
 Evidence:

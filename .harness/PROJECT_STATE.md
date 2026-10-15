@@ -10,20 +10,25 @@
   - **Sync Gate G2**: **PASSED**. Concurrent Coverage & Operations Foundation 100% complete across all 4 parallel tracks.
 - **Completed in Wave 3**:
   - `F012` — SLO tracking, error budget burndown, and multi-window burn rate monitors (Complete)
+  - `F013` — Paging path: ServiceNow webhook gateway, retry queue, and deduplication (Complete)
+  - `F015` — Multi-tenancy: ClickHouse RLS row policies, per-tenant quotas, cardinality guardrails (Complete)
+  - `F018` — Synthetic canary probing: multi-step blackbox checks, Prometheus :9115 exporter, failure alerts (Complete)
 - **Completed in Wave 2**:
   - `F009` — Infra metrics: node-exporter + kube-state-metrics (Complete)
   - `F010` — Continuous profiling via Pyroscope (Complete)
   - `F011` — Alerting / monitors: firing-state + dedup; threshold rules (Complete)
   - `F014` — Retention & downsampling, tiered storage hot/cold, materialized views (Complete)
-- **Overall progress**: 13 / 21 features COMPLETE (62%)
-- **Active Features (Ready for Wave 3 Parallel Dispatch)**:
-  - **Track B**: `F013` (Paging path / ServiceNow webhook)
-  - **Track C**: `F015` (Multi-tenancy + per-tenant quotas; cardinality guardrails)
-  - **Track D**: `F017` (RUM + session replay), `F018` (Synthetics: scheduled Playwright probes)
+- **Overall progress**: 16 / 21 features COMPLETE (76%)
+- **Active Features (Remaining in Wave 3 & 4)**:
+  - **Track D**: `F017` (RUM + session replay — final remaining Wave 3 feature before Gate G3)
+  - **Wave 4**: `F016` (SSO/RBAC), `F019` (Anomaly monitors), `F020` (Root-cause grouping)
 
 ## Last verified
 - **Date**: 2026-10-15
-- **Full Verification Suite**: PASS — 27 / 27 verification steps passed 100% green (`scripts/verify.sh </dev/null`).
+- **Full Verification Suite**: PASS — 33 / 33 verification steps passed 100% green (`scripts/verify.sh </dev/null`).
+- **F013 Status**: PASS — ServiceNow Mock API, incident translation, deduplication, retry queue with exponential backoff on destination outage, and Prometheus metrics verified (`scripts/test-paging.sh` and `scripts/test-paging-edge-cases.sh`). Evidence in `.harness/evidence/F013/`.
+- **F015 Status**: PASS — ClickHouse Row-Level Security (`ResourceAttributes['tenant_id'] = currentUser()`), strict per-tenant row-read quotas, and OTel collector cardinality guardrail processor verified (`scripts/test-tenancy.sh` and `scripts/test-tenancy-edge-cases.sh`). Evidence in `.harness/evidence/F015/`.
+- **F018 Status**: PASS — Synthetic Canary Prober daemon with multi-step workflows (`order_api`, `slo_dashboard`, `auth_validation`), Prometheus `:9115/metrics` exposition, target failure simulation and automatic recovery verified (`scripts/test-synthetics.sh` and `scripts/test-synthetics-edge-cases.sh`). Evidence in `.harness/evidence/F018/`.
 - **F012 Status**: PASS — OpenSLO specification, SigNoz Ruler multi-window burn rate alerts, error budget burndown, visual dashboard, and 6 edge case scenarios verified (`scripts/test-slo.sh` and `scripts/test-slo-edge-cases.sh`). Evidence saved to `.harness/evidence/F012/`.
 - **Gate G2 Status**: PASS — Wave 2 features (F009, F010, F011, F014) fully verified and regression-free.
 - **F011 Status**: PASS — Centralized threshold evaluation, Alertmanager deduplication, flapping hysteresis, and deadman absence monitoring verified (`scripts/test-alerting.sh` and `scripts/test-alerting-edge-cases.sh`). Evidence saved to `.harness/evidence/F011/`.

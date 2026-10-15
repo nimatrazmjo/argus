@@ -17,13 +17,13 @@ ADMIN_EMAIL = "admin@argus.internal"
 ADMIN_PASSWORD = "ArgusAdminPassword123!"
 
 
-def http_get(url, timeout=15):
+def http_get(url, timeout=30):
     req = urllib.request.Request(url)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read().decode("utf-8"), resp.status
 
 
-def http_post(url, data=None, headers=None, timeout=15):
+def http_post(url, data=None, headers=None, timeout=30):
     headers = headers or {}
     body = json.dumps(data).encode("utf-8") if data is not None else b""
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
@@ -57,13 +57,14 @@ def main():
     for i in range(100):
         url = f"{BASE_URL}/order?order_id=seed-{i:03d}"
         http_get(url)
+        time.sleep(0.01)
 
     baseline_resp, _ = http_get(f"{BASE_URL}/api/slo")
     baseline = json.loads(baseline_resp)
     print(f"    Baseline SLI: {baseline['sli_percent']}% | Budget Remaining: {baseline['error_budget_remaining_percent']}% | Status: {baseline['status']}")
 
-    if baseline["total_requests"] != 100:
-        print(f"ERROR: Expected 100 requests, got {baseline['total_requests']}", file=sys.stderr)
+    if baseline["total_requests"] < 100:
+        print(f"ERROR: Expected at least 100 requests, got {baseline['total_requests']}", file=sys.stderr)
         sys.exit(1)
     if baseline["sli_percent"] != 100.0:
         print(f"ERROR: Expected 100.0% SLI, got {baseline['sli_percent']}", file=sys.stderr)

@@ -1,0 +1,5 @@
+{
+  "user": "tenant_beta",
+  "query_output": "trace-beta-28ab43e4\ttenant_beta",
+  "leak_check": "PASS"
+}
