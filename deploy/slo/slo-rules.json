@@ -1,0 +1,168 @@
+{
+  "rules": [
+    {
+      "alert": "ArgusSLOFastBurnRate",
+      "alertType": "METRIC_BASED_ALERT",
+      "ruleType": "promql_rule",
+      "version": "v5",
+      "evalWindow": "1m0s",
+      "frequency": "15s",
+      "condition": {
+        "compositeQuery": {
+          "queryType": "promql",
+          "panelType": "time_series",
+          "queries": [
+            {
+              "type": "promql",
+              "spec": {
+                "name": "A",
+                "query": "max(argus_slo_burn_rate{service=\"argus-sample-service\"}) or vector(0.0)",
+                "disabled": false
+              }
+            }
+          ]
+        },
+        "selectedQueryName": "A",
+        "op": "above",
+        "target": 14.4,
+        "matchType": "at_least_once"
+      },
+      "preferredChannels": ["argus-default-webhook"],
+      "labels": {
+        "severity": "critical",
+        "alertname": "ArgusSLOFastBurnRate",
+        "service": "argus-sample-service",
+        "team": "argus-core",
+        "slo": "availability"
+      },
+      "annotations": {
+        "summary": "Fast error budget burn rate detected (burn rate > 14.4x)",
+        "description": "Consuming 2% of 30-day error budget within 1 hour window"
+      },
+      "disabled": false
+    },
+    {
+      "alert": "ArgusSLOSlowBurnRate",
+      "alertType": "METRIC_BASED_ALERT",
+      "ruleType": "promql_rule",
+      "version": "v5",
+      "evalWindow": "1m0s",
+      "frequency": "15s",
+      "condition": {
+        "compositeQuery": {
+          "queryType": "promql",
+          "panelType": "time_series",
+          "queries": [
+            {
+              "type": "promql",
+              "spec": {
+                "name": "A",
+                "query": "max(argus_slo_burn_rate{service=\"argus-sample-service\"}) or vector(0.0)",
+                "disabled": false
+              }
+            }
+          ]
+        },
+        "selectedQueryName": "A",
+        "op": "above",
+        "target": 6.0,
+        "matchType": "at_least_once"
+      },
+      "preferredChannels": ["argus-default-webhook"],
+      "labels": {
+        "severity": "warning",
+        "alertname": "ArgusSLOSlowBurnRate",
+        "service": "argus-sample-service",
+        "team": "argus-core",
+        "slo": "availability"
+      },
+      "annotations": {
+        "summary": "Slow error budget burn rate detected (burn rate > 6.0x)",
+        "description": "Consuming 5% of 30-day error budget within 6 hour window"
+      },
+      "disabled": false
+    },
+    {
+      "alert": "ArgusSLOBudgetExhausted",
+      "alertType": "METRIC_BASED_ALERT",
+      "ruleType": "promql_rule",
+      "version": "v5",
+      "evalWindow": "1m0s",
+      "frequency": "15s",
+      "condition": {
+        "compositeQuery": {
+          "queryType": "promql",
+          "panelType": "time_series",
+          "queries": [
+            {
+              "type": "promql",
+              "spec": {
+                "name": "A",
+                "query": "min(argus_slo_error_budget_remaining_percent{service=\"argus-sample-service\"}) or vector(100.0)",
+                "disabled": false
+              }
+            }
+          ]
+        },
+        "selectedQueryName": "A",
+        "op": "below_or_equal",
+        "target": 0.0,
+        "matchType": "at_least_once"
+      },
+      "preferredChannels": ["argus-default-webhook"],
+      "labels": {
+        "severity": "critical",
+        "alertname": "ArgusSLOBudgetExhausted",
+        "service": "argus-sample-service",
+        "team": "argus-core",
+        "slo": "availability"
+      },
+      "annotations": {
+        "summary": "Service error budget completely exhausted",
+        "description": "Remaining error budget reached 0.0% for argus-sample-service"
+      },
+      "disabled": false
+    },
+    {
+      "alert": "ArgusSLIAvailabilityBreach",
+      "alertType": "METRIC_BASED_ALERT",
+      "ruleType": "promql_rule",
+      "version": "v5",
+      "evalWindow": "1m0s",
+      "frequency": "15s",
+      "condition": {
+        "compositeQuery": {
+          "queryType": "promql",
+          "panelType": "time_series",
+          "queries": [
+            {
+              "type": "promql",
+              "spec": {
+                "name": "A",
+                "query": "min(argus_slo_sli_ratio{service=\"argus-sample-service\"}) or vector(1.0)",
+                "disabled": false
+              }
+            }
+          ]
+        },
+        "selectedQueryName": "A",
+        "op": "below",
+        "target": 0.99,
+        "matchType": "at_least_once"
+      },
+      "preferredChannels": ["argus-default-webhook"],
+      "labels": {
+        "severity": "warning",
+        "alertname": "ArgusSLIAvailabilityBreach",
+        "service": "argus-sample-service",
+        "team": "argus-core",
+        "slo": "availability"
+      },
+      "annotations": {
+        "summary": "Service Level Indicator dropped below 99.0% target",
+        "description": "Availability SLI ratio < 0.99 for argus-sample-service"
+      },
+      "disabled": false
+    }
+  ]
+}

@@ -25,7 +25,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: CLICKHOUSE_HOST
-              value: "clickhouse-argus-clickhouse"
+              value: "clickhouse-argus-clickhouse.argus-system.svc.cluster.local"
             - name: CLICKHOUSE_PORT
               value: "9000"
             - name: CLICKHOUSE_HTTP_PORT
@@ -47,7 +47,7 @@ spec:
             - name: CLICKHOUSE_SECURE
               value: "false"
             - name: SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN
-              value: "tcp://default:argus123@clickhouse-argus-clickhouse:9000"
+              value: "tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000"
             - name: SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_CLUSTER
               value: "cluster"
             - name: TELEMETRY_ENABLED

@@ -33,10 +33,10 @@ with urllib.request.urlopen(req, timeout=5) as resp:
     print(resp.read().decode())
 ")
 
-STATUS=$(echo "${RESP_JSON}" | grep -o '"status": *"[^"]*"' | cut -d'"' -f4)
-TRACE_ID=$(echo "${RESP_JSON}" | grep -o '"trace_id": *"[^"]*"' | cut -d'"' -f4)
-SPAN_ID=$(echo "${RESP_JSON}" | grep -o '"span_id": *"[^"]*"' | cut -d'"' -f4)
-METRIC_NAME=$(echo "${RESP_JSON}" | grep -o '"metric_name": *"[^"]*"' | cut -d'"' -f4)
+STATUS=$(python3 -c "import sys, json; print(json.loads(sys.stdin.read()).get('status', ''))" <<< "${RESP_JSON}")
+TRACE_ID=$(python3 -c "import sys, json; print(json.loads(sys.stdin.read()).get('trace_id', ''))" <<< "${RESP_JSON}")
+SPAN_ID=$(python3 -c "import sys, json; print(json.loads(sys.stdin.read()).get('span_id', ''))" <<< "${RESP_JSON}")
+METRIC_NAME=$(python3 -c "import sys, json; print(json.loads(sys.stdin.read()).get('metric_name', ''))" <<< "${RESP_JSON}")
 
 if [ "${STATUS}" != "success" ] || [ -z "${TRACE_ID}" ]; then
   echo "    ERROR: Failed to issue transaction. Response: ${RESP_JSON}" >&2
@@ -73,6 +73,7 @@ FORMAT Vertical
 
 POD_0="chi-argus-clickhouse-argus-cluster-0-0-0"
 POD_1="chi-argus-clickhouse-argus-cluster-0-1-0"
+HAVE_POD_1=$(kubectl get pod -n "${NAMESPACE}" "${POD_1}" --no-headers 2>/dev/null || true)
 
 JOIN_RESULT=""
 INGEST_LATENCY=0
@@ -80,7 +81,7 @@ CORRELATED=false
 
 for i in $(seq 1 "${MAX_WAIT_SECONDS}"); do
   JOIN_RESULT=$(kubectl exec -n "${NAMESPACE}" "${POD_0}" -c clickhouse -- clickhouse-client --user default --password "${PASSWORD}" --query "${CORRELATION_SQL}" 2>/dev/null || true)
-  if [ -z "${JOIN_RESULT}" ]; then
+  if [ -z "${JOIN_RESULT}" ] && [ -n "${HAVE_POD_1}" ]; then
     JOIN_RESULT=$(kubectl exec -n "${NAMESPACE}" "${POD_1}" -c clickhouse -- clickhouse-client --user default --password "${PASSWORD}" --query "${CORRELATION_SQL}" 2>/dev/null || true)
   fi
 

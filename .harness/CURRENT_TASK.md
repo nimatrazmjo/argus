@@ -3,7 +3,15 @@
 **Wave**: **Wave 3 — Operational Depth & Frontend Signals**  
 **Execution Mode**: Parallel Multi-Subagent Dispatch (see [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md))  
 **Gate Status**: Gate G1 is **PASSED** (8/21 Complete — 38%). Gate G2 is **PASSED** (12/21 Complete — 57%).  
-**Active Wave Features**: `F012` (Track B) || `F013` (Track B) || `F015` (Track C) || `F017` (Track D) || `F018` (Track D)
+**Active Wave Features**: `F013` (Track B) || `F015` (Track C) || `F017` (Track D) || `F018` (Track D)
+
+---
+
+## Completed in Wave 3
+
+### Package 1: Track B — Feature F012 (SLO Tracking & Error Budgets) — [COMPLETE]
+- **Status**: COMPLETE & VERIFIED (27/27 verification steps green). Evidence saved to `.harness/evidence/F012/`.
+- **Delivered**: `deploy/slo/slo-definition.json`, `deploy/slo/slo-rules.json`, `deploy/slo/apply-slo.sh`, `docs/decisions/ADR-0008-slo-tracking-and-error-budgets.md`, `scripts/test-slo.sh`, `scripts/test-slo-edge-cases.sh`, in-service `SLOTracker` & visual dashboard in `deploy/sample-app/app/server.py`.
 
 ---
 

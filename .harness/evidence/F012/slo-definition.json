@@ -1,0 +1,84 @@
+{
+  "apiVersion": "openslo/v1",
+  "kind": "SLO",
+  "metadata": {
+    "name": "argus-sample-service-availability",
+    "displayName": "Argus Sample Service Availability & Latency SLO",
+    "service": "argus-sample-service",
+    "team": "argus-core"
+  },
+  "spec": {
+    "description": "High-availability Service Level Objective for the Argus Sample Core Service.",
+    "service": "argus-sample-service",
+    "budgetingMethod": "Occurrences",
+    "timeWindow": [
+      {
+        "duration": "30d",
+        "isRolling": true
+      }
+    ],
+    "objectives": [
+      {
+        "displayName": "Availability",
+        "target": 0.99,
+        "value": 99.0,
+        "sli": {
+          "indicatorType": "ratio",
+          "goodEvents": "count(http_status < 500)",
+          "totalEvents": "count(http_requests_total)"
+        }
+      },
+      {
+        "displayName": "Latency",
+        "target": 0.95,
+        "value": 95.0,
+        "sli": {
+          "indicatorType": "ratio",
+          "goodEvents": "count(duration_ms <= 500)",
+          "totalEvents": "count(http_requests_total)"
+        }
+      }
+    ],
+    "alertPolicies": [
+      {
+        "name": "ArgusSLOFastBurnRate",
+        "condition": {
+          "kind": "burnrate",
+          "op": "gt",
+          "threshold": 14.4,
+          "lookbackWindow": "1h",
+          "alertAfter": "2m"
+        },
+        "notificationTarget": "argus-default-webhook",
+        "severity": "critical",
+        "description": "Fast Error Budget Burn: Consuming 2% of 30-day budget in 1 hour (burn rate > 14.4x)."
+      },
+      {
+        "name": "ArgusSLOSlowBurnRate",
+        "condition": {
+          "kind": "burnrate",
+          "op": "gt",
+          "threshold": 6.0,
+          "lookbackWindow": "6h",
+          "alertAfter": "15m"
+        },
+        "notificationTarget": "argus-default-webhook",
+        "severity": "warning",
+        "description": "Slow Error Budget Burn: Consuming 5% of 30-day budget in 6 hours (burn rate > 6.0x)."
+      },
+      {
+        "name": "ArgusSLOBudgetExhausted",
+        "condition": {
+          "kind": "budgetRemaining",
+          "op": "lte",
+          "threshold": 0.0,
+          "lookbackWindow": "1h",
+          "alertAfter": "1m"
+        },
+        "notificationTarget": "argus-default-webhook",
+        "severity": "critical",
+        "description": "Total Error Budget Exhaustion: Remaining error budget is 0.0% (SLO breached)."
+      }
+    ]
+  }
+}

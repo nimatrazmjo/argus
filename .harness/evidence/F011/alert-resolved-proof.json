@@ -3,6 +3,89 @@
   "data": [
     {
       "labels": {
+        "alertname": "ArgusHighCardinalityQueryMonitor",
+        "cpu": "1",
+        "monitor_type": "high-cardinality",
+        "ruleId": "01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "severity": "critical",
+        "team": "argus-core",
+        "threshold.name": "critical"
+      },
+      "annotations": {
+        "description": "Evaluates rate across high-cardinality container metric series",
+        "summary": "High-cardinality aggregation monitor across containers"
+      },
+      "startsAt": "2026-10-15T22:01:47.388867246Z",
+      "endsAt": "2026-10-15T22:10:47.388867246Z",
+      "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+      "status": {
+        "state": "active",
+        "silencedBy": [],
+        "inhibitedBy": []
+      },
+      "receivers": [
+        "argus-default-webhook"
+      ],
+      "fingerprint": "250f65f94781f3b7"
+    },
+    {
+      "labels": {
+        "alertname": "ArgusServiceHighMemoryUsage",
+        "ruleId": "01a13fd0-3853-7f40-8b0a-18762d6f8bb0",
+        "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3853-7f40-8b0a-18762d6f8bb0",
+        "service": "argus-sample-service",
+        "severity": "warning",
+        "team": "argus-core",
+        "threshold.name": "warning"
+      },
+      "annotations": {
+        "description": "Container working set memory > 512MB in argus-system",
+        "summary": "Container working set memory exceeded 512MB"
+      },
+      "startsAt": "2026-10-15T20:16:39.537806425Z",
+      "endsAt": "2026-10-15T22:10:54.537806425Z",
+      "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3853-7f40-8b0a-18762d6f8bb0",
+      "status": {
+        "state": "active",
+        "silencedBy": [],
+        "inhibitedBy": []
+      },
+      "receivers": [
+        "argus-default-webhook"
+      ],
+      "fingerprint": "3b2af4c30fce4961"
+    },
+    {
+      "labels": {
+        "alertname": "ArgusHighCardinalityQueryMonitor",
+        "cpu": "6",
+        "monitor_type": "high-cardinality",
+        "ruleId": "01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "severity": "critical",
+        "team": "argus-core",
+        "threshold.name": "critical"
+      },
+      "annotations": {
+        "description": "Evaluates rate across high-cardinality container metric series",
+        "summary": "High-cardinality aggregation monitor across containers"
+      },
+      "startsAt": "2026-10-15T22:01:47.388867246Z",
+      "endsAt": "2026-10-15T22:10:47.388867246Z",
+      "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+      "status": {
+        "state": "active",
+        "silencedBy": [],
+        "inhibitedBy": []
+      },
+      "receivers": [
+        "argus-default-webhook"
+      ],
+      "fingerprint": "3e15a4705a820f8e"
+    },
+    {
+      "labels": {
         "alertname": "ArgusServiceFlappingHysteresisMonitor",
         "monitor_type": "hysteresis",
         "ruleId": "01a13fd0-38ae-7aea-b1e3-287db60ab30f",
@@ -15,8 +98,8 @@
         "description": "Sustained high load required for 2m window before alert triggers",
         "summary": "Flapping prevention monitor with 2m evaluation window"
       },
-      "startsAt": "2026-10-15T14:33:47.422101757Z",
-      "endsAt": "2026-10-15T14:42:02.422101757Z",
+      "startsAt": "2026-10-15T19:18:17.422101757Z",
+      "endsAt": "2026-10-15T22:10:32.422101757Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-38ae-7aea-b1e3-287db60ab30f",
       "status": {
         "state": "active",
@@ -24,7 +107,7 @@
         "inhibitedBy": []
       },
       "receivers": [
-        "default-receiver"
+        "argus-default-webhook"
       ],
       "fingerprint": "69e04230db07b446"
     },
@@ -42,8 +125,8 @@
         "description": "Evaluates rate across high-cardinality container metric series",
         "summary": "High-cardinality aggregation monitor across containers"
       },
-      "startsAt": "2026-10-15T14:34:02.388867246Z",
-      "endsAt": "2026-10-15T14:42:32.388867246Z",
+      "startsAt": "2026-10-15T19:18:17.388867246Z",
+      "endsAt": "2026-10-15T22:10:32.388867246Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
       "status": {
         "state": "active",
@@ -51,9 +134,177 @@
         "inhibitedBy": []
       },
       "receivers": [
-        "default-receiver"
+        "argus-default-webhook"
       ],
       "fingerprint": "7b805575390776f2"
+    },
+    {
+      "labels": {
+        "alertname": "ArgusHighCardinalityQueryMonitor",
+        "cpu": "0",
+        "monitor_type": "high-cardinality",
+        "ruleId": "01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "severity": "critical",
+        "team": "argus-core",
+        "threshold.name": "critical"
+      },
+      "annotations": {
+        "description": "Evaluates rate across high-cardinality container metric series",
+        "summary": "High-cardinality aggregation monitor across containers"
+      },
+      "startsAt": "2026-10-15T22:01:47.388867246Z",
+      "endsAt": "2026-10-15T22:10:47.388867246Z",
+      "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+      "status": {
+        "state": "active",
+        "silencedBy": [],
+        "inhibitedBy": []
+      },
+      "receivers": [
+        "argus-default-webhook"
+      ],
+      "fingerprint": "914d9bf587fec300"
+    },
+    {
+      "labels": {
+        "alertname": "ArgusHighCardinalityQueryMonitor",
+        "cpu": "2",
+        "monitor_type": "high-cardinality",
+        "ruleId": "01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "severity": "critical",
+        "team": "argus-core",
+        "threshold.name": "critical"
+      },
+      "annotations": {
+        "description": "Evaluates rate across high-cardinality container metric series",
+        "summary": "High-cardinality aggregation monitor across containers"
+      },
+      "startsAt": "2026-10-15T22:01:47.388867246Z",
+      "endsAt": "2026-10-15T22:10:47.388867246Z",
+      "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+      "status": {
+        "state": "active",
+        "silencedBy": [],
+        "inhibitedBy": []
+      },
+      "receivers": [
+        "argus-default-webhook"
+      ],
+      "fingerprint": "a4c53bfe577274ca"
+    },
+    {
+      "labels": {
+        "alertname": "ArgusHighCardinalityQueryMonitor",
+        "cpu": "7",
+        "monitor_type": "high-cardinality",
+        "ruleId": "01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "severity": "critical",
+        "team": "argus-core",
+        "threshold.name": "critical"
+      },
+      "annotations": {
+        "description": "Evaluates rate across high-cardinality container metric series",
+        "summary": "High-cardinality aggregation monitor across containers"
+      },
+      "startsAt": "2026-10-15T22:01:47.388867246Z",
+      "endsAt": "2026-10-15T22:10:47.388867246Z",
+      "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+      "status": {
+        "state": "active",
+        "silencedBy": [],
+        "inhibitedBy": []
+      },
+      "receivers": [
+        "argus-default-webhook"
+      ],
+      "fingerprint": "d0449acdfe66af15"
+    },
+    {
+      "labels": {
+        "alertname": "ArgusHighCardinalityQueryMonitor",
+        "cpu": "3",
+        "monitor_type": "high-cardinality",
+        "ruleId": "01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "severity": "critical",
+        "team": "argus-core",
+        "threshold.name": "critical"
+      },
+      "annotations": {
+        "description": "Evaluates rate across high-cardinality container metric series",
+        "summary": "High-cardinality aggregation monitor across containers"
+      },
+      "startsAt": "2026-10-15T22:01:47.388867246Z",
+      "endsAt": "2026-10-15T22:10:47.388867246Z",
+      "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+      "status": {
+        "state": "active",
+        "silencedBy": [],
+        "inhibitedBy": []
+      },
+      "receivers": [
+        "argus-default-webhook"
+      ],
+      "fingerprint": "e76cee00b2aecc21"
+    },
+    {
+      "labels": {
+        "alertname": "ArgusHighCardinalityQueryMonitor",
+        "cpu": "4",
+        "monitor_type": "high-cardinality",
+        "ruleId": "01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "severity": "critical",
+        "team": "argus-core",
+        "threshold.name": "critical"
+      },
+      "annotations": {
+        "description": "Evaluates rate across high-cardinality container metric series",
+        "summary": "High-cardinality aggregation monitor across containers"
+      },
+      "startsAt": "2026-10-15T22:01:47.388867246Z",
+      "endsAt": "2026-10-15T22:10:47.388867246Z",
+      "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+      "status": {
+        "state": "active",
+        "silencedBy": [],
+        "inhibitedBy": []
+      },
+      "receivers": [
+        "argus-default-webhook"
+      ],
+      "fingerprint": "f2693b5fd770ff24"
+    },
+    {
+      "labels": {
+        "alertname": "ArgusHighCardinalityQueryMonitor",
+        "cpu": "5",
+        "monitor_type": "high-cardinality",
+        "ruleId": "01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "ruleSource": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+        "severity": "critical",
+        "team": "argus-core",
+        "threshold.name": "critical"
+      },
+      "annotations": {
+        "description": "Evaluates rate across high-cardinality container metric series",
+        "summary": "High-cardinality aggregation monitor across containers"
+      },
+      "startsAt": "2026-10-15T22:01:47.388867246Z",
+      "endsAt": "2026-10-15T22:10:47.388867246Z",
+      "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
+      "status": {
+        "state": "active",
+        "silencedBy": [],
+        "inhibitedBy": []
+      },
+      "receivers": [
+        "argus-default-webhook"
+      ],
+      "fingerprint": "f9f190443b47164b"
     }
   ]
 }

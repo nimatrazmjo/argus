@@ -1,0 +1,210 @@
+[
+  {
+    "id": "01a140a5-9af6-798c-950e-53521a0dcc19",
+    "state": "inactive",
+    "alert": "ArgusSLOFastBurnRate",
+    "alertType": "METRIC_BASED_ALERT",
+    "ruleType": "promql_rule",
+    "evalWindow": "1m0s",
+    "frequency": "15s",
+    "condition": {
+      "compositeQuery": {
+        "queries": [
+          {
+            "type": "promql",
+            "spec": {
+              "name": "A",
+              "query": "max(argus_slo_burn_rate{service=\"argus-sample-service\"}) or vector(0.0)",
+              "disabled": false,
+              "step": 0,
+              "stats": false,
+              "legend": ""
+            }
+          }
+        ],
+        "panelType": "time_series",
+        "queryType": "promql"
+      },
+      "op": "above",
+      "target": 14.4,
+      "matchType": "at_least_once",
+      "selectedQueryName": "A"
+    },
+    "labels": {
+      "alertname": "ArgusSLOFastBurnRate",
+      "service": "argus-sample-service",
+      "severity": "critical",
+      "slo": "availability",
+      "team": "argus-core"
+    },
+    "annotations": {
+      "description": "Consuming 2% of 30-day error budget within 1 hour window",
+      "summary": "Fast error budget burn rate detected (burn rate > 14.4x)"
+    },
+    "disabled": false,
+    "preferredChannels": [
+      "argus-default-webhook"
+    ],
+    "version": "v5",
+    "createdAt": "2026-10-15T17:39:17.36662Z",
+    "updatedAt": "2026-10-15T22:07:13.622204Z",
+    "createdBy": "admin@argus.internal",
+    "updatedBy": "admin@argus.internal"
+  },
+  {
+    "id": "01a140a5-9b05-72ac-b857-6415d3ee6b38",
+    "state": "inactive",
+    "alert": "ArgusSLOSlowBurnRate",
+    "alertType": "METRIC_BASED_ALERT",
+    "ruleType": "promql_rule",
+    "evalWindow": "1m0s",
+    "frequency": "15s",
+    "condition": {
+      "compositeQuery": {
+        "queries": [
+          {
+            "type": "promql",
+            "spec": {
+              "name": "A",
+              "query": "max(argus_slo_burn_rate{service=\"argus-sample-service\"}) or vector(0.0)",
+              "disabled": false,
+              "step": 0,
+              "stats": false,
+              "legend": ""
+            }
+          }
+        ],
+        "panelType": "time_series",
+        "queryType": "promql"
+      },
+      "op": "above",
+      "target": 6,
+      "matchType": "at_least_once",
+      "selectedQueryName": "A"
+    },
+    "labels": {
+      "alertname": "ArgusSLOSlowBurnRate",
+      "service": "argus-sample-service",
+      "severity": "warning",
+      "slo": "availability",
+      "team": "argus-core"
+    },
+    "annotations": {
+      "description": "Consuming 5% of 30-day error budget within 6 hour window",
+      "summary": "Slow error budget burn rate detected (burn rate > 6.0x)"
+    },
+    "disabled": false,
+    "preferredChannels": [
+      "argus-default-webhook"
+    ],
+    "version": "v5",
+    "createdAt": "2026-10-15T17:39:17.381171Z",
+    "updatedAt": "2026-10-15T22:07:13.727197Z",
+    "createdBy": "admin@argus.internal",
+    "updatedBy": "admin@argus.internal"
+  },
+  {
+    "id": "01a140a5-9b11-78ea-93e1-eeeb427ede41",
+    "state": "inactive",
+    "alert": "ArgusSLOBudgetExhausted",
+    "alertType": "METRIC_BASED_ALERT",
+    "ruleType": "promql_rule",
+    "evalWindow": "1m0s",
+    "frequency": "15s",
+    "condition": {
+      "compositeQuery": {
+        "queries": [
+          {
+            "type": "promql",
+            "spec": {
+              "name": "A",
+              "query": "min(argus_slo_error_budget_remaining_percent{service=\"argus-sample-service\"}) or vector(100.0)",
+              "disabled": false,
+              "step": 0,
+              "stats": false,
+              "legend": ""
+            }
+          }
+        ],
+        "panelType": "time_series",
+        "queryType": "promql"
+      },
+      "op": "below_or_equal",
+      "target": 0,
+      "matchType": "at_least_once",
+      "selectedQueryName": "A"
+    },
+    "labels": {
+      "alertname": "ArgusSLOBudgetExhausted",
+      "service": "argus-sample-service",
+      "severity": "critical",
+      "slo": "availability",
+      "team": "argus-core"
+    },
+    "annotations": {
+      "description": "Remaining error budget reached 0.0% for argus-sample-service",
+      "summary": "Service error budget completely exhausted"
+    },
+    "disabled": false,
+    "preferredChannels": [
+      "argus-default-webhook"
+    ],
+    "version": "v5",
+    "createdAt": "2026-10-15T17:39:17.393581Z",
+    "updatedAt": "2026-10-15T22:07:13.859833Z",
+    "createdBy": "admin@argus.internal",
+    "updatedBy": "admin@argus.internal"
+  },
+  {
+    "id": "01a140a5-9b1e-7257-8fea-dd55c7dbde08",
+    "state": "inactive",
+    "alert": "ArgusSLIAvailabilityBreach",
+    "alertType": "METRIC_BASED_ALERT",
+    "ruleType": "promql_rule",
+    "evalWindow": "1m0s",
+    "frequency": "15s",
+    "condition": {
+      "compositeQuery": {
+        "queries": [
+          {
+            "type": "promql",
+            "spec": {
+              "name": "A",
+              "query": "min(argus_slo_sli_ratio{service=\"argus-sample-service\"}) or vector(1.0)",
+              "disabled": false,
+              "step": 0,
+              "stats": false,
+              "legend": ""
+            }
+          }
+        ],
+        "panelType": "time_series",
+        "queryType": "promql"
+      },
+      "op": "below",
+      "target": 0.99,
+      "matchType": "at_least_once",
+      "selectedQueryName": "A"
+    },
+    "labels": {
+      "alertname": "ArgusSLIAvailabilityBreach",
+      "service": "argus-sample-service",
+      "severity": "warning",
+      "slo": "availability",
+      "team": "argus-core"
+    },
+    "annotations": {
+      "description": "Availability SLI ratio < 0.99 for argus-sample-service",
+      "summary": "Service Level Indicator dropped below 99.0% target"
+    },
+    "disabled": false,
+    "preferredChannels": [
+      "argus-default-webhook"
+    ],
+    "version": "v5",
+    "createdAt": "2026-10-15T17:39:17.40615Z",
+    "updatedAt": "2026-10-15T22:07:14.064239Z",
+    "createdBy": "admin@argus.internal",
+    "updatedBy": "admin@argus.internal"
+  }
+]

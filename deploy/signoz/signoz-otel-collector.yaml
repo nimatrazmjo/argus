@@ -65,26 +65,26 @@ data:
 
     exporters:
       clickhousetraces:
-        datasource: tcp://default:argus123@clickhouse-argus-clickhouse:9000/signoz_traces
+        datasource: tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_traces
         low_cardinal_exception_grouping: false
         use_new_schema: true
         timeout: 45s
       signozclickhousemetrics:
-        dsn: tcp://default:argus123@clickhouse-argus-clickhouse:9000/signoz_metrics
+        dsn: tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_metrics
         timeout: 45s
       clickhouselogsexporter:
-        dsn: tcp://default:argus123@clickhouse-argus-clickhouse:9000/signoz_logs
+        dsn: tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_logs
         timeout: 45s
         use_new_schema: true
       metadataexporter:
         enabled: true
-        dsn: tcp://default:argus123@clickhouse-argus-clickhouse:9000/signoz_metadata
+        dsn: tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_metadata
         timeout: 45s
         tenant_id: default
         cache:
           provider: in_memory
       signozclickhousemeter:
-        dsn: tcp://default:argus123@clickhouse-argus-clickhouse:9000/signoz_meter
+        dsn: tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_meter
         timeout: 45s
         sending_queue:
           enabled: false
@@ -141,7 +141,7 @@ spec:
             - "--config=/etc/otel/config.yaml"
           env:
             - name: CLICKHOUSE_HOST
-              value: "clickhouse-argus-clickhouse"
+              value: "clickhouse-argus-clickhouse.argus-system.svc.cluster.local"
             - name: CLICKHOUSE_PORT
               value: "9000"
             - name: CLICKHOUSE_USER

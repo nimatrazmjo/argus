@@ -8,19 +8,23 @@
 - **Gate Status**:
   - **Sync Gate G1**: **PASSED**. Air-gap compliant core spine operational (OTel -> ClickHouse HA -> SigNoz + Auto-Instrumentation + eBPF Beyla).
   - **Sync Gate G2**: **PASSED**. Concurrent Coverage & Operations Foundation 100% complete across all 4 parallel tracks.
+- **Completed in Wave 3**:
+  - `F012` — SLO tracking, error budget burndown, and multi-window burn rate monitors (Complete)
 - **Completed in Wave 2**:
   - `F009` — Infra metrics: node-exporter + kube-state-metrics (Complete)
   - `F010` — Continuous profiling via Pyroscope (Complete)
   - `F011` — Alerting / monitors: firing-state + dedup; threshold rules (Complete)
   - `F014` — Retention & downsampling, tiered storage hot/cold, materialized views (Complete)
-- **Overall progress**: 12 / 21 features COMPLETE (57%)
+- **Overall progress**: 13 / 21 features COMPLETE (62%)
 - **Active Features (Ready for Wave 3 Parallel Dispatch)**:
-  - **Track B**: `F012` (SLO tracking + error budgets), `F013` (Paging path / ServiceNow webhook)
+  - **Track B**: `F013` (Paging path / ServiceNow webhook)
   - **Track C**: `F015` (Multi-tenancy + per-tenant quotas; cardinality guardrails)
   - **Track D**: `F017` (RUM + session replay), `F018` (Synthetics: scheduled Playwright probes)
 
 ## Last verified
 - **Date**: 2026-10-15
+- **Full Verification Suite**: PASS — 27 / 27 verification steps passed 100% green (`scripts/verify.sh </dev/null`).
+- **F012 Status**: PASS — OpenSLO specification, SigNoz Ruler multi-window burn rate alerts, error budget burndown, visual dashboard, and 6 edge case scenarios verified (`scripts/test-slo.sh` and `scripts/test-slo-edge-cases.sh`). Evidence saved to `.harness/evidence/F012/`.
 - **Gate G2 Status**: PASS — Wave 2 features (F009, F010, F011, F014) fully verified and regression-free.
 - **F011 Status**: PASS — Centralized threshold evaluation, Alertmanager deduplication, flapping hysteresis, and deadman absence monitoring verified (`scripts/test-alerting.sh` and `scripts/test-alerting-edge-cases.sh`). Evidence saved to `.harness/evidence/F011/`.
 - **F010 Status**: PASS — Continuous profiling via Pyroscope verified with live CPU and memory flame graphs (`scripts/test-profiling.sh` and `scripts/test-profiling-edge-cases.sh`). Evidence saved to `.harness/evidence/F010/`.

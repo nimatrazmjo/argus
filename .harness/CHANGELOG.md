@@ -17,7 +17,33 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
-## 2026-10-15 — F011 Alerting & Monitors (Firing State + Dedup, Threshold Rules) — COMPLETE
+## 2026-10-15 — F012 SLO Tracking, Error Budget Burndown & Burn Rate Monitors — COMPLETE
+Branch/commit: main @ HEAD   PR: N/A   CI: green (27/27 verification steps passed)
+Evidence:
+  - Architecture Decision & Implementation:
+      * `docs/decisions/ADR-0008-slo-tracking-and-error-budgets.md`: OpenSLO-compatible specification, multi-window multi-burn-rate alerting architecture, in-service error budget accountant.
+      * `deploy/slo/slo-definition.json`: Declarative OpenSLO manifest defining 99.0% availability SLO with 500ms latency SLI.
+      * `deploy/slo/slo-rules.json`: Multi-window burn-rate rules for SigNoz Ruler (Fast Burn 14.4x / Slow Burn 6x / Budget Exhausted / SLI Breach).
+      * `deploy/slo/apply-slo.sh`: Declarative CLI controller synchronizing SLO rules to SigNoz API and generating OpenSLO manifests.
+      * `deploy/sample-app/app/server.py`: In-memory thread-safe `SLOTracker` with rolling event window, Availability/Latency SLI computation, error budget tracking, and visual HTML status dashboard (`/slo`).
+  - End-to-End Verification:
+      * `scripts/test-slo.sh` + `scripts/run_slo_e2e.py`: Verified clean baseline -> synthetic good traffic -> fault injection burning error budget (SLI dropped to 95.238%, Budget Consumed 476.19%, Burn Rate 4.76x) -> visual dashboard inspection -> active SigNoz Ruler monitors (4/4 confirmed) -> clean reset.
+      * Generated evidence artifacts in `.harness/evidence/F012/`: `slo-definition.json`, `slo-status-baseline.json`, `slo-status-post-burn.json`, `slo-dashboard-proof.html`, `slo-alert-rules-synced.json`.
+  - Edge Cases & Resilience Battery:
+      * `scripts/test-slo-edge-cases.sh` + `scripts/run_slo_edge_cases.py`:
+          1. Zero-traffic window & division-by-zero safety (100% SLI, NO_TRAFFIC status).
+          2. Error budget exhaustion clamping (remaining budget clamped to 0.0%, CRITICAL_EXHAUSTED).
+          3. Fast burn rate detection (15.0x > 14.4x critical threshold).
+          4. Slow burn rate detection (8.0x > 6.0x warning threshold).
+          5. Orthogonal latency SLI breach without HTTP 5xx errors (Availability: 100%, Latency SLI: 50%).
+          6. In-memory alert webhook reception & instant recovery reset.
+      * Evidence saved to `.harness/evidence/F012/edge-cases-verification.txt`.
+  - Platform Stability Fixes:
+      * ClickHouse HA: raised container CPU limit to 6 cores, eliminating 95.5% CFS throttling.
+      * Telemetry correlation: synchronous distributed inserts (`insert_distributed_sync=1`) and missing replica fallback checks reducing query latency from 207s to 2s.
+      * Full verification suite: 27/27 tests passed 100% green.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F012 is COMPLETE. Progress is 13/21 features (62%). Ready for next Wave 3 work packages: F013 (Paging Webhook) & F015 (Multi-Tenancy).
 Branch/commit: main @ HEAD   PR: N/A   CI: green
 Evidence:
   - Architecture Decision & Manifests:

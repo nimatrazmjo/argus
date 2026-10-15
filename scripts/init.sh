@@ -122,14 +122,20 @@ if kubectl get chi argus-clickhouse -n "${NAMESPACE}" >/dev/null 2>&1; then
     echo "      ERROR: ClickHouseInstallation 'argus-clickhouse' status is '${CHI_STATUS}' (expected Completed)" >&2
     FAILED=1
   fi
-  for ch_pod in chi-argus-clickhouse-argus-cluster-0-0-0 chi-argus-clickhouse-argus-cluster-0-1-0; do
-    if kubectl wait --for=condition=Ready "pod/${ch_pod}" -n "${NAMESPACE}" --timeout=15s >/dev/null 2>&1; then
-      echo "      Pod '${ch_pod}': Ready"
-    else
-      echo "      ERROR: Pod '${ch_pod}' is not Ready" >&2
-      FAILED=1
-    fi
-  done
+  CH_PODS=$(kubectl get pods -l clickhouse.altinity.com/chi=argus-clickhouse -n "${NAMESPACE}" -o jsonpath='{.items[*].metadata.name}')
+  if [ -z "${CH_PODS}" ]; then
+    echo "      ERROR: No ClickHouse pods found" >&2
+    FAILED=1
+  else
+    for ch_pod in ${CH_PODS}; do
+      if kubectl wait --for=condition=Ready "pod/${ch_pod}" -n "${NAMESPACE}" --timeout=15s >/dev/null 2>&1; then
+        echo "      Pod '${ch_pod}': Ready"
+      else
+        echo "      ERROR: Pod '${ch_pod}' is not Ready" >&2
+        FAILED=1
+      fi
+    done
+  fi
 else
   echo "      ClickHouseInstallation not deployed yet (skipping)."
 fi
@@ -218,11 +224,11 @@ if [ -f "scripts/check-architecture.sh" ]; then
 fi
 
 if [ -f ".harness/ROADMAP.md" ]; then
-  IN_PROGRESS_COUNT=$(grep -E '^- \[[ x]\] \*\*F[0-9]+\*\*.*IN PROGRESS' .harness/ROADMAP.md | wc -l | tr -d ' ')
+  IN_PROGRESS_COUNT=$((grep -E 'Status.*IN PROGRESS' .harness/ROADMAP.md || true) | wc -l | tr -d ' ')
   if [ "$IN_PROGRESS_COUNT" -ne 1 ]; then
     echo "      WARN: ROADMAP.md has ${IN_PROGRESS_COUNT} features 'IN PROGRESS' (expected exactly 1)."
   else
-    ACTIVE_FEATURE=$(grep -E '^- \[[ x]\] \*\*F[0-9]+\*\*.*IN PROGRESS' .harness/ROADMAP.md | head -n 1)
+    ACTIVE_FEATURE=$(grep -B 4 -E 'Status.*IN PROGRESS' .harness/ROADMAP.md | grep -E '^\- \[' | head -n 1 || true)
     echo "      Active feature: ${ACTIVE_FEATURE}"
   fi
 fi

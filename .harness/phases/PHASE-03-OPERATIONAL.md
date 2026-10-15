@@ -13,14 +13,14 @@ Execution architecture is governed by [`.harness/PARALLEL_EXECUTION_GRAPH.md`](f
 - **Must wait for**: F006 (Sync Gate G1)
 - **Can run in parallel with**: F009, F010, F014
 - **Blocks**: F012, F013, F018, F019, F020
-- **Status**: NOT STARTED
+- **Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] Threshold monitors with firing-state management and dedup; an alert fires on a breach and resolves on recovery.
-- [ ] Monitors defined declaratively (as code), not click-only.
-- [ ] Edge cases: flapping (dedup/hysteresis), missing data, monitor on high-cardinality query.
-- [ ] E2E: induce a breach -> alert fires -> recovery -> resolves.
-- [ ] FULL verify green.
+- [x] Threshold monitors with firing-state management and dedup; an alert fires on a breach and resolves on recovery.
+- [x] Monitors defined declaratively (as code), not click-only.
+- [x] Edge cases: flapping (dedup/hysteresis), missing data, monitor on high-cardinality query.
+- [x] E2E: induce a breach -> alert fires -> recovery -> resolves.
+- [x] FULL verify green.
 
 ### Evidence expected
 Alert rule manifests; alert fire/resolve transcript under `.harness/evidence/F011/`.
@@ -34,13 +34,13 @@ Alert rule manifests; alert fire/resolve transcript under `.harness/evidence/F01
 - **Must wait for**: F011 (Requires alert evaluation engine and SLI calculation)
 - **Can run in parallel with**: F013, F015, F017, F018
 - **Blocks**: None
-- **Status**: NOT STARTED
+- **Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] Define an SLI/SLO for the sample service; error budget tracked and burn visible.
-- [ ] Edge cases: no-traffic window, budget-exhausted state.
-- [ ] E2E: SLO page shows budget consumption after induced errors.
-- [ ] FULL verify green.
+- [x] Define an SLI/SLO for the sample service; error budget tracked and burn visible.
+- [x] Edge cases: no-traffic window, budget-exhausted state.
+- [x] E2E: SLO page shows budget consumption after induced errors.
+- [x] FULL verify green.
 
 ### Evidence expected
 SLO definition manifests; budget consumption calculation output under `.harness/evidence/F012/`.
@@ -75,15 +75,15 @@ Webhook dispatcher configuration; incident payload assertion transcript under `.
 - **Must wait for**: F002, F006 (Sync Gate G1)
 - **Can run in parallel with**: F009, F010, F011
 - **Blocks**: F015, F021
-- **Status**: NOT STARTED
+- **Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] Tiered retention: hot local for N days, cold to S3/MinIO, TTL drop after the window.
-- [ ] Metric downsampling via materialized views (raw -> 1m -> 1h rollups).
-- [ ] A default log-level filter at the collector so a debug-logging app cannot balloon storage.
-- [ ] Edge cases: TTL on a large table, rollup correctness, filter override per service.
-- [ ] E2E: `N/A — not user-facing` (asserted by retention/rollup checks on seeded data).
-- [ ] FULL verify green.
+- [x] Tiered retention: hot local for N days, cold to S3/MinIO, TTL drop after the window.
+- [x] Metric downsampling via materialized views (raw -> 1m -> 1h rollups).
+- [x] A default log-level filter at the collector so a debug-logging app cannot balloon storage.
+- [x] Edge cases: TTL on a large table, rollup correctness, filter override per service.
+- [x] E2E: `N/A — not user-facing` (asserted by retention/rollup checks on seeded data).
+- [x] FULL verify green.
 
 ### Evidence expected
 ClickHouse TTL configuration SQL; materialized view schemas; part movement transcript; log-level drop proof under `.harness/evidence/F014/`.

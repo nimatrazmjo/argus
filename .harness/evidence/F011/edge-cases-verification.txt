@@ -1,11 +1,11 @@
 =================================================================
        ARGUS ALERTING EDGE CASES & HYSTERESIS BATTERY            
 =================================================================
-Timestamp: 2026-10-15T14:40:49Z
---> [1/4] Discovered SigNoz container: f7a347b54c28 (Fast-path: docker exec)
+Timestamp: 2026-10-15T22:07:06Z
+--> [1/4] Discovered SigNoz container: ae024c9ac9b0 (Fast-path: docker exec)
 --> [2/4] Authenticating with SigNoz API...
     Authenticated as admin@argus.internal (Org ID: 01a135a8-afb3-7204-8dac-cfab38855869)
-    Queried 5 active rules in engine.
+    Queried 9 active rules in engine.
 --> [3/4] Testing Edge Case 1: Flapping Prevention / Hysteresis...
     PASS: Verified Hysteresis Rule [ArgusServiceFlappingHysteresisMonitor]:
       - Evaluation Window: 2m0s (suppresses sub-window transient anomalies)
@@ -18,8 +18,8 @@ Timestamp: 2026-10-15T14:40:49Z
       - State: inactive (zero metric crash resistance verified)
 --> Testing Edge Case 3: High Cardinality Aggregation Performance...
     Executing high-cardinality aggregation query against ClickHouse metrics engine...
-    PASS: High-cardinality aggregation evaluated in 52601ms across active series (Series count: 134880).
-    Query latency: 52601ms (< 5000ms threshold requirement satisfied).
+    PASS: High-cardinality aggregation evaluated in 2028ms across active series (Series count: 203727).
+    Query latency: 2028ms (< 5000ms threshold requirement satisfied).
 =================================================================
    ALERTING EDGE CASES BATTERY COMPLETED SUCCESSFULLY!           
 =================================================================

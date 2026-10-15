@@ -15,12 +15,17 @@ echo "================================================================="
 echo "       ARGUS PII & CJIS REDACTION EDGE CASES BATTERY             "
 echo "================================================================="
 
+HAVE_POD_1=false
+if kubectl get pod -n "${NAMESPACE}" "${POD_1}" &>/dev/null; then
+  HAVE_POD_1=true
+fi
+
 ch_query() {
   local sql="$1"
   local res=""
-  res=$(kubectl exec -n "${NAMESPACE}" "${POD_0}" -c clickhouse -- clickhouse-client --user default --password "${PASSWORD}" --query "${sql}" 2>/dev/null || true)
-  if [ -z "$res" ]; then
-    res=$(kubectl exec -n "${NAMESPACE}" "${POD_1}" -c clickhouse -- clickhouse-client --user default --password "${PASSWORD}" --query "${sql}" 2>/dev/null || true)
+  res=$(kubectl exec -n "${NAMESPACE}" "${POD_0}" -c clickhouse </dev/null -- clickhouse-client --user default --password "${PASSWORD}" --query "${sql}" 2>/dev/null || true)
+  if [ -z "$res" ] && [ "${HAVE_POD_1}" = "true" ]; then
+    res=$(kubectl exec -n "${NAMESPACE}" "${POD_1}" -c clickhouse </dev/null -- clickhouse-client --user default --password "${PASSWORD}" --query "${sql}" 2>/dev/null || true)
   fi
   echo "$res"
 }
@@ -28,7 +33,7 @@ ch_query() {
 post_otlp() {
   local endpoint="$1"
   local json_payload="$2"
-  kubectl exec -n "${NAMESPACE}" deploy/argus-s3 -- curl -s -f -X POST \
+  kubectl exec -n "${NAMESPACE}" deploy/argus-s3 </dev/null -- curl -s -f -X POST \
     "${GATEWAY_URL}/${endpoint}" \
     -H "Content-Type: application/json" \
     -d "${json_payload}"
@@ -39,6 +44,8 @@ post_otlp() {
 # -------------------------------------------------------------
 echo "--> Test 1: Multiple PII instances in a single log body..."
 RUN_ID="$(date +%s)"
+START_NANO="${RUN_ID}000000000"
+END_NANO="${RUN_ID}100000000"
 SUFFIX_1=$(printf "%04d" $(( RUN_ID % 10000 )))
 SSN_A="111-22-${SUFFIX_1}"
 SSN_B="333-44-${SUFFIX_1}"
@@ -54,8 +61,8 @@ PAYLOAD_1='{
     "scopeLogs": [{
       "scope": {"name": "test-logger"},
       "logRecords": [{
-        "timeUnixNano": "1728745200000000000",
-        "observedTimeUnixNano": "1728745200000000000",
+        "timeUnixNano": "'"${END_NANO}"'",
+        "observedTimeUnixNano": "'"${END_NANO}"'",
         "severityNumber": 9,
         "severityText": "INFO",
         "body": {"stringValue": "'"${BODY_1}"'"},
@@ -109,8 +116,8 @@ PAYLOAD_2='{
     "scopeLogs": [{
       "scope": {"name": "test-logger"},
       "logRecords": [{
-        "timeUnixNano": "1728745200000000000",
-        "observedTimeUnixNano": "1728745200000000000",
+        "timeUnixNano": "'"${END_NANO}"'",
+        "observedTimeUnixNano": "'"${END_NANO}"'",
         "severityNumber": 9,
         "severityText": "INFO",
         "body": {"stringValue": "'"${BODY_2}"'"},
@@ -171,8 +178,8 @@ PAYLOAD_3='{
         "spanId": "0102030405060710",
         "name": "edge-span-types",
         "kind": 1,
-        "startTimeUnixNano": "1728745200000000000",
-        "endTimeUnixNano": "1728745200100000000",
+        "startTimeUnixNano": "'"${START_NANO}"'",
+        "endTimeUnixNano": "'"${END_NANO}"'",
         "attributes": [
           {"key": "is_active", "value": {"boolValue": true}},
           {"key": "retry_count", "value": {"intValue": "3"}},
@@ -224,7 +231,7 @@ with urllib.request.urlopen(req, timeout=5) as resp:
     print(resp.read().decode())
 ")
 
-E2E_TRACE_ID=$(echo "${RESP_JSON}" | grep -o '"trace_id": *"[^"]*"' | cut -d'"' -f4)
+E2E_TRACE_ID=$(python3 -c "import sys, json; print(json.loads(sys.stdin.read()).get('trace_id', ''))" <<< "${RESP_JSON}")
 
 E2E_FOUND=false
 STORED_BODY_4=""

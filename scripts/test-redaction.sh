@@ -12,12 +12,17 @@ echo "================================================================="
 echo "       ARGUS PII & CJIS REDACTION VERIFICATION                   "
 echo "================================================================="
 
+HAVE_POD_1=false
+if kubectl get pod -n "${NAMESPACE}" "${POD_1}" &>/dev/null; then
+  HAVE_POD_1=true
+fi
+
 ch_query() {
   local sql="$1"
   local res=""
-  res=$(kubectl exec -n "${NAMESPACE}" "${POD_0}" -c clickhouse -- clickhouse-client --user default --password "${PASSWORD}" --query "${sql}" 2>/dev/null || true)
-  if [ -z "$res" ]; then
-    res=$(kubectl exec -n "${NAMESPACE}" "${POD_1}" -c clickhouse -- clickhouse-client --user default --password "${PASSWORD}" --query "${sql}" 2>/dev/null || true)
+  res=$(kubectl exec -n "${NAMESPACE}" "${POD_0}" -c clickhouse </dev/null -- clickhouse-client --user default --password "${PASSWORD}" --query "${sql}" 2>/dev/null || true)
+  if [ -z "$res" ] && [ "${HAVE_POD_1}" = "true" ]; then
+    res=$(kubectl exec -n "${NAMESPACE}" "${POD_1}" -c clickhouse </dev/null -- clickhouse-client --user default --password "${PASSWORD}" --query "${sql}" 2>/dev/null || true)
   fi
   echo "$res"
 }
@@ -25,13 +30,16 @@ ch_query() {
 post_otlp() {
   local endpoint="$1"
   local json_payload="$2"
-  kubectl exec -n "${NAMESPACE}" deploy/argus-s3 -- curl -s -f -X POST \
+  kubectl exec -n "${NAMESPACE}" deploy/argus-s3 </dev/null -- curl -s -f -X POST \
     "${GATEWAY_URL}/${endpoint}" \
     -H "Content-Type: application/json" \
     -d "${json_payload}"
 }
 
 RUN_ID="$(date +%s)"
+START_NANO="${RUN_ID}000000000"
+MID_NANO="${RUN_ID}050000000"
+END_NANO="${RUN_ID}100000000"
 TRACE_ID=$(openssl rand -hex 16)
 SPAN_ID=$(openssl rand -hex 8)
 
@@ -60,8 +68,8 @@ TRACE_PAYLOAD='{
         "spanId": "'"${SPAN_ID}"'",
         "name": "redaction-test-span-'"${RUN_ID}"'",
         "kind": 1,
-        "startTimeUnixNano": "1728745200000000000",
-        "endTimeUnixNano": "1728745200100000000",
+        "startTimeUnixNano": "'"${START_NANO}"'",
+        "endTimeUnixNano": "'"${END_NANO}"'",
         "attributes": [
           {"key": "order.id", "value": {"stringValue": "ord-public-123"}},
           {"key": "ssn", "value": {"stringValue": "'"${SENSITIVE_SSN}"'"}},
@@ -69,7 +77,7 @@ TRACE_PAYLOAD='{
           {"key": "note", "value": {"stringValue": "Customer SSN is '"${SENSITIVE_SSN}"'"}}
         ],
         "events": [{
-          "timeUnixNano": "1728745200050000000",
+          "timeUnixNano": "'"${MID_NANO}"'",
           "name": "auth_event",
           "attributes": [
             {"key": "token", "value": {"stringValue": "'"${SENSITIVE_TOKEN}"'"}},
@@ -100,8 +108,8 @@ LOG_PAYLOAD='{
     "scopeLogs": [{
       "scope": {"name": "test-redaction-logger"},
       "logRecords": [{
-        "timeUnixNano": "1728745200100000000",
-        "observedTimeUnixNano": "1728745200100000000",
+        "timeUnixNano": "'"${END_NANO}"'",
+        "observedTimeUnixNano": "'"${END_NANO}"'",
         "severityNumber": 9,
         "severityText": "INFO",
         "body": {"stringValue": "'"${LOG_BODY}"'"},
@@ -124,7 +132,7 @@ echo "    Posted log with injected sensitive fields and PII body."
 # 3. Poll ClickHouse until records land
 echo "--> [3/4] Awaiting ingestion and verifying proof of absence in ClickHouse..."
 DATA_LANDED=false
-for i in $(seq 1 10); do
+for i in $(seq 1 30); do
   SPAN_ROW=$(ch_query "SELECT SpanName FROM default.otel_traces WHERE TraceId = '${TRACE_ID}'" || true)
   LOG_ROW=$(ch_query "SELECT Body FROM default.otel_logs WHERE TraceId = '${TRACE_ID}'" || true)
 
@@ -136,7 +144,7 @@ for i in $(seq 1 10); do
 done
 
 if [ "${DATA_LANDED}" != "true" ]; then
-  echo "    ERROR: Telemetry did not land in ClickHouse within 10s." >&2
+  echo "    ERROR: Telemetry did not land in ClickHouse within 30s." >&2
   exit 1
 fi
 

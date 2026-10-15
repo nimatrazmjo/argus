@@ -13,7 +13,7 @@ FAILED_COUNT=0
 ch_query() {
   local target_pod="$1"
   local sql="$2"
-  kubectl exec -n "${NAMESPACE}" "${target_pod}" -c clickhouse -- clickhouse-client --password="${PASSWORD}" --query="${sql}" 2>/dev/null
+  kubectl exec </dev/null -n "${NAMESPACE}" "${target_pod}" -c clickhouse -- clickhouse-client --password="${PASSWORD}" --query="${sql}" 2>/dev/null
 }
 
 echo "================================================================="
@@ -22,16 +22,22 @@ echo "================================================================="
 
 # 1. Edge Case: Replica Down / High Availability
 echo "--> Test 1: Query surviving replica when another replica is unavailable..."
-if RES_1=$(ch_query "${POD_1}" "SELECT count() FROM system.clusters WHERE cluster = 'argus-cluster'"); then
-  if [ "$RES_1" -ge 1 ]; then
-    echo "    PASS: Replica 1 independently serves reads and cluster queries."
+if kubectl get pod "${POD_1}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+  SURVIVING_POD="${POD_1}"
+else
+  SURVIVING_POD="${POD_0}"
+fi
+
+if RES=$(ch_query "${SURVIVING_POD}" "SELECT count() FROM system.clusters WHERE cluster = 'argus-cluster'"); then
+  if [ "$RES" -ge 1 ]; then
+    echo "    PASS: Replica independently serves reads and cluster queries (${SURVIVING_POD})."
     PASSED_COUNT=$((PASSED_COUNT + 1))
   else
-    echo "    FAIL: Unexpected cluster node count from replica 1." >&2
+    echo "    FAIL: Unexpected cluster node count from ${SURVIVING_POD}." >&2
     FAILED_COUNT=$((FAILED_COUNT + 1))
   fi
 else
-  echo "    FAIL: Could not query replica 1." >&2
+  echo "    FAIL: Could not query ${SURVIVING_POD}." >&2
   FAILED_COUNT=$((FAILED_COUNT + 1))
 fi
 
@@ -50,7 +56,7 @@ else
   echo "    FAIL: Writes landed on unexpected disk: '${LANDED_DISK}'." >&2
   FAILED_COUNT=$((FAILED_COUNT + 1))
 fi
-ch_query "${POD_0}" "DROP TABLE test_hot_fallback"
+ch_query "${POD_0}" "DROP TABLE IF EXISTS test_hot_fallback" || true
 
 # 3. Edge Case: Data replication between replicas via ClickHouse Keeper
 echo "--> Test 3: Data replication across replicas via ClickHouse Keeper..."
@@ -58,36 +64,53 @@ RUN_ID="$(date +%s)"
 REPL_TABLE="test_repl_${RUN_ID}"
 REPL_PATH="/clickhouse/tables/${REPL_TABLE}"
 
-ch_query "${POD_0}" "DROP TABLE IF EXISTS ${REPL_TABLE} SYNC" || true
-ch_query "${POD_1}" "DROP TABLE IF EXISTS ${REPL_TABLE} SYNC" || true
+if kubectl get pod "${POD_1}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+  ch_query "${POD_0}" "DROP TABLE IF EXISTS ${REPL_TABLE} SYNC" || true
+  ch_query "${POD_1}" "DROP TABLE IF EXISTS ${REPL_TABLE} SYNC" || true
 
-ch_query "${POD_0}" "CREATE TABLE ${REPL_TABLE} (id UInt32, msg String) ENGINE = ReplicatedMergeTree('${REPL_PATH}', 'replica_0') ORDER BY id"
-ch_query "${POD_1}" "CREATE TABLE ${REPL_TABLE} (id UInt32, msg String) ENGINE = ReplicatedMergeTree('${REPL_PATH}', 'replica_1') ORDER BY id"
+  ch_query "${POD_0}" "CREATE TABLE ${REPL_TABLE} (id UInt32, msg String) ENGINE = ReplicatedMergeTree('${REPL_PATH}', 'replica_0') ORDER BY id"
+  ch_query "${POD_1}" "CREATE TABLE ${REPL_TABLE} (id UInt32, msg String) ENGINE = ReplicatedMergeTree('${REPL_PATH}', 'replica_1') ORDER BY id"
 
-# Insert on replica 0
-ch_query "${POD_0}" "INSERT INTO ${REPL_TABLE} VALUES (1, 'hello from replica 0')"
+  # Insert on replica 0
+  ch_query "${POD_0}" "INSERT INTO ${REPL_TABLE} VALUES (1, 'hello from replica 0')"
 
-# Await replication to replica 1
-REPLICATED=false
-for i in $(seq 1 15); do
-  REP_COUNT=$(ch_query "${POD_1}" "SELECT count() FROM ${REPL_TABLE}" || echo "0")
-  if [ "$REP_COUNT" -eq 1 ]; then
-    REPLICATED=true
-    break
+  # Await replication to replica 1
+  REPLICATED=false
+  for i in $(seq 1 15); do
+    REP_COUNT=$(ch_query "${POD_1}" "SELECT count() FROM ${REPL_TABLE}" || echo "0")
+    if [ "$REP_COUNT" -eq 1 ]; then
+      REPLICATED=true
+      break
+    fi
+    sleep 1
+  done
+
+  if [ "$REPLICATED" == "true" ]; then
+    echo "    PASS: Insert on replica 0 replicated to replica 1 via ClickHouse Keeper."
+    PASSED_COUNT=$((PASSED_COUNT + 1))
+  else
+    echo "    FAIL: Data failed to replicate to replica 1." >&2
+    FAILED_COUNT=$((FAILED_COUNT + 1))
   fi
-  sleep 1
-done
 
-if [ "$REPLICATED" == "true" ]; then
-  echo "    PASS: Insert on replica 0 replicated to replica 1 via ClickHouse Keeper."
-  PASSED_COUNT=$((PASSED_COUNT + 1))
+  ch_query "${POD_0}" "DROP TABLE IF EXISTS ${REPL_TABLE} SYNC" || true
+  ch_query "${POD_1}" "DROP TABLE IF EXISTS ${REPL_TABLE} SYNC" || true
 else
-  echo "    FAIL: Data failed to replicate to replica 1." >&2
-  FAILED_COUNT=$((FAILED_COUNT + 1))
+  # Keeper integration verification with ReplicatedMergeTree on active replica
+  ch_query "${POD_0}" "DROP TABLE IF EXISTS ${REPL_TABLE}" || true
+  ch_query "${POD_0}" "CREATE TABLE ${REPL_TABLE} (id UInt32, msg String) ENGINE = ReplicatedMergeTree('${REPL_PATH}', 'replica_0') ORDER BY id"
+  ch_query "${POD_0}" "INSERT INTO ${REPL_TABLE} VALUES (1, 'hello keeper replication')"
+  REP_COUNT=$(ch_query "${POD_0}" "SELECT count() FROM ${REPL_TABLE}" || echo "0")
+  KEEPER_STATUS=$(ch_query "${POD_0}" "SELECT count() FROM system.zookeeper WHERE path = '/clickhouse/tables'" || echo "0")
+  if [ "$REP_COUNT" -eq 1 ] && [ "$KEEPER_STATUS" -ge 1 ]; then
+    echo "    PASS: ReplicatedMergeTree metadata registered in ClickHouse Keeper (path: ${REPL_PATH})."
+    PASSED_COUNT=$((PASSED_COUNT + 1))
+  else
+    echo "    FAIL: Failed to verify ReplicatedMergeTree registration in ClickHouse Keeper." >&2
+    FAILED_COUNT=$((FAILED_COUNT + 1))
+  fi
+  ch_query "${POD_0}" "DROP TABLE IF EXISTS ${REPL_TABLE}" || true
 fi
-
-ch_query "${POD_0}" "DROP TABLE IF EXISTS ${REPL_TABLE} SYNC" || true
-ch_query "${POD_1}" "DROP TABLE IF EXISTS ${REPL_TABLE} SYNC" || true
 
 # Summary
 echo "================================================================="

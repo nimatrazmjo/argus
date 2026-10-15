@@ -6,6 +6,7 @@ NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 PASSWORD="${CLICKHOUSE_PASSWORD:-argus123}"
 POD_0="chi-argus-clickhouse-argus-cluster-0-0-0"
 POD_1="chi-argus-clickhouse-argus-cluster-0-1-0"
+HAVE_POD_1=$(kubectl get pod -n "${NAMESPACE}" "${POD_1}" --no-headers 2>/dev/null || true)
 
 PASSED_COUNT=0
 FAILED_COUNT=0
@@ -18,7 +19,7 @@ ch_query() {
   local sql="$1"
   local res=""
   res=$(kubectl exec -n "${NAMESPACE}" "${POD_0}" -c clickhouse -- clickhouse-client --user default --password "${PASSWORD}" --query "${sql}" 2>/dev/null || true)
-  if [ -z "$res" ]; then
+  if [ -z "$res" ] && [ -n "${HAVE_POD_1}" ]; then
     res=$(kubectl exec -n "${NAMESPACE}" "${POD_1}" -c clickhouse -- clickhouse-client --user default --password "${PASSWORD}" --query "${sql}" 2>/dev/null || true)
   fi
   echo "$res"

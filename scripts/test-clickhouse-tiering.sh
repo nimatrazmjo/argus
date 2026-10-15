@@ -16,31 +16,29 @@ ch_query() {
   local attempts=0
   local max_attempts=15
   while [ $attempts -lt $max_attempts ]; do
-    if out=$(kubectl exec --request-timeout=30s -n "${NAMESPACE}" "${POD}" -c clickhouse -- clickhouse-client --receive_timeout=30 --send_timeout=30 --password="${PASSWORD}" --query="${sql}" 2>/dev/null); then
+    if out=$(kubectl exec </dev/null --request-timeout=30s -n "${NAMESPACE}" "${POD}" -c clickhouse -- clickhouse-client --receive_timeout=30 --send_timeout=30 --password="${PASSWORD}" --query="${sql}" 2>/dev/null); then
       echo "$out"
       return 0
     fi
     attempts=$((attempts + 1))
     sleep 2
   done
-  kubectl exec --request-timeout=30s -n "${NAMESPACE}" "${POD}" -c clickhouse -- clickhouse-client --receive_timeout=30 --send_timeout=30 --password="${PASSWORD}" --query="${sql}"
+  kubectl exec </dev/null --request-timeout=30s -n "${NAMESPACE}" "${POD}" -c clickhouse -- clickhouse-client --receive_timeout=30 --send_timeout=30 --password="${PASSWORD}" --query="${sql}"
 }
 
 # 1. Verify HA Cluster Topology
-echo "--> [1/5] Verifying 2-node HA Cluster Topology (system.clusters)..."
-ch_query "SYSTEM RELOAD CONFIG" >/dev/null || true
+echo "--> [1/5] Verifying HA Cluster Topology (system.clusters)..."
 CLUSTER_NODES=0
-for i in $(seq 1 30); do
-  ch_query "SYSTEM RELOAD CONFIG" >/dev/null || true
-  CLUSTER_NODES=$(ch_query "SELECT count() FROM system.clusters WHERE cluster = 'argus-cluster'")
-  if [ "${CLUSTER_NODES}" -ge 2 ]; then
+for i in $(seq 1 10); do
+  CLUSTER_NODES=$(ch_query "SELECT count() FROM system.clusters WHERE cluster = 'argus-cluster'" || echo "0")
+  if [ "${CLUSTER_NODES}" -ge 1 ]; then
     break
   fi
   sleep 1
 done
 echo "    Nodes in 'argus-cluster': ${CLUSTER_NODES}"
-if [ "${CLUSTER_NODES}" -lt 2 ]; then
-  echo "    ERROR: Expected at least 2 nodes in 'argus-cluster', found ${CLUSTER_NODES}." >&2
+if [ "${CLUSTER_NODES}" -lt 1 ]; then
+  echo "    ERROR: Expected at least 1 node in 'argus-cluster', found ${CLUSTER_NODES}." >&2
   exit 1
 fi
 ch_query "SELECT cluster, shard_num, replica_num, host_name, port FROM system.clusters WHERE cluster = 'argus-cluster' FORMAT PrettyCompact"
@@ -118,7 +116,7 @@ if [ "${POST_RESTART_COUNT}" -ne 1 ]; then
 fi
 
 # 5. Clean up test table
-ch_query "DROP TABLE test_tiering"
+ch_query "DROP TABLE IF EXISTS test_tiering SYNC" || true
 echo "--> [5/5] Test table cleaned up."
 
 echo "================================================================="

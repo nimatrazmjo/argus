@@ -18,5 +18,7 @@ DEC-006 (2026-10-13): Parallel Execution Graph & Multi-Track Wave Architecture e
 DEC-007 (2026-10-14): Grafana Pyroscope selected for continuous profiling (Feature F010). — Single-binary architecture (localhost:5001/argus/pyroscope:1.7.1), HTTP folded and pprof ingestion, FlameQL flame graph rendering, with anonymous usage reporting disabled for air-gap compliance. [ADR-0006]
 DEC-008 (2026-10-15): Tiered Storage (Hot SSD -> Cold S3) and downsampling materialized views (raw -> 1m -> 1h) implemented in ClickHouse (Feature F014). — Prevents storage exhaustion and stabilizes query performance over long-term retention horizons.
 DEC-009 (2026-10-15): SigNoz integrated Ruler & Alertmanager selected for threshold alerting and monitor lifecycle (Feature F011). — Standard PromQL evaluations directly against ClickHouse metrics with Alertmanager deduplication, flapping hysteresis, and Kubernetes PrometheusRule CRD compatibility. [ADR-0007]
+DEC-010 (2026-10-15): OpenSLO standard specification, in-service SLI accounting, error budget burndown, and multi-window burn rate monitors implemented for reliability governance (Feature F012). — Availability (99.0%) and latency SLIs tracked, Fast Burn Rate (>14.4x/1h) and Slow Burn Rate (>6.0x/6h) alerts, with embedded dark-mode HTML dashboard (`/slo`) and air-gapped PromQL metrics. [ADR-0008]
+
 
 
