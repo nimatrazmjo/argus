@@ -23,14 +23,16 @@
   - `F010` — Continuous profiling via Pyroscope (Complete)
   - `F011` — Alerting / monitors: firing-state + dedup; threshold rules (Complete)
   - `F014` — Retention & downsampling, tiered storage hot/cold, materialized views (Complete)
-- **Overall progress**: 19 / 21 features COMPLETE (90%)
-- **Active Features (Remaining in Wave 4 & Wave 5)**:
-  - **Track E**: `F020` (Alert correlation + root-cause grouping via service topology)
+  - `F019` — Dynamic Anomaly & Forecast Monitors via EWMA and seasonal decomposition (Complete)
+  - `F020` — Topological Alert Correlation & Root-Cause Grouping via service topology (Complete)
+- **Overall progress**: 20 / 21 features COMPLETE (95%)
+- **Active Features (Remaining in Wave 5 Moat)**:
   - **Track E**: `F021` (NL query + incident summarization / LLM layer)
 
 ## Last verified
 - **Date**: 2026-10-15
-- **Full Verification Suite**: PASS — 39 / 39 verification steps passed 100% green (`scripts/verify.sh </dev/null`).
+- **Full Verification Suite**: PASS — 41 / 41 verification steps passed 100% green (`scripts/verify.sh </dev/null`).
+- **F020 Status**: PASS — Topological Alert Correlation & Root-Cause Grouping engine verified with service dependency DAG analysis, cascading multi-service failure alert grouping into a single incident, multi-factor probable root-cause ranking (upstream database isolated from downstream symptoms with 99.0% confidence), blast-radius calculation, ServiceNow Table API single-ticket dispatch, and anti-false-merge/cross-tenant/out-of-order edge cases (`scripts/test-correlation-grouping.sh` and `scripts/test-correlation-grouping-edge-cases.sh`). Evidence in `.harness/evidence/F020/`.
 - **F019 Status**: PASS — Dynamic Metric Anomaly Detection & Forecast Monitors verified with EWMA 3-sigma bands, seasonal diurnal decomposition, linear capacity saturation forecasting, 44x false-positive rate reduction vs static thresholding (0.549% vs 24.364%), 100% true positive recall, and cold start/sparse data/regime shift edge cases (`scripts/test-anomaly.sh` and `scripts/test-anomaly-edge-cases.sh`). Evidence in `.harness/evidence/F019/`.
 - **F016 Status**: PASS — Agency IdP (Keycloak OIDC), PIV/CAC certificate claims, SSO reverse proxy gateway, cryptographic token verification, RBAC role separation (Admin, Operator, Viewer), and tenant scope propagation verified (`scripts/test-sso.sh` and `scripts/test-sso-edge-cases.sh`). Evidence in `.harness/evidence/F016/`.
 - **F017 Status**: PASS — Real User Monitoring (RUM) collector, OpenReplay-compatible rrweb DOM session recording and playback, defense-in-depth PII masking (passwords, emails, PANs, tokens), ClickHouse session persistence, and W3C traceparent APM correlation verified (`scripts/test-rum.sh` and `scripts/test-rum-edge-cases.sh`). Evidence in `.harness/evidence/F017/`.

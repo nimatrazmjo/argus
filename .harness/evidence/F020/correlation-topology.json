@@ -1,0 +1,45 @@
+{
+  "nodes": [
+    "argus-auth-service",
+    "argus-auto-service",
+    "argus-idp",
+    "argus-payment-service",
+    "argus-postgres-db",
+    "argus-rum-collector",
+    "argus-sample-service",
+    "argus-synthetic-probe",
+    "chi-argus-clickhouse"
+  ],
+  "edges": [
+    {
+      "source": "argus-synthetic-probe",
+      "target": "argus-auto-service",
+      "relation": "probes"
+    },
+    {
+      "source": "argus-rum-collector",
+      "target": "argus-auto-service",
+      "relation": "ingests_for"
+    },
+    {
+      "source": "argus-auto-service",
+      "target": "argus-sample-service",
+      "relation": "calls"
+    },
+    {
+      "source": "argus-sample-service",
+      "target": "chi-argus-clickhouse",
+      "relation": "queries"
+    },
+    {
+      "source": "argus-payment-service",
+      "target": "argus-postgres-db",
+      "relation": "calls"
+    },
+    {
+      "source": "argus-auth-service",
+      "target": "argus-idp",
+      "relation": "validates_with"
+    }
+  ]
+}

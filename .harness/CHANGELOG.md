@@ -17,6 +17,34 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-15 — F020 Topological Alert Correlation & Root-Cause Grouping — COMPLETE
+Branch/commit: main @ HEAD   PR: N/A   CI: green (41/41 verification steps passed)
+Evidence:
+  - Architecture Decision & Implementation:
+      * `docs/decisions/ADR-0015-alert-correlation-and-root-cause-grouping.md`: Architectural decision for in-cluster topological alert clustering, Directed Acyclic Graph (DAG) dependency traversal, multi-factor probable-cause ranking (depth, time precedence, criticality), blast-radius quantification, and consolidated ServiceNow incident dispatch. Recorded as `DEC-017` in `.harness/DECISIONS.md`.
+      * `deploy/correlation/correlation_engine.py`: Air-gapped, zero-external-dependency topological correlation daemon running on port 9097 in `argus-system`. Implements Prometheus `/webhook/alert` ingestion, sliding correlation window (120s), transitive dependency search, anti-false-merge boundary enforcement, out-of-order re-ranking, and ServiceNow Table API ticket sync.
+      * `deploy/correlation/correlation-workloads.yaml` & `deploy/correlation/apply-correlation.sh`: Kubernetes Service, Deployment, and rollout sync controller in `argus-system`.
+  - End-to-End Verification:
+      * `scripts/test-correlation-grouping.sh` + `scripts/run_correlation_e2e.py`:
+          - Verified daemon healthcheck and topology DAG retrieval (9 nodes, 6 edges).
+          - Simulated 4-tier cascading outage: `chi-argus-clickhouse` (t0) -> `argus-sample-service` (t0+3s) -> `argus-auto-service` (t0+6s) -> `argus-synthetic-probe` (t0+9s).
+          - Verified 4 alerts collapsed into EXACTLY 1 correlated incident (75% alert volume reduction).
+          - Probable-cause ranking accurately isolated `chi-argus-clickhouse` (`ClickHouseConnectionPoolExhausted`) as root cause with 99.0% confidence.
+          - Causal propagation path and 3 downstream symptoms identified.
+          - ServiceNow Table API verified: EXACTLY 1 ticket created (`[ARGUS CORRELATED] Root Cause: chi-argus-clickhouse - 3 symptoms grouped`).
+          - Incident resolution synchronization verified: incident marked `resolved` and ServiceNow state updated to 6.
+      * Generated evidence artifacts in `.harness/evidence/F020/`: `correlation-topology.json`, `probable-cause-ranking.json`, `cascading-failure-incident.json`, `correlation-workloads.yaml`.
+  - Edge Cases & Resilience Battery:
+      * `scripts/test-correlation-grouping-edge-cases.sh` + `scripts/run_correlation_edge_cases.py`:
+          1. Anti-False-Merge Guardrail: Simultaneous alerts across disjoint topologies (`argus-payment-service` vs `argus-auth-service`) strictly created 2 independent incidents and ServiceNow tickets.
+          2. Out-of-Order Alert Arrival: Downstream symptom arriving before upstream root cause is cleanly re-ranked to the upstream dependency without duplicate ticketing.
+          3. Multi-Tenant Boundary Isolation: Alerts from different tenants (`tenant_alpha` vs `tenant_beta`) on the same service maintained strict boundary isolation.
+          4. Circular Dependency Cycle Guardrail: Mutual dependencies (A -> B -> A) handled cleanly without infinite recursion.
+          5. Single Isolated Alert: Standalone alert without cascade cleanly created isolated incident with 0 symptoms.
+      * Evidence saved to `.harness/evidence/F020/correlation-edge-cases-report.json`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F020 is COMPLETE! Wave 4 is fully concluded (20 / 21 features complete — 95%). Gate G4 PASSED! Next target: F021 (NL Query & Incident Summarization / Final Platform Moat).
+
 ## 2026-10-15 — F019 Dynamic Anomaly & Forecast Monitors via EWMA and Seasonal Decomposition — COMPLETE
 Branch/commit: main @ HEAD   PR: N/A   CI: green (39/39 verification steps passed)
 Evidence:

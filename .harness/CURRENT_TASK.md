@@ -47,13 +47,17 @@
 
 ---
 
-## Active Wave: Wave 4 Remaining Package
+### Package 3: Track E — Feature F020 (Alert Correlation & Root-Cause Grouping) — [COMPLETE]
+- **Status**: COMPLETE & VERIFIED (41/41 verification steps green). Evidence saved to `.harness/evidence/F020/`.
+- **Delivered**: `docs/decisions/ADR-0015-alert-correlation-and-root-cause-grouping.md`, `deploy/correlation/correlation_engine.py`, `deploy/correlation/correlation-workloads.yaml`, `deploy/correlation/apply-correlation.sh`, `scripts/run_correlation_e2e.py`, `scripts/test-correlation-grouping.sh`, `scripts/run_correlation_edge_cases.py`, `scripts/test-correlation-grouping-edge-cases.sh`.
 
-### Package 3: Track B — Feature F020 (Alert Correlation & Root-Cause Grouping)
-- **Scope**: Correlate cascading alert storms across distributed microservices into grouped incidents with topological probable-cause ranking.
-- **Target Files**: `deploy/correlation/`, `scripts/test-alert-grouping.sh`, `scripts/test-alert-grouping-edge-cases.sh`.
+---
+
+## Gate G4 Status: PASSED (20/21 Features Complete — 95%)
+All Wave 4 features (F016, F019, F020) are verified 100% green without regressions.
+Next active phase: **Wave 5 — Platform Moat (Feature F021: NL Query & Incident Summarization via Air-Gapped LLM)**.
 
 ---
 
 ## Next Immediate Step
-Implement and verify Feature F020 (Track B — Alert Correlation & Root-Cause Grouping) to conclude Wave 4 and satisfy Gate G4.
+Implement and verify Feature F021 (NL Query & Incident Summarization) to achieve 100% full platform delivery and ATO readiness.

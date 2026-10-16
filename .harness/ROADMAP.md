@@ -148,11 +148,11 @@ See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/work
   - **Can run in parallel with**: F016, F020
   - **Status**: `COMPLETE`
 
-- [ ] **F020** — Alert correlation + root-cause grouping
+- [x] **F020** — Alert correlation + root-cause grouping
   - **Mode**: `[PARALLEL TRACK E]` (AIOps & Intelligence — Wave 4)
   - **Must wait for**: F011 (Alert events), F013 (Incident records), F019 (Anomaly alerts)
   - **Can run in parallel with**: F016
-  - **Status**: `NOT STARTED`
+  - **Status**: `COMPLETE`
 
 - [ ] **F021** — NL query + incident summarization (LLM layer; Bedrock-backed)
   - **Mode**: `[SEQUENTIAL GATE]` (Wave 5 Final Platform Moat)

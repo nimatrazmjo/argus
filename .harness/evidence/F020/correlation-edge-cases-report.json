@@ -1,0 +1,22 @@
+{
+  "anti_false_merge": {
+    "status": "PASS",
+    "detail": "Two simultaneous alerts across disjoint topologies produced 2 distinct incidents and ServiceNow tickets."
+  },
+  "out_of_order_arrival": {
+    "status": "PASS",
+    "detail": "Symptom alert arriving first was correctly superseded when upstream root cause arrived."
+  },
+  "tenant_boundary_isolation": {
+    "status": "PASS",
+    "detail": "Different tenants on the same microservice were isolated into independent incidents."
+  },
+  "circular_dependency_guardrail": {
+    "status": "PASS",
+    "detail": "Topology cycle traversal terminated deterministically without infinite loop."
+  },
+  "single_isolated_alert": {
+    "status": "PASS",
+    "detail": "Single alert cleanly processed as standalone root cause with 0 symptoms."
+  }
+}

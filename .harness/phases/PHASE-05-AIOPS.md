@@ -34,13 +34,13 @@ Dynamic monitor algorithms; false-positive benchmark report; anomaly firing tran
 - **Must wait for**: F011 (Alert events), F013 (Incident records), F019 (Anomaly alerts), Sync Gate G3
 - **Can run in parallel with**: F016
 - **Blocks**: F021 (Incident correlation graph required for summarization)
-- **Status**: NOT STARTED
+- **Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] Related alerts across services group into one incident with a probable-cause ranking using topology from F007/F008.
-- [ ] Edge cases: unrelated-but-simultaneous alerts not falsely merged.
-- [ ] E2E: a cascading failure produces one grouped incident, not N pages.
-- [ ] FULL verify green.
+- [x] Related alerts across services group into one incident with a probable-cause ranking using topology from F007/F008.
+- [x] Edge cases: unrelated-but-simultaneous alerts not falsely merged.
+- [x] E2E: a cascading failure produces one grouped incident, not N pages.
+- [x] FULL verify green.
 
 ### Evidence expected
 Correlation rules/engine manifests; grouped incident payload transcript under `.harness/evidence/F020/`.

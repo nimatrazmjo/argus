@@ -1,9 +1,9 @@
 {
   "session": {
-    "session_id": "sess-e2e-4175d8ea",
-    "user_id": "customer-alice-4175d8ea",
+    "session_id": "sess-e2e-d7b238d0",
+    "user_id": "customer-alice-d7b238d0",
     "user_email_masked": "[REDACTED_EMAIL]",
-    "trace_id": "6a30505b0c4ca3a8e6325eb264baea35",
+    "trace_id": "eb9deacacb5fdadab3dbcde3c2a54961",
     "events_count": 6
   },
   "eventRowsCount": 6
