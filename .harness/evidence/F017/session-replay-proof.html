@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Argus RUM Session Replay — sess-e2e-075bf7e5</title>
+    <title>Argus RUM Session Replay — sess-e2e-4175d8ea</title>
     <style>
         :root {
             --bg-primary: #0f172a;
@@ -197,11 +197,11 @@
             <span class="badge badge-masked">PII Redacted</span>
         </div>
         <div class="meta-group">
-            <div>Session: <strong>sess-e2e-075bf7e5</strong></div>
-            <div>User: <strong>customer-alice-075bf7e5</strong></div>
+            <div>Session: <strong>sess-e2e-4175d8ea</strong></div>
+            <div>User: <strong>customer-alice-4175d8ea</strong></div>
             <div>Duration: <strong>0.0s</strong></div>
             <div>Events: <strong>6</strong></div>
-            <div class="meta-trace">Trace: <a href="/api/v1/traces/efa100e2a28f05eeb7749b148c3a7e56"><strong>efa100e2a28f...</strong></a></div>
+            <div class="meta-trace">Trace: <a href="/api/v1/traces/6a30505b0c4ca3a8e6325eb264baea35"><strong>6a30505b0c4c...</strong></a></div>
         </div>
     </header>
 
@@ -246,7 +246,7 @@
     </main>
 
     <script>
-        const events = [{"eventId": "evt-snap-075bf7e5", "timestamp": "2026-10-16T02:36:55.000Z", "type": "dom_snapshot", "targetSelector": "document", "payload": {"snapshot": {"title": "Argus Store \u2014 Checkout", "bodyHtml": "<div class='checkout'><h1>Secure Checkout</h1><form><input id='name'/><input id='email'/><input id='password'/><input id='creditCard'/><input id='notes'/><button id='submitBtn'>Buy</button></form></div>"}}}, {"eventId": "evt-name-075bf7e5", "timestamp": "2026-10-16T02:36:56.200Z", "type": "input", "targetTag": "input", "targetId": "name", "targetSelector": "#name", "maskedValue": "Alice User", "payload": {"isMasked": false, "length": 10}}, {"eventId": "evt-pwd-075bf7e5", "timestamp": "2026-10-16T02:36:56.400Z", "type": "input", "targetTag": "input", "targetId": "password", "targetSelector": "#password", "maskedValue": "***", "payload": {"isMasked": true, "length": 29, "raw_leak_attempt": "password=[REDACTED]"}}, {"eventId": "evt-cc-075bf7e5", "timestamp": "2026-10-16T02:36:56.600Z", "type": "input", "targetTag": "input", "targetId": "creditCard", "targetSelector": "#creditCard", "maskedValue": "***", "payload": {"isMasked": true, "length": 19, "raw_leak_attempt": "card=[REDACTED]"}}, {"eventId": "evt-notes-075bf7e5", "timestamp": "2026-10-16T02:36:56.800Z", "type": "input", "targetTag": "input", "targetId": "notes", "targetSelector": "#notes", "maskedValue": "Deliver to security dock 4", "payload": {"isMasked": false, "notes": "Deliver to security dock 4"}}, {"eventId": "evt-click-075bf7e5", "timestamp": "2026-10-16T02:36:56.800Z", "type": "click", "targetTag": "button", "targetId": "submitBtn", "targetSelector": "#submitBtn", "payload": {"text": "Complete Purchase"}}];
+        const events = [{"eventId": "evt-snap-4175d8ea", "timestamp": "2026-10-16T03:05:17.000Z", "type": "dom_snapshot", "targetSelector": "document", "payload": {"snapshot": {"title": "Argus Store \u2014 Checkout", "bodyHtml": "<div class='checkout'><h1>Secure Checkout</h1><form><input id='name'/><input id='email'/><input id='password'/><input id='creditCard'/><input id='notes'/><button id='submitBtn'>Buy</button></form></div>"}}}, {"eventId": "evt-name-4175d8ea", "timestamp": "2026-10-16T03:05:17.200Z", "type": "input", "targetTag": "input", "targetId": "name", "targetSelector": "#name", "maskedValue": "Alice User", "payload": {"isMasked": false, "length": 10}}, {"eventId": "evt-pwd-4175d8ea", "timestamp": "2026-10-16T03:05:17.400Z", "type": "input", "targetTag": "input", "targetId": "password", "targetSelector": "#password", "maskedValue": "***", "payload": {"isMasked": true, "length": 29, "raw_leak_attempt": "password=[REDACTED]"}}, {"eventId": "evt-cc-4175d8ea", "timestamp": "2026-10-16T03:05:18.600Z", "type": "input", "targetTag": "input", "targetId": "creditCard", "targetSelector": "#creditCard", "maskedValue": "***", "payload": {"isMasked": true, "length": 19, "raw_leak_attempt": "card=[REDACTED]"}}, {"eventId": "evt-notes-4175d8ea", "timestamp": "2026-10-16T03:05:18.800Z", "type": "input", "targetTag": "input", "targetId": "notes", "targetSelector": "#notes", "maskedValue": "Deliver to security dock 4", "payload": {"isMasked": false, "notes": "Deliver to security dock 4"}}, {"eventId": "evt-click-4175d8ea", "timestamp": "2026-10-16T03:05:18.800Z", "type": "click", "targetTag": "button", "targetId": "submitBtn", "targetSelector": "#submitBtn", "payload": {"text": "Complete Purchase"}}];
         let currentIndex = 0;
         let isPlaying = false;
         let timer = null;

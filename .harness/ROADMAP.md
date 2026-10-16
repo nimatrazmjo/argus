@@ -142,11 +142,11 @@ See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/work
 ## Phase 05 — AIOps / the moat (deferred, optional)
 *Execution Waves: Wave 4 & Wave 5 (Final Moat)*
 
-- [ ] **F019** — Anomaly + forecast monitors (seasonal decomposition / EWMA)
+- [x] **F019** — Anomaly + forecast monitors (seasonal decomposition / EWMA)
   - **Mode**: `[PARALLEL TRACK E]` (AIOps & Intelligence — Wave 4)
   - **Must wait for**: F009 (Infra metric streams), F011 (Alerting framework)
   - **Can run in parallel with**: F016, F020
-  - **Status**: `NOT STARTED`
+  - **Status**: `COMPLETE`
 
 - [ ] **F020** — Alert correlation + root-cause grouping
   - **Mode**: `[PARALLEL TRACK E]` (AIOps & Intelligence — Wave 4)

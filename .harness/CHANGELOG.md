@@ -17,6 +17,31 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-15 — F019 Dynamic Anomaly & Forecast Monitors via EWMA and Seasonal Decomposition — COMPLETE
+Branch/commit: main @ HEAD   PR: N/A   CI: green (39/39 verification steps passed)
+Evidence:
+  - Architecture Decision & Implementation:
+      * `docs/decisions/ADR-0014-anomaly-and-forecast-monitors.md`: Architectural decision for in-cluster statistical baselining, EWMA dynamic 3-sigma confidence bands, additive diurnal seasonal decomposition, and linear capacity saturation drift forecasting. Recorded as `DEC-016` in `.harness/DECISIONS.md`.
+      * `deploy/aiops/anomaly_detector.py`: Air-gapped, zero-external-dependency AIOps baselining daemon on port 9096 with Prometheus metrics exporter, cold-start/sparse data resilience, baseline freezing during incidents, winsorized variance updating, and linear regression forecaster.
+      * `deploy/aiops/anomaly-workloads.yaml` & `deploy/aiops/apply-aiops.sh`: Kubernetes Service, Deployment, and rollout sync controller in `argus-system`.
+  - End-to-End Verification:
+      * `scripts/test-anomaly.sh` + `scripts/run_anomaly_e2e.py`: Verified daemon healthcheck -> dynamic algorithm documentation -> normal telemetry evaluation -> high-magnitude anomaly injection and 3-sigma firing detection -> automatic monitor recovery -> seasonal diurnal peak suppression (firing=False for 305 req/s midday peak vs firing=True for 3 AM off-peak surge) -> capacity saturation drift forecasting -> 7-day diurnal benchmark replay (10,080 points).
+      * Benchmark Replay Results:
+          - Static Threshold (75ms): FPR = 24.364%, Precision = 3.11%, F1 = 0.0601 (Massive diurnal alert fatigue).
+          - Dynamic Baselining: FPR = 0.549%, True Positive Rate / Recall = 100.0%, Precision = 61.157%, F1 = 0.759 (44.4x false positive rate reduction!).
+      * Generated evidence artifacts in `.harness/evidence/F019/`: `dynamic-monitor-algorithm.json`, `false-positive-benchmark.json`, `anomaly-firing-transcript.json`, `anomaly-workloads.yaml`.
+  - Edge Cases & Resilience Battery:
+      * `scripts/test-anomaly-edge-cases.sh` + `scripts/run_anomaly_edge_cases.py`:
+          1. Cold start: N=1 to N=4 warm-up widening bounds without zero-division or false alarms.
+          2. Sparse data & irregular intervals: 4-hour data gap handled cleanly without corrupting exponential baseline.
+          3. Seasonality shift / regime change: Step jump (100 -> 250) fires anomaly, then adapts smoothly to new baseline without permanent alert lock.
+          4. Metric flattening / zero-variance flatline: sigma -> 0 guardrail prevents division by zero and micro-jitter alarms.
+          5. Extreme shock spike & recovery: 100x outlier spike fires immediately (z=1980), and recovers cleanly when normalized.
+          6. Zero-value metric handling: Error count / counter metric starting at 0.0 handled safely without negative bounds.
+      * Evidence saved to `.harness/evidence/F019/anomaly-edge-cases-report.json`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F019 is COMPLETE! Wave 4 progressing (19 / 21 features complete — 90%). Next target: F020 (Alert Correlation & Root-Cause Grouping).
+
 ## 2026-10-15 — F016 Agency SSO & Role-Based Access Control (RBAC) via Keycloak OIDC — COMPLETE
 Branch/commit: main @ HEAD   PR: N/A   CI: green (37/37 verification steps passed)
 Evidence:

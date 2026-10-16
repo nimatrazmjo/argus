@@ -1,15 +1,15 @@
 {
-  "sessionId": "sess-e2e-075bf7e5",
+  "sessionId": "sess-e2e-4175d8ea",
   "session": {
-    "sessionId": "sess-e2e-075bf7e5",
-    "userId": "customer-alice-075bf7e5",
+    "sessionId": "sess-e2e-4175d8ea",
+    "userId": "customer-alice-4175d8ea",
     "userEmail": "[REDACTED_EMAIL]",
-    "traceId": "efa100e2a28f05eeb7749b148c3a7e56",
+    "traceId": "6a30505b0c4ca3a8e6325eb264baea35",
     "pageUrl": "/checkout",
     "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/128.0.0.0",
     "ipMasked": "10.1.0.0",
-    "startTime": "2026-10-16 02:36:55",
-    "endTime": "2026-10-16 02:36:55",
+    "startTime": "2026-10-16 03:05:17",
+    "endTime": "2026-10-16 03:05:17",
     "durationMs": 0,
     "eventsCount": 6,
     "errorsCount": 0,
@@ -17,8 +17,8 @@
   },
   "events": [
     {
-      "eventId": "evt-snap-075bf7e5",
-      "timestamp": "2026-10-16T02:36:55.000Z",
+      "eventId": "evt-snap-4175d8ea",
+      "timestamp": "2026-10-16T03:05:17.000Z",
       "type": "dom_snapshot",
       "targetSelector": "document",
       "payload": {
@@ -29,8 +29,8 @@
       }
     },
     {
-      "eventId": "evt-name-075bf7e5",
-      "timestamp": "2026-10-16T02:36:56.200Z",
+      "eventId": "evt-name-4175d8ea",
+      "timestamp": "2026-10-16T03:05:17.200Z",
       "type": "input",
       "targetTag": "input",
       "targetId": "name",
@@ -42,8 +42,8 @@
       }
     },
     {
-      "eventId": "evt-pwd-075bf7e5",
-      "timestamp": "2026-10-16T02:36:56.400Z",
+      "eventId": "evt-pwd-4175d8ea",
+      "timestamp": "2026-10-16T03:05:17.400Z",
       "type": "input",
       "targetTag": "input",
       "targetId": "password",
@@ -56,8 +56,8 @@
       }
     },
     {
-      "eventId": "evt-cc-075bf7e5",
-      "timestamp": "2026-10-16T02:36:56.600Z",
+      "eventId": "evt-cc-4175d8ea",
+      "timestamp": "2026-10-16T03:05:18.600Z",
       "type": "input",
       "targetTag": "input",
       "targetId": "creditCard",
@@ -70,8 +70,8 @@
       }
     },
     {
-      "eventId": "evt-notes-075bf7e5",
-      "timestamp": "2026-10-16T02:36:56.800Z",
+      "eventId": "evt-notes-4175d8ea",
+      "timestamp": "2026-10-16T03:05:18.800Z",
       "type": "input",
       "targetTag": "input",
       "targetId": "notes",
@@ -83,8 +83,8 @@
       }
     },
     {
-      "eventId": "evt-click-075bf7e5",
-      "timestamp": "2026-10-16T02:36:56.800Z",
+      "eventId": "evt-click-4175d8ea",
+      "timestamp": "2026-10-16T03:05:18.800Z",
       "type": "click",
       "targetTag": "button",
       "targetId": "submitBtn",

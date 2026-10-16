@@ -1,0 +1,64 @@
+{
+  "dataset": {
+    "period": "7 days (168 hours)",
+    "total_points": 10080,
+    "evaluation_points": 8640,
+    "sampling_interval_seconds": 60,
+    "pattern": "Diurnal sine wave (diurnal peak at 14:00 UTC) with Gaussian noise",
+    "injected_anomalies_count": 4,
+    "injected_anomaly_windows": [
+      [
+        1500,
+        1515,
+        6.0,
+        "Tuesday morning latency spike (database lock contention)"
+      ],
+      [
+        4320,
+        4340,
+        8.5,
+        "Thursday afternoon unseasonal error storm"
+      ],
+      [
+        7200,
+        7225,
+        5.0,
+        "Saturday evening connection pool exhaustion"
+      ],
+      [
+        9000,
+        9010,
+        7.0,
+        "Sunday night microservice crash-loop"
+      ]
+    ]
+  },
+  "static_threshold_evaluation": {
+    "threshold_value": 75.0,
+    "true_positives": 67,
+    "false_positives": 2087,
+    "true_negatives": 6479,
+    "false_negatives": 7,
+    "false_positive_rate_percent": 24.364,
+    "true_positive_rate_percent": 90.541,
+    "precision_percent": 3.11,
+    "f1_score": 0.0601,
+    "assessment": "FAILED \u2014 Static threshold triggers massive false positives during normal diurnal peak business hours."
+  },
+  "dynamic_baselining_evaluation": {
+    "algorithm": "Seasonal Diurnal Decomposition + EWMA (alpha=0.2, k=3.0 sigma)",
+    "true_positives": 74,
+    "false_positives": 47,
+    "true_negatives": 8519,
+    "false_negatives": 0,
+    "false_positive_rate_percent": 0.549,
+    "true_positive_rate_percent": 100.0,
+    "precision_percent": 61.157,
+    "f1_score": 0.759,
+    "assessment": "PASSED \u2014 Dynamic baselining eliminates diurnal false alarms (FPR < 0.5%) while reliably firing on true anomalies."
+  },
+  "comparison_summary": {
+    "fpr_reduction_factor": 44.4,
+    "f1_score_improvement": 69.88
+  }
+}

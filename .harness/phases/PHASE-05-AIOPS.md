@@ -13,14 +13,14 @@ Execution architecture is governed by [`.harness/PARALLEL_EXECUTION_GRAPH.md`](f
 - **Must wait for**: F009 (Infra metric streams), F011 (Alerting framework), Sync Gate G3
 - **Can run in parallel with**: F016, F020 (pipelined)
 - **Blocks**: F020, F021
-- **Status**: NOT STARTED
+- **Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] At least one metric has a dynamic monitor (seasonal decomposition or EWMA baseline) that fires on true anomalies, not fixed thresholds.
-- [ ] Measured false-positive rate on a replayed week of data is reported.
-- [ ] Edge cases: seasonality shift, sparse data, cold start.
-- [ ] E2E: injected anomaly fires; normal variation does not.
-- [ ] FULL verify green.
+- [x] At least one metric has a dynamic monitor (seasonal decomposition or EWMA baseline) that fires on true anomalies, not fixed thresholds.
+- [x] Measured false-positive rate on a replayed week of data is reported.
+- [x] Edge cases: seasonality shift, sparse data, cold start.
+- [x] E2E: injected anomaly fires; normal variation does not.
+- [x] FULL verify green.
 
 ### Evidence expected
 Dynamic monitor algorithms; false-positive benchmark report; anomaly firing transcript under `.harness/evidence/F019/`.

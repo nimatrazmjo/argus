@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-anomaly-detector
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-anomaly-detector
+    app.kubernetes.io/part-of: argus
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-anomaly
+      port: 9096
+      targetPort: 9096
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: argus-anomaly-detector
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-anomaly-detector
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-anomaly-detector
+    app.kubernetes.io/part-of: argus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-anomaly-detector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-anomaly-detector
+        app.kubernetes.io/part-of: argus
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: anomaly-detector
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "/app/anomaly_detector.py"]
+          env:
+            - name: PORT
+              value: "9096"
+          ports:
+            - name: http-anomaly
+              containerPort: 9096
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9096
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9096
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-anomaly-detector-code

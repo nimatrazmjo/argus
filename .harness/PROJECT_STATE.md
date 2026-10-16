@@ -11,6 +11,7 @@
   - **Sync Gate G3**: **PASSED**. Operational Depth & Frontend Signals 100% complete across Tracks B, C, and D.
 - **Completed in Wave 4**:
   - `F016` — Agency SSO & RBAC via OIDC / CAC/PIV smart cards, role mapping (Admin, Operator, Viewer), and PEP reverse proxy (Complete)
+  - `F019` — Dynamic Anomaly & Forecast Monitors via EWMA and Seasonal Diurnal Decomposition (Complete)
 - **Completed in Wave 3**:
   - `F012` — SLO tracking, error budget burndown, and multi-window burn rate monitors (Complete)
   - `F013` — Paging path: ServiceNow webhook gateway, retry queue, and deduplication (Complete)
@@ -22,15 +23,15 @@
   - `F010` — Continuous profiling via Pyroscope (Complete)
   - `F011` — Alerting / monitors: firing-state + dedup; threshold rules (Complete)
   - `F014` — Retention & downsampling, tiered storage hot/cold, materialized views (Complete)
-- **Overall progress**: 18 / 21 features COMPLETE (86%)
+- **Overall progress**: 19 / 21 features COMPLETE (90%)
 - **Active Features (Remaining in Wave 4 & Wave 5)**:
-  - **Track E**: `F019` (Anomaly & forecast monitors — seasonal decomposition / EWMA)
-  - **Track B**: `F020` (Root-cause grouping & alert topology correlation)
-  - **Track E**: `F021` (Telemetry cost attribution & FinOps dashboard)
+  - **Track E**: `F020` (Alert correlation + root-cause grouping via service topology)
+  - **Track E**: `F021` (NL query + incident summarization / LLM layer)
 
 ## Last verified
 - **Date**: 2026-10-15
-- **Full Verification Suite**: PASS — 37 / 37 verification steps passed 100% green (`scripts/verify.sh </dev/null`).
+- **Full Verification Suite**: PASS — 39 / 39 verification steps passed 100% green (`scripts/verify.sh </dev/null`).
+- **F019 Status**: PASS — Dynamic Metric Anomaly Detection & Forecast Monitors verified with EWMA 3-sigma bands, seasonal diurnal decomposition, linear capacity saturation forecasting, 44x false-positive rate reduction vs static thresholding (0.549% vs 24.364%), 100% true positive recall, and cold start/sparse data/regime shift edge cases (`scripts/test-anomaly.sh` and `scripts/test-anomaly-edge-cases.sh`). Evidence in `.harness/evidence/F019/`.
 - **F016 Status**: PASS — Agency IdP (Keycloak OIDC), PIV/CAC certificate claims, SSO reverse proxy gateway, cryptographic token verification, RBAC role separation (Admin, Operator, Viewer), and tenant scope propagation verified (`scripts/test-sso.sh` and `scripts/test-sso-edge-cases.sh`). Evidence in `.harness/evidence/F016/`.
 - **F017 Status**: PASS — Real User Monitoring (RUM) collector, OpenReplay-compatible rrweb DOM session recording and playback, defense-in-depth PII masking (passwords, emails, PANs, tokens), ClickHouse session persistence, and W3C traceparent APM correlation verified (`scripts/test-rum.sh` and `scripts/test-rum-edge-cases.sh`). Evidence in `.harness/evidence/F017/`.
 - **F018 Status**: PASS — Synthetic Canary Prober daemon with multi-step workflows (`order_api`, `slo_dashboard`, `auth_validation`), Prometheus `:9115/metrics` exposition, target failure simulation and automatic recovery verified (`scripts/test-synthetics.sh` and `scripts/test-synthetics-edge-cases.sh`). Evidence in `.harness/evidence/F018/`.

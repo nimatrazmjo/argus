@@ -41,15 +41,19 @@
 
 ## Active Wave: Wave 4 Remaining Packages
 
-### Package 2: Track E — Feature F019 (Anomaly & Forecast Monitors)
-- **Scope**: Deploy seasonal anomaly detection and EWMA forecasting monitors for metric drift and saturation.
-- **Target Files**: `deploy/aiops/`, `scripts/test-anomaly.sh`, `scripts/test-anomaly-edge-cases.sh`.
+### Package 2: Track E — Feature F019 (Anomaly & Forecast Monitors) — [COMPLETE]
+- **Status**: COMPLETE & VERIFIED (39/39 verification steps green). Evidence saved to `.harness/evidence/F019/`.
+- **Delivered**: `docs/decisions/ADR-0014-anomaly-and-forecast-monitors.md`, `deploy/aiops/anomaly_detector.py`, `deploy/aiops/anomaly-workloads.yaml`, `deploy/aiops/apply-aiops.sh`, `scripts/run_anomaly_e2e.py`, `scripts/test-anomaly.sh`, `scripts/run_anomaly_edge_cases.py`, `scripts/test-anomaly-edge-cases.sh`.
 
-### Package 3: Track B — Feature F020 (Root-Cause Grouping & Alert Topology Correlation)
-- **Scope**: Correlate cascading alert storms across distributed services into root-cause incident topologies.
+---
+
+## Active Wave: Wave 4 Remaining Package
+
+### Package 3: Track B — Feature F020 (Alert Correlation & Root-Cause Grouping)
+- **Scope**: Correlate cascading alert storms across distributed microservices into grouped incidents with topological probable-cause ranking.
 - **Target Files**: `deploy/correlation/`, `scripts/test-alert-grouping.sh`, `scripts/test-alert-grouping-edge-cases.sh`.
 
 ---
 
 ## Next Immediate Step
-Implement and verify Feature F019 (Track E — Anomaly & Forecast Monitors) to advance Wave 4 towards Gate G4.
+Implement and verify Feature F020 (Track B — Alert Correlation & Root-Cause Grouping) to conclude Wave 4 and satisfy Gate G4.

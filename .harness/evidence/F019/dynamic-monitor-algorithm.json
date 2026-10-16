@@ -1,0 +1,94 @@
+{
+  "feature": "F019",
+  "name": "Dynamic Metric Anomaly Detection & Forecast Monitors",
+  "algorithms": {
+    "EWMA_Dynamic_Bands": {
+      "description": "Exponentially Weighted Moving Average with dynamic variance tracking and 3-sigma confidence bands",
+      "formulas": {
+        "moving_mean": "mu_t = alpha * x_t + (1 - alpha) * mu_{t-1}",
+        "moving_variance": "sigma_t^2 = beta * (x_t - mu_t)^2 + (1 - beta) * sigma_{t-1}^2",
+        "dynamic_upper_bound": "Upper_t = mu_t + k * sigma_t",
+        "dynamic_lower_bound": "Lower_t = max(0, mu_t - k * sigma_t)",
+        "z_score": "z_t = (x_t - mu_t) / sigma_t",
+        "firing_condition": "x_t > Upper_t or x_t < Lower_t"
+      },
+      "default_parameters": {
+        "alpha": 0.2,
+        "beta": 0.2,
+        "k_confidence": 3.0,
+        "min_warmup_points": 5,
+        "min_std_ratio": 0.05
+      }
+    },
+    "Seasonal_Diurnal_Decomposition": {
+      "description": "Additive seasonal decomposition modeling 24-hour diurnal cyclical periodicity",
+      "formulas": {
+        "decomposition": "Y(t) = Trend(t) + Seasonal(t mod 24) + Residual(t)",
+        "seasonal_update": "S_h = gamma * (Y_t - Trend_t) + (1 - gamma) * S_h",
+        "residual_evaluation": "|Residual_t| > k * sigma_R"
+      },
+      "parameters": {
+        "period_hours": 24,
+        "k_confidence": 3.0
+      }
+    },
+    "OLS_Saturation_Forecasting": {
+      "description": "Ordinary Least Squares rolling linear trend regression for Time-To-Exhaustion (TTE) prediction",
+      "formulas": {
+        "slope": "slope = sum((t_i - mean_t)*(y_i - mean_y)) / sum((t_i - mean_t)^2)",
+        "seconds_to_saturation": "T_exhaust = (Threshold - y_current) / slope"
+      }
+    }
+  },
+  "active_monitors": {
+    "sample_service_request_latency": {
+      "type": "EWMA",
+      "alpha": 0.2,
+      "confidence_k": 3.0,
+      "mean": 45.0452,
+      "std": 2.6125,
+      "sample_count": 30,
+      "is_firing": false
+    },
+    "node_memory_utilization": {
+      "type": "EWMA",
+      "alpha": 0.15,
+      "confidence_k": 3.0,
+      "mean": 61.9175,
+      "std": 0.562,
+      "sample_count": 30,
+      "is_firing": false
+    },
+    "synthetic_probe_duration": {
+      "type": "EWMA",
+      "alpha": 0.25,
+      "confidence_k": 3.0,
+      "mean": 83.5185,
+      "std": 4.8761,
+      "sample_count": 30,
+      "is_firing": false
+    },
+    "sample_service_diurnal_throughput": {
+      "type": "Seasonal_Diurnal",
+      "period_hours": 24,
+      "confidence_k": 3.0,
+      "sample_count": 20,
+      "last_evaluation": {
+        "metric": "sample_service_diurnal_throughput",
+        "value": 118.5522,
+        "timestamp": 1792119900.352164,
+        "hour": 3,
+        "trend": 118.9865,
+        "seasonal_component": -1.0951,
+        "residual": 1.1013,
+        "residual_std": 5.3861,
+        "upper_bound": 133.6091,
+        "lower_bound": 101.2927,
+        "z_score": 0.2045,
+        "is_anomaly": false,
+        "is_firing": false,
+        "sample_count": 20
+      }
+    }
+  }
+}

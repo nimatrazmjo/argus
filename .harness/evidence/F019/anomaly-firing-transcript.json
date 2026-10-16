@@ -1,0 +1,119 @@
+{
+  "timestamp": 1792119978.2089381,
+  "test_suite": "run_anomaly_e2e.py",
+  "status": "PASS",
+  "transcript": [
+    {
+      "step": "healthcheck",
+      "status": "ok",
+      "response": {
+        "status": "ok",
+        "service": "argus-anomaly-detector",
+        "version": "1.0.0",
+        "timestamp": 1792119974.8239453,
+        "active_monitors": 4
+      }
+    },
+    {
+      "step": "normal_evaluation",
+      "result": {
+        "metric": "e2e_service_latency",
+        "value": 48.0,
+        "timestamp": 1792120514.9548662,
+        "mean": 49.4903,
+        "std": 2.4745,
+        "upper_bound": 56.9138,
+        "lower_bound": 42.0667,
+        "z_score": -0.6023,
+        "is_anomaly": false,
+        "is_firing": false,
+        "status": "normal",
+        "sample_count": 10
+      }
+    },
+    {
+      "step": "anomaly_injection",
+      "result": {
+        "metric": "e2e_service_latency",
+        "value": 319.7495,
+        "timestamp": 1792119975.3945515,
+        "mean": 49.1922,
+        "std": 2.4596,
+        "upper_bound": 56.5711,
+        "lower_bound": 41.8134,
+        "z_score": 110.0,
+        "is_anomaly": true,
+        "is_firing": true,
+        "status": "anomaly",
+        "sample_count": 11
+      }
+    },
+    {
+      "step": "recovery",
+      "result": {
+        "metric": "e2e_service_latency",
+        "value": 49.0,
+        "timestamp": 1792120814.9548662,
+        "mean": 49.0787,
+        "std": 2.4539,
+        "upper_bound": 56.4405,
+        "lower_bound": 41.7169,
+        "z_score": -0.0321,
+        "is_anomaly": false,
+        "is_firing": false,
+        "status": "normal",
+        "sample_count": 16
+      }
+    },
+    {
+      "step": "seasonal_diurnal_test",
+      "midday": {
+        "metric": "e2e_diurnal_traffic",
+        "value": 305.0,
+        "timestamp": 1776434400.0,
+        "hour": 14,
+        "trend": 121.0,
+        "seasonal_component": 181.0,
+        "residual": 5.0,
+        "residual_std": 2.0,
+        "upper_bound": 306.0,
+        "lower_bound": 294.0,
+        "z_score": 2.5,
+        "is_anomaly": false,
+        "is_firing": false,
+        "sample_count": 49
+      },
+      "night_anomaly": {
+        "metric": "e2e_diurnal_traffic",
+        "value": 350.0,
+        "timestamp": 1776394800.0,
+        "hour": 3,
+        "trend": 121.0,
+        "seasonal_component": 0.0,
+        "residual": 229.0,
+        "residual_std": 2.4698,
+        "upper_bound": 128.4095,
+        "lower_bound": 113.5905,
+        "z_score": 92.7194,
+        "is_anomaly": true,
+        "is_firing": true,
+        "sample_count": 49
+      }
+    },
+    {
+      "step": "forecast_drift",
+      "result": {
+        "status": "ok",
+        "slope_per_sec": 0.005556,
+        "slope_per_hour": 20.0,
+        "r_squared": 1.0,
+        "current_value": 75.0,
+        "projected_1h": 95.0,
+        "projected_4h": 155.0,
+        "projected_24h": 555.0,
+        "seconds_to_saturation": 2700.0,
+        "hours_to_saturation": 0.75
+      }
+    }
+  ]
+}
