@@ -29,6 +29,9 @@ metadata:
     app.kubernetes.io/name: argus-svc-gateway
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argus-svc-gateway
@@ -38,6 +41,7 @@ spec:
         app.kubernetes.io/name: argus-svc-gateway
         app.kubernetes.io/part-of: argus-services
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 2
       containers:
         - name: gateway
@@ -85,16 +89,16 @@ spec:
             httpGet:
               path: /healthz
               port: 8001
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 20
+            periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8001
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 5
+            periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 6
           volumeMounts:
@@ -133,6 +137,9 @@ metadata:
     app.kubernetes.io/name: argus-svc-auth
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argus-svc-auth
@@ -142,6 +149,7 @@ spec:
         app.kubernetes.io/name: argus-svc-auth
         app.kubernetes.io/part-of: argus-services
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 2
       containers:
         - name: auth
@@ -189,16 +197,16 @@ spec:
             httpGet:
               path: /healthz
               port: 8002
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 22
+            periodSeconds: 21
             timeoutSeconds: 5
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8002
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 6
+            periodSeconds: 16
             timeoutSeconds: 5
             failureThreshold: 6
           volumeMounts:
@@ -237,6 +245,9 @@ metadata:
     app.kubernetes.io/name: argus-svc-catalog
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argus-svc-catalog
@@ -246,6 +257,7 @@ spec:
         app.kubernetes.io/name: argus-svc-catalog
         app.kubernetes.io/part-of: argus-services
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 2
       containers:
         - name: catalog
@@ -293,16 +305,16 @@ spec:
             httpGet:
               path: /healthz
               port: 8003
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 24
+            periodSeconds: 22
             timeoutSeconds: 5
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8003
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 7
+            periodSeconds: 17
             timeoutSeconds: 5
             failureThreshold: 6
           volumeMounts:
@@ -341,6 +353,9 @@ metadata:
     app.kubernetes.io/name: argus-svc-order
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argus-svc-order
@@ -350,6 +365,7 @@ spec:
         app.kubernetes.io/name: argus-svc-order
         app.kubernetes.io/part-of: argus-services
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 2
       containers:
         - name: order
@@ -397,16 +413,16 @@ spec:
             httpGet:
               path: /healthz
               port: 8004
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 26
+            periodSeconds: 23
             timeoutSeconds: 5
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8004
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 8
+            periodSeconds: 18
             timeoutSeconds: 5
             failureThreshold: 6
           volumeMounts:
@@ -445,6 +461,9 @@ metadata:
     app.kubernetes.io/name: argus-svc-inventory
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argus-svc-inventory
@@ -454,6 +473,7 @@ spec:
         app.kubernetes.io/name: argus-svc-inventory
         app.kubernetes.io/part-of: argus-services
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 2
       containers:
         - name: inventory
@@ -501,16 +521,16 @@ spec:
             httpGet:
               path: /healthz
               port: 8005
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 28
+            periodSeconds: 24
             timeoutSeconds: 5
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8005
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 9
+            periodSeconds: 19
             timeoutSeconds: 5
             failureThreshold: 6
           volumeMounts:
@@ -549,6 +569,9 @@ metadata:
     app.kubernetes.io/name: argus-svc-payment
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argus-svc-payment
@@ -558,6 +581,7 @@ spec:
         app.kubernetes.io/name: argus-svc-payment
         app.kubernetes.io/part-of: argus-services
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 2
       containers:
         - name: payment
@@ -606,15 +630,15 @@ spec:
               path: /healthz
               port: 8006
             initialDelaySeconds: 30
-            periodSeconds: 15
+            periodSeconds: 25
             timeoutSeconds: 5
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8006
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 10
+            periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 6
           volumeMounts:
@@ -653,6 +677,9 @@ metadata:
     app.kubernetes.io/name: argus-svc-billing
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argus-svc-billing
@@ -662,6 +689,7 @@ spec:
         app.kubernetes.io/name: argus-svc-billing
         app.kubernetes.io/part-of: argus-services
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 2
       containers:
         - name: billing
@@ -709,16 +737,16 @@ spec:
             httpGet:
               path: /healthz
               port: 8007
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 32
+            periodSeconds: 26
             timeoutSeconds: 5
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8007
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 11
+            periodSeconds: 21
             timeoutSeconds: 5
             failureThreshold: 6
           volumeMounts:
@@ -757,6 +785,9 @@ metadata:
     app.kubernetes.io/name: argus-svc-shipping
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argus-svc-shipping
@@ -766,6 +797,7 @@ spec:
         app.kubernetes.io/name: argus-svc-shipping
         app.kubernetes.io/part-of: argus-services
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 2
       containers:
         - name: shipping
@@ -813,16 +845,16 @@ spec:
             httpGet:
               path: /healthz
               port: 8008
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 34
+            periodSeconds: 27
             timeoutSeconds: 5
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8008
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 12
+            periodSeconds: 22
             timeoutSeconds: 5
             failureThreshold: 6
           volumeMounts:
@@ -861,6 +893,9 @@ metadata:
     app.kubernetes.io/name: argus-svc-notification
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argus-svc-notification
@@ -870,6 +905,7 @@ spec:
         app.kubernetes.io/name: argus-svc-notification
         app.kubernetes.io/part-of: argus-services
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 2
       containers:
         - name: notification
@@ -917,16 +953,16 @@ spec:
             httpGet:
               path: /healthz
               port: 8009
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 36
+            periodSeconds: 28
             timeoutSeconds: 5
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8009
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 13
+            periodSeconds: 23
             timeoutSeconds: 5
             failureThreshold: 6
           volumeMounts:
@@ -965,6 +1001,9 @@ metadata:
     app.kubernetes.io/name: argus-svc-recommendation
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: argus-svc-recommendation
@@ -974,6 +1013,7 @@ spec:
         app.kubernetes.io/name: argus-svc-recommendation
         app.kubernetes.io/part-of: argus-services
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 2
       containers:
         - name: recommendation
@@ -1021,16 +1061,16 @@ spec:
             httpGet:
               path: /healthz
               port: 8010
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 38
+            periodSeconds: 29
             timeoutSeconds: 5
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /healthz
               port: 8010
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 14
+            periodSeconds: 24
             timeoutSeconds: 5
             failureThreshold: 6
           volumeMounts:
