@@ -1,18 +1,58 @@
 # Project Argus
 
-> **Self-Hosted, Air-Gapped Kubernetes Observability Platform for DHS**  
+> **Self-Hosted, Air-Gapped Kubernetes Observability Platform for DHS**
 > *Telemetry Spine: OpenTelemetry Collector → ClickHouse HA → SigNoz APM*
 
-[![Status](https://img.shields.io/badge/Progress-8%20%2F%2021%20Features%20(38.1%25)-green.svg)](#roadmap--delivery-status)
-[![Compliance](https://img.shields.io/badge/Air--Gap-100%25%20Offline%20Mirror-blue.svg)](#air-gap-strictness--mirror-management)
+[![Status](https://img.shields.io/badge/Progress-21%20%2F%2021%20Features%20Complete-brightgreen.svg)](#roadmap)
+[![Compliance](https://img.shields.io/badge/Air--Gap-100%25%20Offline%20Mirror-blue.svg)](#air-gap--mirror-management)
 [![Security](https://img.shields.io/badge/Ingest-CJIS%20%2F%20PII%20Redacted-orange.svg)](#ingest-security--cjispii-redaction)
-[![Verification](https://img.shields.io/badge/Regression-17%20%2F%2017%20Suites%20Passing-brightgreen.svg)](#verification--quality-assurance)
+[![Verification](https://img.shields.io/badge/Regression-E2E%20%2B%20Edge%20Suites-brightgreen.svg)](#testing--verification)
 
 Project Argus is an enterprise-grade, internal DHS observability platform engineered to provide Datadog-equivalent telemetry (distributed tracing, application performance monitoring, logs, infrastructure metrics, and eBPF network maps) running entirely on air-gapped internal Kubernetes clusters with zero external SaaS egress.
 
+It spans the full observability lifecycle: a collection spine (OTel → ClickHouse → SigNoz), operations (alerting, SLOs, paging, synthetics, RUM), governance (retention, multi-tenancy, SSO/RBAC), and an in-boundary AIOps layer (anomaly detection, alert correlation, NL-query + incident summarization). A 10-service demo microservice mesh is bundled to generate realistic traffic.
+
+> ⚠️ **Security note:** this is a reference/demo platform. An internal security review found several critical issues (hardcoded JWT secret, unverified tokens, unauthenticated ingest, a stored-XSS replay sink, plaintext DB passwords). See issue [#2](https://github.com/nimatrazmjo/argus/issues/2) before running any of this outside a throwaway local cluster.
+
 ---
 
-## Architecture & Telemetry Spine
+## Table of Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [Technology Stack](#technology-stack)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Option A — Run a Single Service Locally](#option-a--run-a-single-service-locally-no-cluster)
+  - [Option B — Full Platform Deploy](#option-b--full-platform-deploy-kubernetes)
+- [Services Reference](#services-reference)
+- [Service Onboarding](#service-onboarding)
+- [Testing & Verification](#testing--verification)
+- [Project Structure](#project-structure)
+- [Platform Details](#platform-details)
+  - [Ingest Security & CJIS/PII Redaction](#ingest-security--cjispii-redaction)
+  - [High Availability & Storage Tiering](#high-availability--storage-tiering)
+  - [Air-Gap & Mirror Management](#air-gap--mirror-management)
+- [Roadmap](#roadmap)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Features
+
+- **Full telemetry spine** — OpenTelemetry collection, ClickHouse HA storage, SigNoz APM UI.
+- **Dual onboarding** — zero-code auto-instrumentation (Python/Java/Node) plus an eBPF safety net (Grafana Beyla) for everything else.
+- **Operations** — declarative alerting with dedup, SLO/error-budget tracking, ServiceNow paging, synthetic canary probes, and RUM with session replay.
+- **Governance** — tiered retention/downsampling, multi-tenancy with row-level isolation, and agency SSO/RBAC with PIV/CAC claims.
+- **AIOps** — EWMA/seasonal anomaly + forecast monitors, topological alert correlation, and an in-boundary NL-to-SQL + incident-summary copilot.
+- **Air-gapped by design** — 100% offline image mirror, in-memory PII/CJIS redaction at ingest, zero external egress.
+- **Dependency-free demo services** — every microservice is a single-file Python 3.12 stdlib server you can run on its own.
+
+---
+
+## Architecture
 
 ```
                           ┌──────────────────────────────────────────────┐
@@ -56,284 +96,313 @@ Project Argus is an enterprise-grade, internal DHS observability platform engine
           └─────────────────────────────┘
 ```
 
-### Core Architecture Pillars
+**Core pillars**
 
-1. **Deterministic Ingest Pipeline**: [`argus-gateway-collector`](file:///Users/nimatullahrazmjo/workstation/argus/deploy/otel/gateway.yaml) functions as the central telemetry gateway, enforcing Kubernetes metadata decoration (`k8sattributes`), in-memory PII/CJIS redaction, and backpressure handling.
-2. **Deterministic Redaction**: PII and CJIS identifiers (SSNs, credit cards, FBI numbers, authorization tokens, passwords) are scrubbed in-memory via regex transform processors before reaching persistent storage.
-3. **High-Availability Storage**: ClickHouse HA (`argus-cluster`, 2 shards/replicas) backed by automated cold tiering to S3/MinIO (`hot_to_cold` policy) with ClickHouse Keeper Raft consensus.
-4. **Dual-Layer Observability Onboarding**:
-   - **Zero-Code Instrumentation**: Workloads are auto-instrumented via a single Kubernetes annotation (`instrumentation.opentelemetry.io/inject-python: "true"`).
-   - **eBPF Safety Net**: Grafana Beyla provides zero-overhead network-level service discovery and RED metrics (Rate, Errors, Duration) for un-annotated or third-party workloads.
-5. **Air-Gap Strictness**: 100% of container images and Helm charts resolve from the local offline registry mirror (`localhost:5001/argus/*`).
+1. **Deterministic ingest pipeline** — [`argus-gateway-collector`](deploy/otel/gateway.yaml) is the central telemetry gateway, enforcing Kubernetes metadata decoration (`k8sattributes`), in-memory PII/CJIS redaction, and backpressure handling.
+2. **Deterministic redaction** — PII and CJIS identifiers (SSNs, cards, FBI numbers, tokens, passwords) are scrubbed in-memory via regex transform processors before reaching storage.
+3. **High-availability storage** — ClickHouse HA (`argus-cluster`, 2 replicas) with automated cold tiering to S3/MinIO (`hot_to_cold`) and ClickHouse Keeper Raft consensus.
+4. **Dual-layer onboarding** — zero-code auto-instrumentation via a single annotation, plus a Grafana Beyla eBPF safety net for un-annotated/third-party workloads.
+5. **Air-gap strictness** — 100% of images and charts resolve from the local offline mirror (`localhost:5001/argus/*`).
 
 ---
 
-## Roadmap & Delivery Status
+## Technology Stack
 
-Progress: **8 / 21 Features Complete (38.1%)** across 5 Phases.
+What each technology is used for, and why it was chosen:
 
-| Feature ID | Title | Phase | Execution Mode | Track | Status |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **F001** | Cluster Baseline & Air-Gapped Operators | Phase 01 | Sequential Gate | Gate 1 | **COMPLETE** |
-| **F002** | ClickHouse HA (2-node + S3 Storage Policy) | Phase 01 | Sequential Gate | Gate 1 | **COMPLETE** |
-| **F003** | OTel Collector Pipeline (DaemonSet + Gateway) | Phase 01 | Sequential Gate | Gate 1 | **COMPLETE** |
-| **F004** | 3-Way Trace + Metric + Log Correlation | Phase 01 | Sequential Gate | Gate 1 | **COMPLETE** |
-| **F005** | Ingest PII & CJIS Redaction Processor | Phase 01 | Sequential Gate | Gate 1 | **COMPLETE** |
-| **F006** | SigNoz APM UI & ClickHouse Analytics | Phase 02 | Sequential Gate | Gate 2 | **COMPLETE** |
-| **F007** | Zero-Code Auto-Instrumentation & Runbook | Phase 02 | Concurrent | Track A | **COMPLETE** |
-| **F008** | eBPF Safety Net (Beyla Service Map Floor) | Phase 02 | Concurrent | Track A | **COMPLETE** |
-| **F009** | Infra Metrics (node-exporter + KSM) | Phase 02 | Concurrent | Track A | *NEXT* |
-| **F010** | Continuous Profiling (Pyroscope) | Phase 02 | Concurrent | Track A | *BACKLOG* |
-| **F011** | Alerting / Monitors (Firing-State + Dedup) | Phase 03 | Concurrent | Track B | *BACKLOG* |
-| **F012** | SLO Tracking & Error Budgets | Phase 03 | Concurrent | Track B | *BACKLOG* |
-| **F013** | Paging Path (ServiceNow Incident Webhook) | Phase 03 | Concurrent | Track B | *BACKLOG* |
-| **F014** | Retention, Downsampling & Log-Level Filters | Phase 03 | Concurrent | Track C | *BACKLOG* |
-| **F015** | Multi-Tenancy & Cardinality Guardrails | Phase 03 | Concurrent | Track C | *BACKLOG* |
-| **F016** | SSO / RBAC via Agency IdP (SAML/OIDC/PIV) | Phase 03 | Sequential Gate | Track C | *BACKLOG* |
-| **F017** | RUM & DOM Session Replay (HyperDX/OpenReplay)| Phase 04 | Concurrent | Track D | *BACKLOG* |
-| **F018** | Synthetics (Playwright CronJobs + Probes) | Phase 04 | Sequential Gate | Track D | *BACKLOG* |
-| **F019** | Anomaly & Forecast Monitors (EWMA/STL) | Phase 05 | Sequential Gate | Track E | *BACKLOG* |
-| **F020** | Alert Correlation & Root-Cause Grouping | Phase 05 | Sequential Gate | Track E | *BACKLOG* |
-| **F021** | NL Query & Incident Brief Copilot (Bedrock) | Phase 05 | Sequential Gate | Track E | *BACKLOG* |
+| Layer | Technology | Purpose in Argus |
+| :--- | :--- | :--- |
+| **Instrumentation** | OpenTelemetry (Operator + SDKs) | Vendor-neutral traces/metrics/logs; zero-code auto-injection into Python/Java/Node pods via a single annotation |
+| **Collection** | OTel Collector (DaemonSet + Gateway) | Node-local receive → central gateway for K8s metadata enrichment, PII/CJIS redaction, and backpressure/batching |
+| **Kernel safety net** | Grafana Beyla (eBPF) | Zero-code RED metrics + L7 traces for un-annotated / compiled (Go, Rust, C++) and COTS workloads |
+| **Storage** | ClickHouse HA + ClickHouse Keeper | Columnar telemetry store; 2-node replication with Raft consensus for high availability and fast analytics |
+| **Cold tiering** | MinIO (S3-compatible) | Automatic hot→cold migration of aged partitions to object storage |
+| **APM UI / query** | SigNoz | Datadog-style dashboards, trace explorer, and the analytical query engine over ClickHouse |
+| **Profiling** | Pyroscope | Continuous CPU/memory flame graphs (F010) |
+| **Infra metrics** | node-exporter + kube-state-metrics | Host and Kubernetes object metrics (F009) |
+| **Alerting / paging** | Declarative rules + Alertmanager-style dedup → ServiceNow webhook | Firing/resolved state sync, duplicate suppression, exponential-backoff retry (F011/F013) |
+| **SLOs** | Custom SLO tracker service | Error-budget burn-down and multi-window burn-rate monitors (F012) |
+| **Synthetics** | Canary prober (+ Playwright-style probes) | Scheduled blackbox API/transaction checks exposed as Prometheus metrics (F018) |
+| **RUM** | Custom RUM collector + DOM replay player | Frontend session capture with client- and server-side PII masking (F017) |
+| **Identity** | Keycloak-style OIDC IdP + SSO gateway | Agency SSO, PIV/CAC claims, group→role RBAC, multi-tenant header injection (F016) |
+| **AIOps** | EWMA / seasonal decomposition; topological correlation; in-boundary (GovCloud Bedrock) LLM | Anomaly + forecast monitors, root-cause grouping, NL-to-SQL query and incident summaries (F019–F021) |
+| **Runtime** | Python 3.12 stdlib `http.server` | All demo microservices are dependency-free single-file servers — easy to read, run, and air-gap |
+| **Packaging / infra** | Kubernetes, Helm, Docker Registry v2 mirror | Declarative manifests; all images pulled from the local offline mirror |
+| **Tooling** | `kubectl`, `bash`, `jq`, `curl` | Deploy and verification scripts |
 
 ---
 
-## Parallel Execution Topology
+## Getting Started
 
-Project Argus is structured into **5 Concurrent Execution Tracks** bounded by **5 Hard Synchronization Gates** to enable safe, multi-agent parallel execution without port collisions, CRD race conditions, or database deadlocks:
+**Is it easy to set up?** Yes for a quick look, moderate for the full platform.
 
-```
-[Wave 1: Foundation (F001-F005)] ─────────────────────────> COMPLETE (Gate G1)
-             │
-[Wave 2: Coverage Closeout & Platform Metrics]
- ├── Track A1: F007 (Auto-Instrumentation) ──────────────> COMPLETE
- ├── Track A2: F008 (eBPF Safety Net) ───────────────────> COMPLETE
- ├── Track A3: F009 (Infra Metrics: node-exporter/KSM) ──> IN PROGRESS
- └── Track A4: F010 (Continuous Profiling: Pyroscope) ───> READY
-             │
- ════════════╪═════════════════════════════════════════════ [SYNC GATE G2]
-             │
-[Wave 3: Operational & Governance Acceleration]
- ├── Track B (Operations):   F011 (Monitors) ──> F012 (SLOs) || F013 (Paging)
- └── Track C (Governance):   F014 (Retention) || F015 (Multi-Tenancy) ──> F016 (SSO)
-             │
- ════════════╪═════════════════════════════════════════════ [SYNC GATE G3]
-             │
-[Wave 4: Frontend Signals & Synthetic Probes]
- └── Track D (Frontend):     F017 (RUM & Replay) || F018 (Synthetics)
-             │
- ════════════╪═════════════════════════════════════════════ [SYNC GATE G4]
-             │
-[Wave 5: Autonomous AIOps & Intelligence Moat]
- └── Track E (AIOps):        F019 (Anomaly) ──> F020 (Correlation) ──> F021 (Copilot)
-             │
- ════════════╪═════════════════════════════════════════════ [FINAL GATE G5: PROD READY]
+| Path | Needs | Time | Good for |
+| :--- | :--- | :--- | :--- |
+| [Single service](#option-a--run-a-single-service-locally-no-cluster) | `python3` only | ~30s | Reading code, trying an API, demos |
+| [Full platform](#option-b--full-platform-deploy-kubernetes) | k8s + mirror + `kubectl`/`jq` | ~20–40m | End-to-end telemetry, realistic traffic |
+
+### Prerequisites
+
+- **Single service:** Python 3.12+ (standard library only — no `pip install`).
+- **Full platform:** Docker Desktop or Minikube with Kubernetes v1.28+; active context (`kubectl config current-context`); a local registry mirror on `localhost:5001`; `kubectl`, `jq`, `curl`, `bash` on PATH.
+
+### Option A — Run a Single Service Locally (no cluster)
+
+Every microservice is a dependency-free Python 3.12 stdlib server. Clone the repo and run any one directly — no Docker, no Kubernetes:
+
+```bash
+# Identity provider (issues OIDC/JWT tokens)
+PORT=8089 python3 deploy/sso/idp_mock.py
+
+# In another shell: exchange credentials for a token
+curl -s -X POST localhost:8089/protocol/openid-connect/token \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice.admin@dhs.gov","password":"admin_pass"}'
 ```
 
-### Execution Tracks Summary
-- **Track A (Metric & Signal Collection)**: F007, F008, F009, F010
-- **Track B (Incident & Operational Lifecycle)**: F011, F012, F013
-- **Track C (Data Governance, Storage & Security)**: F014, F015, F016
-- **Track D (Frontend & Synthetic Monitoring)**: F017, F018
-- **Track E (AIOps & LLM Intelligence)**: F019, F020, F021
+```bash
+# AIOps NL-to-SQL copilot
+PORT=9098 python3 deploy/llm/aiops_llm_service.py
+curl -s -X POST localhost:9098/api/nl-query \
+  -H 'X-Argus-Test-Role: admin' -H 'Content-Type: application/json' \
+  -d '{"query":"top 5 slowest endpoints by p95 latency in the last hour"}'
+```
 
-For the complete dependency matrix, conflict analysis, and subagent orchestration instructions, see [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md).
+```bash
+# RUM collector + DOM replay — open the demo in a browser
+PORT=8082 python3 deploy/rum/rum_collector.py
+#   http://localhost:8082/checkout                    (sample instrumented page)
+#   http://localhost:8082/v1/rum/player/<session_id>  (replay player)
+```
+
+Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`.
+
+### Option B — Full Platform Deploy (Kubernetes)
+
+**1. Check readiness & initialize the air-gapped mirror**
+```bash
+./scripts/init.sh                 # baseline readiness audit
+./deploy/mirror/setup-mirror.sh   # mirror images into localhost:5001
+```
+
+**2. Deploy the telemetry spine**
+```bash
+./scripts/deploy-operators.sh         # OTel, Altinity ClickHouse & Prometheus operators
+./scripts/deploy-clickhouse.sh        # S3/MinIO storage + ClickHouse HA
+./scripts/deploy-otel.sh              # OTel Collector DaemonSet + Gateway
+./scripts/deploy-signoz.sh            # SigNoz APM UI & query engine
+kubectl apply -f deploy/ebpf/beyla.yaml   # eBPF safety net
+```
+
+**3. Deploy the application & platform layers** (each is independent)
+```bash
+./deploy/services/apply-services.sh       # 10-service demo mesh
+./deploy/alerting/apply-rules.sh          # alerting engine
+./deploy/slo/apply-slo.sh                 # SLO / error budgets
+./deploy/paging/apply-paging.sh           # paging → ServiceNow
+./deploy/tenancy/apply-tenancy.sh         # multi-tenancy & RLS
+./deploy/sso/apply-sso.sh                 # SSO / RBAC
+./deploy/rum/apply-rum.sh                 # RUM & replay
+./deploy/synthetics/apply-synthetics.sh   # synthetic probes
+./deploy/aiops/apply-aiops.sh             # anomaly detection
+./deploy/correlation/apply-correlation.sh # alert correlation
+./deploy/llm/apply-llm.sh                 # NL query + summaries
+```
+
+**4. Access the UIs** (port-forward into the cluster)
+```bash
+kubectl -n argus-system port-forward svc/signoz 8080:8080            # SigNoz APM
+kubectl -n argus-system port-forward svc/argus-sso-gateway 8088:8088 # then open /sso/login
+```
 
 ---
 
-## Service Onboarding Guide
+## Services Reference
 
-Argus provides two distinct, complementary onboarding strategies to achieve 100% observability across workloads:
+| Service | File | Default port | Purpose |
+| :--- | :--- | :--- | :--- |
+| Sample app | [`deploy/sample-app/app/server.py`](deploy/sample-app/app/server.py) | 8080 | Emits traces/logs/metrics + SLO dashboard (`/slo`); `/order` generates traffic |
+| SSO gateway | [`deploy/sso/sso_gateway.py`](deploy/sso/sso_gateway.py) | 8088 | Token validation, RBAC, tenant header injection, login portal (`/sso/login`) |
+| Identity provider | [`deploy/sso/idp_mock.py`](deploy/sso/idp_mock.py) | 8089 | OIDC discovery, JWKS, token issuance with PIV/CAC claims |
+| RUM collector | [`deploy/rum/rum_collector.py`](deploy/rum/rum_collector.py) | 8082 | Session ingest (`/v1/rum/ingest`), replay player, PII masking |
+| Anomaly detector | [`deploy/aiops/anomaly_detector.py`](deploy/aiops/anomaly_detector.py) | 9096 | EWMA + seasonal-decomposition anomaly/forecast monitors |
+| Correlation engine | [`deploy/correlation/correlation_engine.py`](deploy/correlation/correlation_engine.py) | 9097 | Topological alert correlation → probable root cause |
+| AIOps LLM | [`deploy/llm/aiops_llm_service.py`](deploy/llm/aiops_llm_service.py) | 9098 | NL-to-SQL telemetry queries + executive incident summaries |
+| Paging gateway | [`deploy/paging/paging_gateway.py`](deploy/paging/paging_gateway.py) | 9099 | Alertmanager → ServiceNow incidents, dedup + retry |
+| ServiceNow mock | [`deploy/paging/servicenow_mock.py`](deploy/paging/servicenow_mock.py) | 8088 | Stand-in Incident Table API for the paging path |
+| Synthetic prober | [`deploy/synthetics/synthetic_prober.py`](deploy/synthetics/synthetic_prober.py) | 9115 | Scheduled canary probes exposed as Prometheus metrics |
 
-### Strategy A: Zero-Code Auto-Instrumentation (Application Layer)
+Demo mesh: [`deploy/services/datadog-services.yaml`](deploy/services/datadog-services.yaml) defines 10 interconnected services — `argus-svc-{gateway, auth, catalog, inventory, order, payment, billing, shipping, notification, recommendation}`.
 
-Ideal for microservices built on standard runtimes (Python, Java, Node.js). Telemetry agents are injected automatically at pod creation time via the OpenTelemetry Mutating Admission Webhook.
+---
 
-Add a single annotation to your `spec.template.metadata.annotations`:
+## Service Onboarding
+
+Two complementary strategies achieve full observability across workloads.
+
+### Strategy A: Zero-Code Auto-Instrumentation (application layer)
+
+For microservices on standard runtimes (Python, Java, Node.js). Agents are injected at pod creation via the OpenTelemetry mutating admission webhook. Add a single annotation:
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: order-service
-  namespace: default
 spec:
-  replicas: 1
   template:
     metadata:
       annotations:
-        # Injects OTel Agent, SDK configuration, and OTLP endpoint:
-        instrumentation.opentelemetry.io/inject-python: "true"
-      labels:
-        app: order-service
-    spec:
-      containers:
-        - name: app
-          image: localhost:5001/argus/sample-python-app:latest
-          ports:
-            - containerPort: 8080
+        instrumentation.opentelemetry.io/inject-python: "true"   # or inject-java / inject-nodejs
 ```
 
-Supported Annotations:
-- **Python**: `instrumentation.opentelemetry.io/inject-python: "true"`
-- **Java**: `instrumentation.opentelemetry.io/inject-java: "true"`
-- **Node.js**: `instrumentation.opentelemetry.io/inject-nodejs: "true"`
+See [`docs/runbooks/service-onboarding.md`](docs/runbooks/service-onboarding.md) for end-to-end guidance.
 
-For end-to-end guidance, see [`docs/runbooks/service-onboarding.md`](file:///Users/nimatullahrazmjo/workstation/argus/docs/runbooks/service-onboarding.md).
+### Strategy B: eBPF Safety Net (kernel socket layer)
 
-### Strategy B: eBPF Safety Net (Kernel Socket Layer)
+For legacy services, compiled binaries (Go, Rust, C++), COTS containers, or un-annotated workloads. Grafana Beyla runs as a DaemonSet ([`deploy/ebpf/beyla.yaml`](deploy/ebpf/beyla.yaml)), attaching eBPF probes to Linux socket syscalls:
 
-Ideal for legacy services, compiled binaries (Go, Rust, C++), third-party COTS containers, or un-annotated workloads. 
-
-Grafana Beyla runs as a lightweight DaemonSet ([`deploy/ebpf/beyla.yaml`](file:///Users/nimatullahrazmjo/workstation/argus/deploy/ebpf/beyla.yaml)), attaching eBPF probes directly to Linux socket syscalls (`kprobe`/`uprobe`). It automatically discovers active HTTP/gRPC services without requiring code modification, restarts, or pod annotations:
 - Emits RED metrics (`http_server_request_duration_seconds`, error rates, call counts).
-- Emits network-level L7 distributed traces to `argus-gateway-collector:4318`.
-- CPU overhead is bounded strictly to < 5% per node with < 256Mi RAM footprint.
+- Emits network-level L7 traces to `argus-gateway-collector:4318`.
+- Overhead bounded to < 5% CPU per node and < 256Mi RAM.
 
 ---
 
-## Ingest Security & CJIS/PII Redaction
+## Testing & Verification
 
-Argus operates under strict FedRAMP High and CJIS compliance mandates. All incoming telemetry spans and log records pass through the gateway transform processor before being written to disk:
-
-1. **CJIS FBI Numbers**: Pattern `\b[0-9]{7}[A-Z0-9]{2}\b` masked to `[REDACTED_CJIS_FBI_NUMBER]`.
-2. **Social Security Numbers (SSN)**: Pattern `\b\d{3}-\d{2}-\d{4}\b` masked to `[REDACTED_SSN]`.
-3. **Payment Cards (PAN)**: 13-to-19 digit card numbers masked to `[REDACTED_CREDIT_CARD]`.
-4. **Authentication Credentials**: Bearer tokens, Authorization headers, and password parameters masked to `[REDACTED_CREDENTIAL]`.
-
-Verification: Covered by [`scripts/test-redaction.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-redaction.sh) and [`scripts/test-redaction-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-redaction-edge-cases.sh).
-
----
-
-## High Availability & Storage Tiering
-
-The Argus storage spine uses ClickHouse HA deployed via the Altinity ClickHouse Operator:
-
-- **Topology**: 2-Node Replicated Cluster (`chi-argus-clickhouse-argus-cluster-0-0-0` and `...-0-1-0`).
-- **Consensus**: ClickHouse Keeper with 3-node Raft coordination (`deploy/clickhouse/clickhouse-keeper.yaml`).
-- **Tiering Policy (`hot_to_cold`)**:
-  - Hot tier: Local persistent volume (SSD/NVMe).
-  - Cold tier: S3-compatible MinIO object storage (`deploy/storage/s3-storage.yaml`).
-  - Automatic migration triggers when hot volume reaches 90% threshold.
-
----
-
-## Air-Gap Strictness & Mirror Management
-
-Argus forbids runtime egress to public container registries or SaaS endpoints. All container images and artifacts are mirrored locally:
-
-- **Local Mirror**: Docker Registry v2 running at `localhost:5001`.
-- **Image Inventory**: Maintained in [`deploy/mirror/images.txt`](file:///Users/nimatullahrazmjo/workstation/argus/deploy/mirror/images.txt).
-- **Mirror Sync**: Managed via [`deploy/mirror/setup-mirror.sh`](file:///Users/nimatullahrazmjo/workstation/argus/deploy/mirror/setup-mirror.sh).
-
-Every Kubernetes manifest references `localhost:5001/argus/<image>:<tag>` directly.
-
----
-
-## Verification & Quality Assurance
-
-Argus enforces a strict test-driven harness contract. No feature is marked complete without green verification across both functional tests and comprehensive edge-case batteries:
+No feature is marked complete without green functional **and** edge-case suites.
 
 ```bash
-# Execute the full 17-step end-to-end regression suite
-./scripts/verify.sh
+./scripts/verify.sh   # full end-to-end regression suite
 ```
 
-### Full Verification Battery
+Per-feature suites live in `scripts/` as `test-<feature>.sh` (plus `-edge-cases.sh`) and `run_<feature>_e2e.py`. The spine battery covers:
 
-| Step | Verification Suite | Target Component / Feature |
+| # | Suite | Target |
 | :--- | :--- | :--- |
-| **1** | [`scripts/check-architecture.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/check-architecture.sh) | Architectural Layer Boundaries & Namespace Separation |
-| **2** | [`scripts/test-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-edge-cases.sh) | Core Platform Failure Resilience & Crash Recovery |
-| **3** | [`scripts/test-clickhouse-tiering.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-clickhouse-tiering.sh) | ClickHouse HA, S3 Disk Tiering & Node Restarts |
-| **4** | [`scripts/test-clickhouse-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-clickhouse-edge-cases.sh) | Keeper Consensus Loss, Partition Recovery & Table Replication |
-| **5** | [`scripts/test-otel-pipeline.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-otel-pipeline.sh) | OTel Collector DaemonSet & Gateway Ingest Routing |
-| **6** | [`scripts/test-otel-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-otel-edge-cases.sh) | Buffer Overflow, Gateway Backpressure & Network Partitions |
-| **7** | [`scripts/test-correlation.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-correlation.sh) | 3-Way TraceId Join (Distributed Traces, Metrics, Logs) |
-| **8** | [`scripts/test-correlation-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-correlation-edge-cases.sh) | Missing TraceContext, Malformed Spans & Clock Skew |
-| **9** | [`scripts/test-redaction.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-redaction.sh) | In-Memory PII & CJIS Redaction Validation |
-| **10** | [`scripts/test-redaction-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-redaction-edge-cases.sh) | Boundary Regex Evasion, Unicode Bypasses & Large Payloads |
-| **11** | [`scripts/test-signoz.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-signoz.sh) | SigNoz APM UI, ClickHouse Analytical Engine & Queries |
-| **12** | [`scripts/test-signoz-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-signoz-edge-cases.sh) | Cold Start Resilience & ClickHouse Partition Degradation |
-| **13** | [`scripts/test-auto-instrumentation.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-auto-instrumentation.sh) | F007 Zero-Code Webhook Auto-Injection E2E |
-| **14** | [`scripts/test-auto-instrumentation-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-auto-instrumentation-edge-cases.sh) | Unsupported Runtimes, Annotation Typos & Memory Clamping |
-| **15** | [`scripts/test-ebpf.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-ebpf.sh) | F008 eBPF Safety Net Discovery & RED Metric Export |
-| **16** | [`scripts/test-ebpf-edge-cases.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/test-ebpf-edge-cases.sh) | Kernel Safety, Zero-Egress Audit & Pod Churn Resilience |
-| **17** | [`scripts/init.sh`](file:///Users/nimatullahrazmjo/workstation/argus/scripts/init.sh) | Baseline Air-Gap Cluster Readiness Audit |
+| 1 | [`check-architecture.sh`](scripts/check-architecture.sh) | Layer boundaries & namespace separation |
+| 2 | [`test-edge-cases.sh`](scripts/test-edge-cases.sh) | Core platform resilience & crash recovery |
+| 3–4 | `test-clickhouse-*.sh` | ClickHouse HA, S3 tiering, Keeper consensus & partition recovery |
+| 5–6 | `test-otel-*.sh` | Collector DaemonSet/Gateway routing, backpressure, partitions |
+| 7–8 | `test-correlation-*.sh` | 3-way TraceId join; missing context, malformed spans, clock skew |
+| 9–10 | `test-redaction-*.sh` | PII/CJIS redaction incl. regex evasion & unicode bypass |
+| 11–12 | `test-signoz-*.sh` | SigNoz UI/engine & cold-start resilience |
+| 13–14 | `test-auto-instrumentation-*.sh` | Zero-code webhook injection & edge cases |
+| 15–16 | `test-ebpf-*.sh` | eBPF discovery, RED export, zero-egress audit |
+| 17 | [`init.sh`](scripts/init.sh) | Air-gap cluster readiness audit |
 
 ---
 
-## Repository Structure
+## Project Structure
 
 ```
 argus/
-├── .harness/                  # Project tracking harness (specs, state, roadmap, graph)
-│   ├── PARALLEL_EXECUTION_GRAPH.md  # Master parallel dependency matrix & track topology
-│   ├── ROADMAP.md             # Feature scope, prerequisites & status
-│   ├── PROJECT_STATE.md       # Master state & active wave overview
-│   ├── CURRENT_TASK.md        # Current sprint focus and immediate next actions
-│   ├── DECISIONS.md           # Architecture Decision Record (ADR) index
-│   └── phases/                # Acceptance criteria per phase (01 through 05)
-├── deploy/                    # Declarative Kubernetes manifests
+├── deploy/                    # Declarative Kubernetes manifests + microservices
+│   ├── aiops/                 # Anomaly & forecast detector (F019)
+│   ├── alerting/              # Declarative alert rules & dedup (F011)
 │   ├── clickhouse/            # ClickHouse HA, Keeper & OTel schema DDL
+│   ├── correlation/           # Topological alert correlation engine (F020)
 │   ├── ebpf/                  # Grafana Beyla DaemonSet, ConfigMap & RBAC
+│   ├── infra-metrics/         # node-exporter + kube-state-metrics (F009)
+│   ├── llm/                   # NL-query + incident-summary copilot (F021)
 │   ├── mirror/                # Air-gapped registry catalog & sync scripts
-│   ├── otel/                  # OpenTelemetry collector DaemonSet, Gateway & CRDs
-│   ├── sample-app/            # Test microservices (sample & auto-instrumented)
-│   ├── signoz/                # SigNoz APM query service, UI & schema migration
-│   └── storage/               # MinIO S3 cold storage tier manifests
-├── docs/                      # Technical documentation & operational runbooks
-│   ├── decisions/             # Architecture Decision Records (ADRs)
-│   └── runbooks/              # Service onboarding runbooks
-└── scripts/                   # Automated operations & verification test suites
-    ├── init.sh                # Baseline cluster readiness check
-    ├── verify.sh              # Full 17-step end-to-end regression suite
-    ├── test-auto-instrumentation.sh # F007 auto-injection verification
-    ├── test-ebpf.sh           # F008 eBPF safety net functional verification
-    └── test-ebpf-edge-cases.sh# F008 eBPF edge case & failure battery
+│   ├── otel/                  # OTel collector DaemonSet, Gateway & CRDs
+│   ├── paging/                # Paging gateway + ServiceNow mock (F013)
+│   ├── profiling/             # Pyroscope continuous profiling (F010)
+│   ├── rum/                   # RUM collector & DOM replay (F017)
+│   ├── sample-app/            # Sample & auto-instrumented test apps
+│   ├── services/              # 10-service demo microservice mesh
+│   ├── signoz/                # SigNoz APM UI, query service & schema migration
+│   ├── slo/                   # SLO tracking & error budgets (F012)
+│   ├── sso/                   # SSO gateway + OIDC IdP (F016)
+│   ├── storage/               # MinIO S3 cold-storage tier
+│   ├── synthetics/            # Synthetic canary prober (F018)
+│   └── tenancy/               # Multi-tenancy & RLS (F015)
+├── docs/                      # Technical docs & runbooks (ADRs, onboarding)
+├── scripts/                   # Deploy + verification test suites
+└── .harness/                  # Project tracking (specs, roadmap, dependency graph)
 ```
 
 ---
 
-## Quickstart & Local Execution
+## Platform Details
 
-### 1. Prerequisites
-- Docker Desktop or Minikube with Kubernetes v1.28+ enabled.
-- Kubernetes context set to active cluster (`kubectl config current-context`).
-- Local registry mirror running on `localhost:5001`.
+### Ingest Security & CJIS/PII Redaction
 
-### 2. Initialize Air-Gapped Mirror
-```bash
-./deploy/mirror/setup-mirror.sh
-```
+Under FedRAMP High and CJIS mandates, every span and log record passes through the gateway transform processor before being written to disk:
 
-### 3. Deploy Platform Telemetry Spine
-```bash
-# 1. Operators (OTel Operator, Altinity ClickHouse Operator, Prometheus Operator)
-./scripts/deploy-operators.sh
+1. **CJIS FBI numbers** — `\b[0-9]{7}[A-Z0-9]{2}\b` → `[REDACTED_CJIS_FBI_NUMBER]`.
+2. **SSNs** — `\b\d{3}-\d{2}-\d{4}\b` → `[REDACTED_SSN]`.
+3. **Payment cards (PAN)** — 13–19 digit cards → `[REDACTED_CREDIT_CARD]`.
+4. **Credentials** — bearer tokens, Authorization headers, password params → `[REDACTED_CREDENTIAL]`.
 
-# 2. S3 Storage & ClickHouse HA
-./scripts/deploy-clickhouse.sh
+Verified by [`scripts/test-redaction.sh`](scripts/test-redaction.sh) and [`scripts/test-redaction-edge-cases.sh`](scripts/test-redaction-edge-cases.sh).
 
-# 3. OpenTelemetry Collector Pipeline (DaemonSet + Gateway)
-./scripts/deploy-otel.sh
+### High Availability & Storage Tiering
 
-# 4. SigNoz APM UI & Analytics Engine
-./scripts/deploy-signoz.sh
+ClickHouse HA via the Altinity ClickHouse Operator:
 
-# 5. eBPF Safety Net (Grafana Beyla DaemonSet)
-kubectl apply -f deploy/ebpf/beyla.yaml
-```
+- **Topology** — 2-node replicated cluster (`chi-argus-clickhouse-argus-cluster-0-0-0`, `...-0-1-0`).
+- **Consensus** — ClickHouse Keeper, 3-node Raft ([`deploy/clickhouse/clickhouse-keeper.yaml`](deploy/clickhouse/clickhouse-keeper.yaml)).
+- **Tiering (`hot_to_cold`)** — hot tier on local PV; cold tier on MinIO ([`deploy/storage/s3-storage.yaml`](deploy/storage/s3-storage.yaml)); migration at 90% hot-volume utilization.
 
-### 4. Run Full Verification Suite
-```bash
-./scripts/verify.sh
-```
+### Air-Gap & Mirror Management
+
+No runtime egress to public registries or SaaS. All images/artifacts are mirrored locally:
+
+- **Local mirror** — Docker Registry v2 at `localhost:5001`.
+- **Inventory** — [`deploy/mirror/images.txt`](deploy/mirror/images.txt).
+- **Sync** — [`deploy/mirror/setup-mirror.sh`](deploy/mirror/setup-mirror.sh).
+
+Every manifest references `localhost:5001/argus/<image>:<tag>` directly.
 
 ---
 
-## Troubleshooting & Operational Notes
+## Roadmap
 
-- **ClickHouse Keeper Startup Timing**: On Docker Desktop, ClickHouse Keeper replays uncompacted Raft changelogs on startup. The Keeper pod includes a dedicated `startupProbe` with a 300-second window (`failureThreshold: 60, periodSeconds: 5`) to prevent premature liveness kills during WAL replay.
-- **eBPF Kernel Compatibility**: Beyla requires Linux kernel 5.8+ with BPF subsystem support. Pods require `securityContext.privileged: true` or `CAP_BPF`, `CAP_PERFMON`, `CAP_NET_ADMIN`, and `/sys/kernel/debug` volume mounts.
-- **Collector Gateway Ingest**: The gateway listens on port `4317` (gRPC) and `4318` (HTTP). Workloads within `argus-system` or other namespaces route telemetry to `http://argus-gateway-collector.argus-system.svc.cluster.local:4318`.
+**21 / 21 features complete** across 5 phases, plus the bundled 10-service demo mesh.
+
+| ID | Title | Phase | Status |
+| :--- | :--- | :--- | :--- |
+| F001 | Cluster baseline & air-gapped operators | 01 | ✅ |
+| F002 | ClickHouse HA (2-node + S3 storage policy) | 01 | ✅ |
+| F003 | OTel collector pipeline (DaemonSet + Gateway) | 01 | ✅ |
+| F004 | 3-way trace + metric + log correlation | 01 | ✅ |
+| F005 | Ingest PII & CJIS redaction processor | 01 | ✅ |
+| F006 | SigNoz APM UI & ClickHouse analytics | 02 | ✅ |
+| F007 | Zero-code auto-instrumentation & runbook | 02 | ✅ |
+| F008 | eBPF safety net (Beyla service map) | 02 | ✅ |
+| F009 | Infra metrics (node-exporter + KSM) | 02 | ✅ |
+| F010 | Continuous profiling (Pyroscope) | 02 | ✅ |
+| F011 | Alerting / monitors (firing-state + dedup) | 03 | ✅ |
+| F012 | SLO tracking & error budgets | 03 | ✅ |
+| F013 | Paging path (ServiceNow incident webhook) | 03 | ✅ |
+| F014 | Retention, downsampling & log-level filters | 03 | ✅ |
+| F015 | Multi-tenancy & cardinality guardrails | 03 | ✅ |
+| F016 | SSO / RBAC via agency IdP (OIDC/PIV) | 03 | ✅ |
+| F017 | RUM & DOM session replay | 04 | ✅ |
+| F018 | Synthetics (Playwright probes) | 04 | ✅ |
+| F019 | Anomaly & forecast monitors (EWMA/STL) | 05 | ✅ |
+| F020 | Alert correlation & root-cause grouping | 05 | ✅ |
+| F021 | NL query & incident-brief copilot (Bedrock) | 05 | ✅ |
+
+The full dependency matrix and parallel-execution track topology live in [`.harness/PARALLEL_EXECUTION_GRAPH.md`](.harness/PARALLEL_EXECUTION_GRAPH.md).
+
+---
+
+## Troubleshooting
+
+- **ClickHouse Keeper startup timing** — on Docker Desktop, Keeper replays uncompacted Raft changelogs at startup. The pod uses a `startupProbe` with a 300s window (`failureThreshold: 60, periodSeconds: 5`) to avoid premature liveness kills during WAL replay.
+- **eBPF kernel compatibility** — Beyla needs Linux kernel 5.8+ with BPF support. Pods need `privileged: true` (or `CAP_BPF`, `CAP_PERFMON`, `CAP_NET_ADMIN`) and a `/sys/kernel/debug` mount.
+- **Collector gateway ingest** — gateway listens on `4317` (gRPC) and `4318` (HTTP); workloads route to `http://argus-gateway-collector.argus-system.svc.cluster.local:4318`.
+
+---
+
+## Contributing
+
+1. Branch from `main`.
+2. Keep every feature backed by functional **and** edge-case suites; run `./scripts/verify.sh` before opening a PR.
+3. Follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) (`feat:`, `fix:`, `docs:`, …).
+4. Review and address open security findings (issue [#2](https://github.com/nimatrazmjo/argus/issues/2)) rather than extending vulnerable patterns.
+
+---
+
+## License
+
+No license file is currently present in this repository; usage rights are undefined until one is added. Treat it as an internal DHS reference project unless a `LICENSE` is committed.
