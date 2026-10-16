@@ -25,6 +25,7 @@ It spans the full observability lifecycle: a collection spine (OTel → ClickHou
   - [Prerequisites](#prerequisites)
   - [Option A — Run a Single Service Locally](#option-a--run-a-single-service-locally-no-cluster)
   - [Option B — Full Platform Deploy](#option-b--full-platform-deploy-kubernetes)
+- [Sending Telemetry to Argus](#sending-telemetry-to-argus)
 - [Services Reference](#services-reference)
 - [Service Onboarding](#service-onboarding)
 - [Testing & Verification](#testing--verification)
@@ -194,9 +195,8 @@ Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`
 kubectl apply -f deploy/ebpf/beyla.yaml   # eBPF safety net
 ```
 
-**3. Deploy the application & platform layers** (each is independent)
+**3. Deploy the platform layers** (each is independent — these *are* Argus)
 ```bash
-./deploy/services/apply-services.sh       # 10-service demo mesh
 ./deploy/alerting/apply-rules.sh          # alerting engine
 ./deploy/slo/apply-slo.sh                 # SLO / error budgets
 ./deploy/paging/apply-paging.sh           # paging → ServiceNow
@@ -215,6 +215,84 @@ kubectl -n argus-system port-forward svc/signoz 8080:8080            # SigNoz AP
 kubectl -n argus-system port-forward svc/argus-sso-gateway 8088:8088 # then open /sso/login
 ```
 
+At this point Argus is running but has **nothing to observe yet** — point a
+workload at it (see [Sending Telemetry to Argus](#sending-telemetry-to-argus)).
+
+---
+
+## Sending Telemetry to Argus
+
+Argus ingests via the OTel Collector gateway. In-cluster that endpoint is:
+
+| Protocol | Endpoint |
+| :--- | :--- |
+| OTLP/HTTP | `http://argus-gateway-collector.argus-system:4318` |
+| OTLP/gRPC | `argus-gateway-collector.argus-system:4317` |
+
+Anything that speaks OTLP (any language SDK, the OTel auto-instrumentation, or
+another collector) can send traces/metrics/logs here. Three ways to get data in:
+
+### 1. The bundled demo mesh (fastest)
+
+The 10-service sample workload wired to this endpoint out of the box:
+
+```bash
+./demo/apply-services.sh          # deploy into the cluster, then:
+kubectl -n argus-system port-forward deploy/argus-svc-gateway 8001:8001
+curl -s localhost:8001/api/checkout           # one full fan-out trace
+curl -s 'localhost:8001/api/checkout?trigger_error=payment'   # force an error for alerting/AIOps
+```
+
+Not part of the platform — see [`demo/README.md`](demo/README.md).
+
+### 2. Your own workloads
+
+- **Zero-code** — add the OTel auto-instrumentation annotation to a pod (see
+  [Service Onboarding](#service-onboarding)); the webhook injects the agent and
+  sets `OTEL_EXPORTER_OTLP_ENDPOINT` for you.
+- **Manual** — set `OTEL_EXPORTER_OTLP_ENDPOINT=http://argus-gateway-collector.argus-system:4318`
+  in your app and use any OTel SDK.
+
+### 3. Azure services (testing against a real cloud)
+
+Argus is **air-gapped by design** — the default posture blocks external egress.
+Sending/collecting Azure telemetry means deliberately opening a path to Azure.
+Pick based on whether you can run code in Azure:
+
+**A. Azure workload pushes OTLP → Argus** *(preferred; same path as any app)*
+For apps/AKS workloads you control. Instrument with an OTel SDK and export to a
+reachable Argus endpoint:
+- Expose the gateway outside the cluster (LoadBalancer/Ingress over TLS), or run
+  an OTel Collector *agent* in Azure that forwards to Argus.
+- Point the workload at it:
+  ```bash
+  OTEL_EXPORTER_OTLP_ENDPOINT=https://<argus-gateway-host>:4318
+  ```
+- Allow egress from the Azure side (and ingress to Argus) for that host/port only.
+
+**B. Pull Azure PaaS metrics (no code in Azure)**
+The gateway runs `opentelemetry-collector-contrib`, which bundles the
+`azuremonitorreceiver`. Add it to a collector to scrape Azure Monitor metrics
+for resources you can't instrument (App Service, SQL DB, Storage, …):
+```yaml
+receivers:
+  azuremonitor:
+    subscription_id: "<sub-id>"
+    tenant_id: "<tenant-id>"
+    client_id: "<app-id>"
+    client_secret: "${AZURE_CLIENT_SECRET}"   # service principal, Monitoring Reader
+```
+Requires egress to `management.azure.com` and a service-principal secret — scope
+both tightly; this breaks the air-gap and is for **test clusters only**.
+
+**C. Azure resource logs via Event Hub**
+Route Azure diagnostic-setting logs to an Event Hub, then consume with the
+contrib `azureeventhubreceiver`. Use when you need platform/activity logs rather
+than metrics.
+
+> ⚠️ Options B/C intentionally defeat the air-gap guarantee. Only enable them in
+> a throwaway test cluster, never in the FedRAMP/CJIS production boundary.
+
 ---
 
 ## Services Reference
@@ -232,7 +310,7 @@ kubectl -n argus-system port-forward svc/argus-sso-gateway 8088:8088 # then open
 | ServiceNow mock | [`deploy/paging/servicenow_mock.py`](deploy/paging/servicenow_mock.py) | 8088 | Stand-in Incident Table API for the paging path |
 | Synthetic prober | [`deploy/synthetics/synthetic_prober.py`](deploy/synthetics/synthetic_prober.py) | 9115 | Scheduled canary probes exposed as Prometheus metrics |
 
-Demo mesh: [`deploy/services/datadog-services.yaml`](deploy/services/datadog-services.yaml) defines 10 interconnected services — `argus-svc-{gateway, auth, catalog, inventory, order, payment, billing, shipping, notification, recommendation}`.
+Demo mesh (sample monitored workload, **not** part of the platform): [`demo/datadog-services.yaml`](demo/datadog-services.yaml) defines 10 interconnected services — `argus-svc-{gateway, auth, catalog, inventory, order, payment, billing, shipping, notification, recommendation}` — bundled only to generate realistic traffic. See [`demo/README.md`](demo/README.md).
 
 ---
 
@@ -293,7 +371,7 @@ Per-feature suites live in `scripts/` as `test-<feature>.sh` (plus `-edge-cases.
 
 ```
 argus/
-├── deploy/                    # Declarative Kubernetes manifests + microservices
+├── deploy/                    # The platform — declarative Kubernetes manifests
 │   ├── aiops/                 # Anomaly & forecast detector (F019)
 │   ├── alerting/              # Declarative alert rules & dedup (F011)
 │   ├── clickhouse/            # ClickHouse HA, Keeper & OTel schema DDL
@@ -307,13 +385,13 @@ argus/
 │   ├── profiling/             # Pyroscope continuous profiling (F010)
 │   ├── rum/                   # RUM collector & DOM replay (F017)
 │   ├── sample-app/            # Sample & auto-instrumented test apps
-│   ├── services/              # 10-service demo microservice mesh
 │   ├── signoz/                # SigNoz APM UI, query service & schema migration
 │   ├── slo/                   # SLO tracking & error budgets (F012)
 │   ├── sso/                   # SSO gateway + OIDC IdP (F016)
 │   ├── storage/               # MinIO S3 cold-storage tier
 │   ├── synthetics/            # Synthetic canary prober (F018)
 │   └── tenancy/               # Multi-tenancy & RLS (F015)
+├── demo/                      # Sample monitored workload (10-svc mesh) — NOT the platform
 ├── docs/                      # Technical docs & runbooks (ADRs, onboarding)
 ├── scripts/                   # Deploy + verification test suites
 └── .harness/                  # Project tracking (specs, roadmap, dependency graph)

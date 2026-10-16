@@ -77,7 +77,7 @@ def file_github_issue(title, body):
 
 def start_services():
     print("--> Starting all 10 Datadog-emulating microservices...")
-    script_path = os.path.abspath("deploy/services/service_template.py")
+    script_path = os.path.abspath("demo/service_template.py")
 
     for svc in SERVICES:
         env = os.environ.copy()
