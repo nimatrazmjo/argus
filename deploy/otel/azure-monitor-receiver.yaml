@@ -1,0 +1,102 @@
+# ==============================================================================
+# OPT-IN OVERLAY — Azure Monitor metrics ingest (TEST CLUSTERS ONLY)
+# ==============================================================================
+#
+# ⚠️  AIR-GAP WARNING
+# Argus is air-gapped by design. This overlay deliberately opens egress to the
+# Azure management API and authenticates with a service principal. It BREAKS the
+# FedRAMP/CJIS air-gap guarantee — deploy it only in a throwaway test cluster,
+# NEVER in the production boundary. It is intentionally NOT wired into any
+# deploy-*.sh script; apply and remove it by hand.
+#
+# What it does
+#   Runs a dedicated collector (separate from the production gateway) that pulls
+#   Azure Monitor metrics via the contrib `azure_monitor` receiver and forwards
+#   them over OTLP into the main Argus gateway — so Azure data lands in
+#   ClickHouse + SigNoz through the same redaction/cardinality pipeline as
+#   everything else. The production gateway (deploy/otel/gateway.yaml) is left
+#   untouched.
+#
+# Prerequisites
+#   1. A service principal with the "Monitoring Reader" role on the target
+#      subscription(s).
+#   2. Network egress from this cluster to the Azure management endpoint:
+#        - Commercial:  management.azure.com
+#        - US Gov:      management.usgovcloudapi.net   (cloud: AzureUSGovernment)
+#   3. The client secret stored in a Kubernetes Secret (see below).
+#
+# Apply
+#   kubectl -n argus-system create secret generic argus-azure-sp \
+#     --from-literal=AZURE_CLIENT_SECRET='<sp-client-secret>'
+#   # edit the REPLACE_* placeholders below, then:
+#   kubectl apply -f deploy/otel/azure-monitor-receiver.yaml
+#
+# Remove (restore full air-gap)
+#   kubectl delete -f deploy/otel/azure-monitor-receiver.yaml
+#   kubectl -n argus-system delete secret argus-azure-sp
+# ==============================================================================
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: argus-azure-monitor
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-azure-monitor
+    app.kubernetes.io/part-of: argus-platform
+    argus.dhs.gov/overlay: azure-test        # marks this as the air-gap-breaking opt-in
+spec:
+  mode: deployment
+  replicas: 1
+  serviceAccount: argus-collector            # reuses existing SA; needs no extra k8s RBAC
+  image: localhost:5001/argus/opentelemetry-collector-contrib:0.160.0
+  imagePullPolicy: IfNotPresent
+  env:
+    - name: AZURE_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: argus-azure-sp
+          key: AZURE_CLIENT_SECRET
+  config:
+    receivers:
+      azure_monitor:
+        subscription_ids: ["REPLACE_SUBSCRIPTION_ID"]
+        tenant_id: "REPLACE_TENANT_ID"
+        client_id: "REPLACE_CLIENT_ID"
+        client_secret: "${env:AZURE_CLIENT_SECRET}"
+        cloud: AzureUSGovernment             # AzurePublicCloud for commercial regions
+        collection_interval: 60s
+        initial_delay: 1s
+        # Narrow the scrape (optional). Omit to collect all resource groups /
+        # all integrated services in the subscription:
+        # resource_groups:
+        #   - "rg-dhs-test"
+        # services:
+        #   - "Microsoft.Web/sites"                 # App Service
+        #   - "Microsoft.Sql/servers/databases"     # Azure SQL DB
+        #   - "Microsoft.Storage/storageAccounts"
+
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 75
+        spike_limit_percentage: 20
+      resource/azure:
+        attributes:
+          - key: telemetry.source            # tag so Azure metrics are filterable in SigNoz
+            value: azure-monitor
+            action: upsert
+      batch:
+        timeout: 10s
+        send_batch_size: 1024
+
+    exporters:
+      otlphttp/argus:
+        # Forward into the production gateway → redaction + ClickHouse + SigNoz
+        endpoint: http://argus-gateway-collector.argus-system:4318
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [azure_monitor]
+          processors: [memory_limiter, resource/azure, batch]
+          exporters: [otlphttp/argus]

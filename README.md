@@ -271,19 +271,22 @@ reachable Argus endpoint:
 - Allow egress from the Azure side (and ingress to Argus) for that host/port only.
 
 **B. Pull Azure PaaS metrics (no code in Azure)**
-The gateway runs `opentelemetry-collector-contrib`, which bundles the
-`azuremonitorreceiver`. Add it to a collector to scrape Azure Monitor metrics
-for resources you can't instrument (App Service, SQL DB, Storage, …):
-```yaml
-receivers:
-  azuremonitor:
-    subscription_id: "<sub-id>"
-    tenant_id: "<tenant-id>"
-    client_id: "<app-id>"
-    client_secret: "${AZURE_CLIENT_SECRET}"   # service principal, Monitoring Reader
+For resources you can't instrument (App Service, SQL DB, Storage, …). A ready
+opt-in overlay ([`deploy/otel/azure-monitor-receiver.yaml`](deploy/otel/azure-monitor-receiver.yaml))
+runs a dedicated collector that scrapes Azure Monitor via the contrib
+`azure_monitor` receiver and forwards OTLP into the gateway:
+```bash
+# service principal needs the "Monitoring Reader" role
+kubectl -n argus-system create secret generic argus-azure-sp \
+  --from-literal=AZURE_CLIENT_SECRET='<sp-client-secret>'
+# edit the REPLACE_* ids (subscription/tenant/client, cloud) in the file, then:
+kubectl apply -f deploy/otel/azure-monitor-receiver.yaml
+# restore the air-gap:
+kubectl delete -f deploy/otel/azure-monitor-receiver.yaml
 ```
-Requires egress to `management.azure.com` and a service-principal secret — scope
-both tightly; this breaks the air-gap and is for **test clusters only**.
+Requires egress to the Azure management API (`management.azure.com`, or
+`management.usgovcloudapi.net` for gov) — the overlay is deliberately kept out
+of every `deploy-*.sh` and is for **test clusters only**.
 
 **C. Azure resource logs via Event Hub**
 Route Azure diagnostic-setting logs to an Event Hub, then consume with the
