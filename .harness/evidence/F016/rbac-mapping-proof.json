@@ -1,0 +1,29 @@
+{
+  "roles": {
+    "Admin": {
+      "identity": "alice.admin@dhs.gov",
+      "piv_card": "PIV-948102-DHS",
+      "tenant_scope": "default",
+      "can_read": true,
+      "can_write": true,
+      "can_admin": true
+    },
+    "Operator": {
+      "identity": "bob.operator@dhs.gov",
+      "piv_card": "PIV-551029-DHS",
+      "tenant_scope": "tenant_alpha",
+      "can_read": true,
+      "can_write": true,
+      "can_admin": false
+    },
+    "Viewer": {
+      "identity": "carol.viewer@dhs.gov",
+      "piv_card": "PIV-110294-DHS",
+      "tenant_scope": "tenant_beta",
+      "can_read": true,
+      "can_write": false,
+      "can_admin": false
+    }
+  },
+  "status": "VERIFIED_ENFORCED"
+}

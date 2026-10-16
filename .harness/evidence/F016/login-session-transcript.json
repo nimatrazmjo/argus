@@ -1,0 +1,105 @@
+{
+  "admin_session": {
+    "user": "alice.admin@dhs.gov",
+    "role": "Admin",
+    "tenantId": "default",
+    "claims": {
+      "iss": "http://argus-idp.argus-system.svc.cluster.local:8089",
+      "sub": "alice.admin",
+      "email": "alice.admin@dhs.gov",
+      "name": "Alice Vance (SOC Admin)",
+      "preferred_username": "alice.admin",
+      "groups": [
+        "dhs-soc-admins",
+        "dhs-all-staff"
+      ],
+      "roles": [
+        "Admin"
+      ],
+      "tenant_id": "default",
+      "piv_card_id": "PIV-948102-DHS",
+      "acr": "nist-800-63-3-aal3",
+      "amr": [
+        "piv",
+        "mfa"
+      ],
+      "iat": 1792118237,
+      "exp": 1792121837,
+      "jti": "22e457651ba1ab20e24de34d44c79591"
+    },
+    "permissions": {
+      "canReadTelemetry": true,
+      "canMutateAlerts": true,
+      "canAdministerPlatform": true
+    }
+  },
+  "operator_session": {
+    "user": "bob.operator@dhs.gov",
+    "role": "Operator",
+    "tenantId": "tenant_alpha",
+    "claims": {
+      "iss": "http://argus-idp.argus-system.svc.cluster.local:8089",
+      "sub": "bob.operator",
+      "email": "bob.operator@dhs.gov",
+      "name": "Bob Miller (SOC Operator)",
+      "preferred_username": "bob.operator",
+      "groups": [
+        "dhs-soc-operators",
+        "dhs-all-staff"
+      ],
+      "roles": [
+        "Operator"
+      ],
+      "tenant_id": "tenant_alpha",
+      "piv_card_id": "PIV-551029-DHS",
+      "acr": "nist-800-63-3-aal3",
+      "amr": [
+        "piv",
+        "mfa"
+      ],
+      "iat": 1792118237,
+      "exp": 1792121837,
+      "jti": "78c5acdac3a7ceb5ef4a2493be8774a7"
+    },
+    "permissions": {
+      "canReadTelemetry": true,
+      "canMutateAlerts": true,
+      "canAdministerPlatform": false
+    }
+  },
+  "viewer_session": {
+    "user": "carol.viewer@dhs.gov",
+    "role": "Viewer",
+    "tenantId": "tenant_beta",
+    "claims": {
+      "iss": "http://argus-idp.argus-system.svc.cluster.local:8089",
+      "sub": "carol.viewer",
+      "email": "carol.viewer@dhs.gov",
+      "name": "Carol Danvers (Analyst Viewer)",
+      "preferred_username": "carol.viewer",
+      "groups": [
+        "dhs-soc-viewers",
+        "dhs-all-staff"
+      ],
+      "roles": [
+        "Viewer"
+      ],
+      "tenant_id": "tenant_beta",
+      "piv_card_id": "PIV-110294-DHS",
+      "acr": "nist-800-63-3-aal3",
+      "amr": [
+        "piv",
+        "mfa"
+      ],
+      "iat": 1792118237,
+      "exp": 1792121837,
+      "jti": "51673ac9ce4d3487a37a2e387e4b9229"
+    },
+    "permissions": {
+      "canReadTelemetry": true,
+      "canMutateAlerts": false,
+      "canAdministerPlatform": false
+    }
+  },
+  "timestamp": "2026-10-16T02:37:17Z"
+}

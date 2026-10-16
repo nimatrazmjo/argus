@@ -1,0 +1,16 @@
+=================================================================
+        ARGUS SSO & RBAC EDGE CASES & RESILIENCE BATTERY         
+=================================================================
+--> [Edge Case 1/4] Failed Authentication Handling...
+    PASS: Bad password, unknown user, and missing token safely rejected with HTTP 401.
+--> [Edge Case 2/4] Role with No Access (Contractor / General Staff)...
+    PASS: Authenticated user without monitoring role strictly denied with HTTP 403 Forbidden.
+--> [Edge Case 3/4] Token Expiration Enforcement...
+    Awaiting token expiry (sleeping 2s)...
+    PASS: Expired token strictly rejected with HTTP 401 Unauthorized (Token has expired).
+--> [Edge Case 4/4] Cryptographic Signature Tampering & Forged Claims...
+    PASS: Forged token with invalid signature rejected with HTTP 401 Unauthorized.
+=================================================================
+SSO Edge Cases: 4 passed, 0 failed.
+STATUS: PASS — All SSO and RBAC edge cases verified 100% green.
+=================================================================

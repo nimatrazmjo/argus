@@ -1,0 +1,161 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-idp
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-idp
+    app.kubernetes.io/part-of: argus
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-idp
+      port: 8089
+      targetPort: 8089
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: argus-idp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-idp
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-idp
+    app.kubernetes.io/part-of: argus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-idp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-idp
+        app.kubernetes.io/part-of: argus
+    spec:
+      containers:
+        - name: idp
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "/app/idp_mock.py"]
+          env:
+            - name: PORT
+              value: "8089"
+            - name: JWT_SECRET
+              value: "argus-agency-piv-cac-shared-secret-key-32b"
+            - name: OIDC_ISSUER
+              value: "http://argus-idp.argus-system.svc.cluster.local:8089"
+          ports:
+            - name: http-idp
+              containerPort: 8089
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8089
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8089
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-idp-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-sso-gateway
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-sso-gateway
+    app.kubernetes.io/part-of: argus
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-gateway
+      port: 8088
+      targetPort: 8088
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: argus-sso-gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-sso-gateway
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-sso-gateway
+    app.kubernetes.io/part-of: argus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-sso-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-sso-gateway
+        app.kubernetes.io/part-of: argus
+    spec:
+      containers:
+        - name: sso-gateway
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "/app/sso_gateway.py"]
+          env:
+            - name: PORT
+              value: "8088"
+            - name: JWT_SECRET
+              value: "argus-agency-piv-cac-shared-secret-key-32b"
+            - name: IDP_URL
+              value: "http://argus-idp.argus-system.svc.cluster.local:8089"
+            - name: UPSTREAM_URL
+              value: "http://signoz.argus-system.svc.cluster.local:8080"
+          ports:
+            - name: http-gateway
+              containerPort: 8088
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8088
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8088
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-sso-gateway-code

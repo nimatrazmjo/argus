@@ -16,8 +16,8 @@
         "description": "Evaluates rate across high-cardinality container metric series",
         "summary": "High-cardinality aggregation monitor across containers"
       },
-      "startsAt": "2026-10-16T01:01:02.388867246Z",
-      "endsAt": "2026-10-16T01:07:32.388867246Z",
+      "startsAt": "2026-10-16T02:29:17.388867246Z",
+      "endsAt": "2026-10-16T02:38:17.388867246Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
       "status": {
         "state": "active",
@@ -44,7 +44,7 @@
         "summary": "Container working set memory exceeded 512MB"
       },
       "startsAt": "2026-10-15T23:05:54.537806425Z",
-      "endsAt": "2026-10-16T01:07:24.537806425Z",
+      "endsAt": "2026-10-16T02:39:09.537806425Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3853-7f40-8b0a-18762d6f8bb0",
       "status": {
         "state": "active",
@@ -71,8 +71,8 @@
         "description": "Evaluates rate across high-cardinality container metric series",
         "summary": "High-cardinality aggregation monitor across containers"
       },
-      "startsAt": "2026-10-16T01:01:02.388867246Z",
-      "endsAt": "2026-10-16T01:07:32.388867246Z",
+      "startsAt": "2026-10-16T02:29:17.388867246Z",
+      "endsAt": "2026-10-16T02:38:17.388867246Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
       "status": {
         "state": "active",
@@ -99,7 +99,7 @@
         "summary": "Flapping prevention monitor with 2m evaluation window"
       },
       "startsAt": "2026-10-15T19:18:17.422101757Z",
-      "endsAt": "2026-10-16T01:07:17.422101757Z",
+      "endsAt": "2026-10-16T02:39:02.422101757Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-38ae-7aea-b1e3-287db60ab30f",
       "status": {
         "state": "active",
@@ -126,7 +126,7 @@
         "summary": "High-cardinality aggregation monitor across containers"
       },
       "startsAt": "2026-10-15T19:18:17.388867246Z",
-      "endsAt": "2026-10-16T01:07:32.388867246Z",
+      "endsAt": "2026-10-16T02:39:02.388867246Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
       "status": {
         "state": "active",
@@ -153,8 +153,8 @@
         "description": "Evaluates rate across high-cardinality container metric series",
         "summary": "High-cardinality aggregation monitor across containers"
       },
-      "startsAt": "2026-10-15T23:05:47.388867246Z",
-      "endsAt": "2026-10-16T01:07:32.388867246Z",
+      "startsAt": "2026-10-16T02:29:17.388867246Z",
+      "endsAt": "2026-10-16T02:38:17.388867246Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
       "status": {
         "state": "active",
@@ -181,8 +181,8 @@
         "description": "Evaluates rate across high-cardinality container metric series",
         "summary": "High-cardinality aggregation monitor across containers"
       },
-      "startsAt": "2026-10-16T01:01:02.388867246Z",
-      "endsAt": "2026-10-16T01:07:32.388867246Z",
+      "startsAt": "2026-10-16T02:29:17.388867246Z",
+      "endsAt": "2026-10-16T02:38:17.388867246Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
       "status": {
         "state": "active",
@@ -209,8 +209,8 @@
         "description": "Evaluates rate across high-cardinality container metric series",
         "summary": "High-cardinality aggregation monitor across containers"
       },
-      "startsAt": "2026-10-16T01:01:02.388867246Z",
-      "endsAt": "2026-10-16T01:07:32.388867246Z",
+      "startsAt": "2026-10-16T02:29:17.388867246Z",
+      "endsAt": "2026-10-16T02:38:17.388867246Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
       "status": {
         "state": "active",
@@ -237,8 +237,8 @@
         "description": "Evaluates rate across high-cardinality container metric series",
         "summary": "High-cardinality aggregation monitor across containers"
       },
-      "startsAt": "2026-10-16T01:01:02.388867246Z",
-      "endsAt": "2026-10-16T01:07:32.388867246Z",
+      "startsAt": "2026-10-16T02:29:17.388867246Z",
+      "endsAt": "2026-10-16T02:38:17.388867246Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
       "status": {
         "state": "active",
@@ -265,8 +265,8 @@
         "description": "Evaluates rate across high-cardinality container metric series",
         "summary": "High-cardinality aggregation monitor across containers"
       },
-      "startsAt": "2026-10-16T01:01:02.388867246Z",
-      "endsAt": "2026-10-16T01:07:32.388867246Z",
+      "startsAt": "2026-10-16T02:29:17.388867246Z",
+      "endsAt": "2026-10-16T02:38:17.388867246Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
       "status": {
         "state": "active",
@@ -293,8 +293,8 @@
         "description": "Evaluates rate across high-cardinality container metric series",
         "summary": "High-cardinality aggregation monitor across containers"
       },
-      "startsAt": "2026-10-16T01:01:02.388867246Z",
-      "endsAt": "2026-10-16T01:07:32.388867246Z",
+      "startsAt": "2026-10-16T02:29:17.388867246Z",
+      "endsAt": "2026-10-16T02:38:17.388867246Z",
       "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fd0-3950-7104-80ea-cf9a6c93535d",
       "status": {
         "state": "active",

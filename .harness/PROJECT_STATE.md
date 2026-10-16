@@ -9,6 +9,8 @@
   - **Sync Gate G1**: **PASSED**. Air-gap compliant core spine operational (OTel -> ClickHouse HA -> SigNoz + Auto-Instrumentation + eBPF Beyla).
   - **Sync Gate G2**: **PASSED**. Concurrent Coverage & Operations Foundation 100% complete across all 4 parallel tracks.
   - **Sync Gate G3**: **PASSED**. Operational Depth & Frontend Signals 100% complete across Tracks B, C, and D.
+- **Completed in Wave 4**:
+  - `F016` — Agency SSO & RBAC via OIDC / CAC/PIV smart cards, role mapping (Admin, Operator, Viewer), and PEP reverse proxy (Complete)
 - **Completed in Wave 3**:
   - `F012` — SLO tracking, error budget burndown, and multi-window burn rate monitors (Complete)
   - `F013` — Paging path: ServiceNow webhook gateway, retry queue, and deduplication (Complete)
@@ -20,16 +22,16 @@
   - `F010` — Continuous profiling via Pyroscope (Complete)
   - `F011` — Alerting / monitors: firing-state + dedup; threshold rules (Complete)
   - `F014` — Retention & downsampling, tiered storage hot/cold, materialized views (Complete)
-- **Overall progress**: 17 / 21 features COMPLETE (81%)
-- **Active Features (Wave 4 & Wave 5)**:
-  - **Track C**: `F016` (SSO / RBAC — Keycloak OIDC integration & role-based access control)
+- **Overall progress**: 18 / 21 features COMPLETE (86%)
+- **Active Features (Remaining in Wave 4 & Wave 5)**:
   - **Track E**: `F019` (Anomaly & forecast monitors — seasonal decomposition / EWMA)
   - **Track B**: `F020` (Root-cause grouping & alert topology correlation)
   - **Track E**: `F021` (Telemetry cost attribution & FinOps dashboard)
 
 ## Last verified
 - **Date**: 2026-10-15
-- **Full Verification Suite**: PASS — 35 / 35 verification steps passed 100% green (`scripts/verify.sh </dev/null`).
+- **Full Verification Suite**: PASS — 37 / 37 verification steps passed 100% green (`scripts/verify.sh </dev/null`).
+- **F016 Status**: PASS — Agency IdP (Keycloak OIDC), PIV/CAC certificate claims, SSO reverse proxy gateway, cryptographic token verification, RBAC role separation (Admin, Operator, Viewer), and tenant scope propagation verified (`scripts/test-sso.sh` and `scripts/test-sso-edge-cases.sh`). Evidence in `.harness/evidence/F016/`.
 - **F017 Status**: PASS — Real User Monitoring (RUM) collector, OpenReplay-compatible rrweb DOM session recording and playback, defense-in-depth PII masking (passwords, emails, PANs, tokens), ClickHouse session persistence, and W3C traceparent APM correlation verified (`scripts/test-rum.sh` and `scripts/test-rum-edge-cases.sh`). Evidence in `.harness/evidence/F017/`.
 - **F018 Status**: PASS — Synthetic Canary Prober daemon with multi-step workflows (`order_api`, `slo_dashboard`, `auth_validation`), Prometheus `:9115/metrics` exposition, target failure simulation and automatic recovery verified (`scripts/test-synthetics.sh` and `scripts/test-synthetics-edge-cases.sh`). Evidence in `.harness/evidence/F018/`.
 - **F013 Status**: PASS — ServiceNow Mock API, incident translation, deduplication, retry queue with exponential backoff on destination outage, and Prometheus metrics verified (`scripts/test-paging.sh` and `scripts/test-paging-edge-cases.sh`). Evidence in `.harness/evidence/F013/`.
@@ -42,12 +44,11 @@
 
 ## Parallel Execution Strategy (Wave 4)
 The orchestrator dispatches independent subagents across the Wave 4 tracks:
-1. **Track C (Security & Identity)**: Feature F016 (SSO / RBAC via Keycloak OIDC).
-2. **Track E (Intelligence & AIOps)**: Feature F019 (Anomaly detection and forecast monitors) & Feature F021 (Cost attribution).
-3. **Track B (Incident Correlation)**: Feature F020 (Root-cause grouping & alert topology correlation).
+1. **Track E (Intelligence & AIOps)**: Feature F019 (Anomaly detection and forecast monitors) & Feature F021 (Cost attribution).
+2. **Track B (Incident Correlation)**: Feature F020 (Root-cause grouping & alert topology correlation).
 
 ## Open blockers
-See `BLOCKERS.md`. None. Cluster, internal registry mirror, ClickHouse HA, SigNoz APM, Pyroscope profiling, Alerting engine, Paging Gateway, and RUM Replay Engine are fully operational.
+See `BLOCKERS.md`. None. Cluster, internal registry mirror, ClickHouse HA, SigNoz APM, Pyroscope profiling, Alerting engine, Paging Gateway, RUM Replay Engine, and Agency SSO Gateway are fully operational.
 
 ## Notes for agents
 - Archetype is **DevOps/IaC (archetype B)**.

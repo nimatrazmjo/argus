@@ -17,6 +17,27 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-15 — F016 Agency SSO & Role-Based Access Control (RBAC) via Keycloak OIDC — COMPLETE
+Branch/commit: main @ HEAD   PR: N/A   CI: green (37/37 verification steps passed)
+Evidence:
+  - Architecture Decision & Implementation:
+      * `docs/decisions/ADR-0013-sso-rbac-agency-idp.md`: Decision record analyzing SigNoz OSS vs Enterprise licensing, detailing air-gapped zero-trust reverse proxy PEP architecture, NIST SP 800-63-3 AAL3 CAC/PIV compliance, and RBAC matrix (Admin, Operator, Viewer). Recorded as `DEC-015` in `.harness/DECISIONS.md`.
+      * `deploy/sso/idp_mock.py`: Agency IdP simulator providing OIDC Discovery (`/.well-known/openid-configuration`), JWKS endpoint (`/protocol/openid-connect/certs`), token issuance with cryptographic HMAC-SHA256 signatures, user claims, and PIV card credentials.
+      * `deploy/sso/sso_gateway.py`: Zero-trust Policy Enforcement Point (PEP) on port 8088 validating signed JWTs, enforcing token expiration, mapping agency groups to RBAC roles, blocking Viewer mutations and Operator administrative actions, and injecting `X-Scope-TenantID` headers.
+      * `deploy/sso/sso-workloads.yaml` & `deploy/sso/apply-sso.sh`: Kubernetes manifests and sync controller.
+  - End-to-End Verification:
+      * `scripts/test-sso.sh` + `scripts/run_sso_e2e.py`: Verified OIDC discovery metadata -> Admin CAC/PIV login with full read-write access -> Operator login with operational alert silencing and blocked tenancy administration (HTTP 403) -> Viewer login with read-only traces and strictly blocked mutations (HTTP 403) -> tenant scope header propagation.
+      * Generated evidence artifacts in `.harness/evidence/F016/`: `idp-configuration.json`, `rbac-mapping-proof.json`, `login-session-transcript.json`, `sso-manifests.yaml`.
+  - Edge Cases & Resilience Battery:
+      * `scripts/test-sso-edge-cases.sh` + `scripts/run_sso_edge_cases.py`:
+          1. Failed authentication: Bad password, unknown user, and missing credentials rejected with HTTP 401.
+          2. Role with no access: Authenticated user with no monitoring roles (`mallory.unassigned@dhs.gov`) rejected with HTTP 403 Forbidden.
+          3. Token expiry: Expired session token rejected with HTTP 401 Unauthorized.
+          4. Signature tampering: Forged token with invalid signature rejected with HTTP 401 Unauthorized.
+      * Evidence saved to `.harness/evidence/F016/edge-cases-verification.txt`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F016 is COMPLETE! Wave 4 initiated. 18 / 21 features complete (86%).
+
 ## 2026-10-15 — F017 Real User Monitoring (RUM) & DOM Session Replay — COMPLETE
 Branch/commit: main @ HEAD   PR: N/A   CI: green (35/35 verification steps passed)
 Evidence:

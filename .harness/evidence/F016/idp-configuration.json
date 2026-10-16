@@ -1,0 +1,41 @@
+{
+  "issuer": "http://argus-idp.argus-system.svc.cluster.local:8089",
+  "authorization_endpoint": "http://argus-idp.argus-system.svc.cluster.local:8089/protocol/openid-connect/auth",
+  "token_endpoint": "http://argus-idp.argus-system.svc.cluster.local:8089/protocol/openid-connect/token",
+  "userinfo_endpoint": "http://argus-idp.argus-system.svc.cluster.local:8089/protocol/openid-connect/userinfo",
+  "jwks_uri": "http://argus-idp.argus-system.svc.cluster.local:8089/protocol/openid-connect/certs",
+  "response_types_supported": [
+    "code",
+    "token",
+    "id_token"
+  ],
+  "subject_types_supported": [
+    "public"
+  ],
+  "id_token_signing_alg_values_supported": [
+    "HS256",
+    "RS256"
+  ],
+  "scopes_supported": [
+    "openid",
+    "email",
+    "profile",
+    "roles"
+  ],
+  "token_endpoint_auth_methods_supported": [
+    "client_secret_basic",
+    "client_secret_post"
+  ],
+  "claims_supported": [
+    "sub",
+    "iss",
+    "email",
+    "name",
+    "preferred_username",
+    "roles",
+    "groups",
+    "tenant_id",
+    "piv_card_id",
+    "acr"
+  ]
+}

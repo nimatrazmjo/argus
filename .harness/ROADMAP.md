@@ -4,7 +4,7 @@ All features across all phases, with permanent ids, execution modes, dependency 
 
 See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md) for the complete dependency graph, wave definitions, conflict analysis, and subagent orchestration protocol.
 
-**Progress**: 17 / 21 COMPLETE (81%)
+**Progress**: 18 / 21 COMPLETE (86%)
 
 > **The requirement**: a self-hosted, air-gapped Datadog-equivalent for internal DHS use, running entirely in Kubernetes. Spine = OpenTelemetry Collector -> ClickHouse -> SigNoz.  
 > **Execution Model**: Phased execution with concurrent multi-track waves. Within a track, tasks execute sequentially; across tracks, tasks execute concurrently via parallel subagents. All tracks synchronize at hard Wave Gates before advancing. Full acceptance criteria for each feature live in `phases/PHASE-XX-*.md`.
@@ -114,11 +114,11 @@ See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/work
   - **Can run in parallel with**: F012, F013, F017, F018
   - **Status**: `COMPLETE`
 
-- [ ] **F016** — SSO/RBAC via agency IdP (SAML/OIDC, PIV/CAC), role separation
+- [x] **F016** — SSO/RBAC via agency IdP (SAML/OIDC, PIV/CAC), role separation
   - **Mode**: `[PARALLEL TRACK C]` (Data Governance & Security — Wave 4)
   - **Must wait for**: F015 (Requires multi-tenant role/namespace isolation boundaries)
   - **Can run in parallel with**: F019, F020
-  - **Status**: `NOT STARTED`
+  - **Status**: `COMPLETE`
 
 ---
 

@@ -2,8 +2,16 @@
 
 **Wave**: **Wave 4 — Security, Compliance & Cost Governance**  
 **Execution Mode**: Parallel Multi-Subagent Dispatch (see [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md))  
-**Gate Status**: Gate G1 is **PASSED** (8/21 Complete — 38%). Gate G2 is **PASSED** (12/21 Complete — 57%). Gate G3 is **PASSED** (17/21 Complete — 81%).  
-**Active Wave Features**: `F016` (Track C — SSO/RBAC), `F019` (Track E — Anomaly Monitors), `F020` (Track B — Root-Cause Grouping), `F021` (Track E — Cost Attribution).
+**Gate Status**: Gate G1 is **PASSED** (8/21 Complete — 38%). Gate G2 is **PASSED** (12/21 Complete — 57%). Gate G3 is **PASSED** (17/21 Complete — 81%). Progress: 18/21 Complete (86%).  
+**Active Wave Features**: `F019` (Track E — Anomaly Monitors), `F020` (Track B — Root-Cause Grouping), `F021` (Track E — Cost Attribution).
+
+---
+
+## Completed in Wave 4
+
+### Package 1: Track C — Feature F016 (SSO & Role-Based Access Control) — [COMPLETE]
+- **Status**: COMPLETE & VERIFIED (37/37 verification steps green). Evidence saved to `.harness/evidence/F016/`.
+- **Delivered**: `docs/decisions/ADR-0013-sso-rbac-agency-idp.md`, `deploy/sso/idp_mock.py`, `deploy/sso/sso_gateway.py`, `deploy/sso/sso-workloads.yaml`, `deploy/sso/apply-sso.sh`, `scripts/test-sso.sh`, `scripts/test-sso-edge-cases.sh`.
 
 ---
 
@@ -31,17 +39,17 @@
 
 ---
 
-## Active Wave: Wave 4 Packages
-
-### Package 1: Track C — Feature F016 (SSO & Role-Based Access Control)
-- **Scope**: Integrate Keycloak OIDC authentication provider with SigNoz UI, enforcing RBAC roles (Admin, Editor, Viewer).
-- **Target Files**: `deploy/sso/`, `scripts/test-sso.sh`, `scripts/test-sso-edge-cases.sh`.
+## Active Wave: Wave 4 Remaining Packages
 
 ### Package 2: Track E — Feature F019 (Anomaly & Forecast Monitors)
 - **Scope**: Deploy seasonal anomaly detection and EWMA forecasting monitors for metric drift and saturation.
 - **Target Files**: `deploy/aiops/`, `scripts/test-anomaly.sh`, `scripts/test-anomaly-edge-cases.sh`.
 
+### Package 3: Track B — Feature F020 (Root-Cause Grouping & Alert Topology Correlation)
+- **Scope**: Correlate cascading alert storms across distributed services into root-cause incident topologies.
+- **Target Files**: `deploy/correlation/`, `scripts/test-alert-grouping.sh`, `scripts/test-alert-grouping-edge-cases.sh`.
+
 ---
 
 ## Next Immediate Step
-Implement and verify Feature F016 (Track C — SSO & RBAC via Keycloak OIDC) to initiate Wave 4.
+Implement and verify Feature F019 (Track E — Anomaly & Forecast Monitors) to advance Wave 4 towards Gate G4.
