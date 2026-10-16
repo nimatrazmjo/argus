@@ -18,8 +18,10 @@ fi
 
 mkdir -p "${EVIDENCE_DIR}"
 
+SYNTHETIC_BEARER_TOKEN=$(kubectl get secret argus-synthetic-secret -n "${NAMESPACE}" -o jsonpath='{.data.SYNTHETIC_BEARER_TOKEN}' 2>/dev/null | base64 -d || echo "")
+
 echo "--> [1/2] Executing synthetics edge cases test suite in cluster..."
-OUTPUT=$(kubectl exec -n "${NAMESPACE}" "${SAMPLE_POD}" -- python -c "
+OUTPUT=$(kubectl exec -n "${NAMESPACE}" "${SAMPLE_POD}" -- env SYNTHETIC_BEARER_TOKEN="${SYNTHETIC_BEARER_TOKEN}" python -c "
 $(cat "${SCRIPT_DIR}/run_synthetics_edge_cases.py")
 ")
 

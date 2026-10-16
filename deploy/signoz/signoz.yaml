@@ -33,7 +33,10 @@ spec:
             - name: CLICKHOUSE_USER
               value: "default"
             - name: CLICKHOUSE_PASSWORD
-              value: "argus123"
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
             - name: CLICKHOUSE_CLUSTER
               value: "cluster"
             - name: CLICKHOUSE_DATABASE
@@ -47,7 +50,7 @@ spec:
             - name: CLICKHOUSE_SECURE
               value: "false"
             - name: SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN
-              value: "tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000"
+              value: "tcp://default:$(CLICKHOUSE_PASSWORD)@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000"
             - name: SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_CLUSTER
               value: "cluster"
             - name: TELEMETRY_ENABLED

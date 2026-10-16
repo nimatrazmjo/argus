@@ -5,6 +5,7 @@ Executes traffic simulation, SLI accounting validation, error budget burndown,
 and dashboard rendering assertions inside the Argus Kubernetes cluster.
 """
 
+import os
 import urllib.request
 import urllib.parse
 import json
@@ -13,8 +14,9 @@ import time
 
 BASE_URL = "http://127.0.0.1:8080"
 SIGNOZ_URL = "http://signoz.argus-system.svc.cluster.local:8080"
-ADMIN_EMAIL = "admin@argus.internal"
-ADMIN_PASSWORD = "ArgusAdminPassword123!"
+ADMIN_EMAIL = os.environ.get("SIGNOZ_ADMIN_EMAIL", "admin@argus.internal")
+ADMIN_PASSWORD = os.environ.get("SIGNOZ_ADMIN_PASSWORD", "")
+SAMPLE_APP_API_TOKEN = os.environ.get("SAMPLE_APP_API_TOKEN", "")
 
 
 def http_get(url, timeout=30):
@@ -24,7 +26,9 @@ def http_get(url, timeout=30):
 
 
 def http_post(url, data=None, headers=None, timeout=30):
-    headers = headers or {}
+    headers = dict(headers) if headers else {}
+    if SAMPLE_APP_API_TOKEN and "Authorization" not in headers:
+        headers["Authorization"] = f"Bearer {SAMPLE_APP_API_TOKEN}"
     body = json.dumps(data).encode("utf-8") if data is not None else b""
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as resp:

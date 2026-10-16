@@ -9,6 +9,12 @@ spec:
   serviceAccount: argus-collector
   image: localhost:5001/argus/opentelemetry-collector-contrib:0.160.0
   imagePullPolicy: IfNotPresent
+  env:
+    - name: CLICKHOUSE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: argus-clickhouse-secret
+          key: CLICKHOUSE_PASSWORD
   config:
     receivers:
       otlp:
@@ -119,7 +125,7 @@ spec:
         endpoint: "tcp://clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000"
         database: "default"
         username: "default"
-        password: "argus123"
+        password: "${env:CLICKHOUSE_PASSWORD}"
         ttl: 72h
         timeout: 10s
         retry_on_failure:

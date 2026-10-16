@@ -5,7 +5,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 
-echo "--> [1/3] Creating / updating ConfigMap for Synthetic Canary Prober..."
+echo "--> [1/3] Creating / updating Secret & ConfigMap for Synthetic Canary Prober..."
+if ! kubectl get secret argus-synthetic-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+  SYNTH_TOKEN="${SYNTHETIC_BEARER_TOKEN:-$(openssl rand -hex 24)}"
+  kubectl create secret generic argus-synthetic-secret -n "${NAMESPACE}" \
+    --from-literal=SYNTHETIC_BEARER_TOKEN="${SYNTH_TOKEN}" >/dev/null
+fi
 kubectl create configmap argus-synthetic-prober-code -n "${NAMESPACE}" \
   --from-file=synthetic_prober.py="${SCRIPT_DIR}/synthetic_prober.py" \
   --dry-run=client -o yaml | kubectl apply -f - >/dev/null
@@ -21,7 +26,7 @@ python3 -c "
 import json, urllib.request, os, sys
 
 SIGNOZ_ADMIN_EMAIL = os.environ.get('SIGNOZ_ADMIN_EMAIL', 'admin@argus.internal')
-SIGNOZ_ADMIN_PASSWORD = os.environ.get('SIGNOZ_ADMIN_PASSWORD', 'ArgusAdmin2026!')
+SIGNOZ_ADMIN_PASSWORD = os.environ.get('SIGNOZ_ADMIN_PASSWORD', '')
 RULES_FILE = '${SCRIPT_DIR}/synthetic-rules.json'
 
 with open(RULES_FILE) as f:

@@ -65,26 +65,26 @@ data:
 
     exporters:
       clickhousetraces:
-        datasource: tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_traces
+        datasource: tcp://default:${env:CLICKHOUSE_PASSWORD}@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_traces
         low_cardinal_exception_grouping: false
         use_new_schema: true
         timeout: 45s
       signozclickhousemetrics:
-        dsn: tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_metrics
+        dsn: tcp://default:${env:CLICKHOUSE_PASSWORD}@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_metrics
         timeout: 45s
       clickhouselogsexporter:
-        dsn: tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_logs
+        dsn: tcp://default:${env:CLICKHOUSE_PASSWORD}@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_logs
         timeout: 45s
         use_new_schema: true
       metadataexporter:
         enabled: true
-        dsn: tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_metadata
+        dsn: tcp://default:${env:CLICKHOUSE_PASSWORD}@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_metadata
         timeout: 45s
         tenant_id: default
         cache:
           provider: in_memory
       signozclickhousemeter:
-        dsn: tcp://default:argus123@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_meter
+        dsn: tcp://default:${env:CLICKHOUSE_PASSWORD}@clickhouse-argus-clickhouse.argus-system.svc.cluster.local:9000/signoz_meter
         timeout: 45s
         sending_queue:
           enabled: false
@@ -147,7 +147,10 @@ spec:
             - name: CLICKHOUSE_USER
               value: "default"
             - name: CLICKHOUSE_PASSWORD
-              value: "argus123"
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
             - name: CLICKHOUSE_DATABASE
               value: "signoz_metrics"
             - name: CLICKHOUSE_TRACE_DATABASE

@@ -18,13 +18,17 @@ import urllib.error
 
 GATEWAY_URL = os.environ.get("GATEWAY_URL", "http://argus-paging-gateway.argus-system.svc.cluster.local:9099")
 SERVICENOW_URL = os.environ.get("SERVICENOW_URL", "http://argus-servicenow-mock.argus-system.svc.cluster.local:8088")
+PAGING_WEBHOOK_TOKEN = os.environ.get("PAGING_WEBHOOK_TOKEN", "")
 
 def http_json(url: str, data: dict = None, method: str = None) -> tuple[int, dict]:
     m = method or ("POST" if data is not None else "GET")
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    if PAGING_WEBHOOK_TOKEN:
+        headers["X-Webhook-Token"] = PAGING_WEBHOOK_TOKEN
     req = urllib.request.Request(
         url,
         data=json.dumps(data).encode("utf-8") if data is not None else None,
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        headers=headers,
         method=m
     )
     try:
@@ -150,7 +154,10 @@ def main():
     # -------------------------------------------------------------
     print("--> [Edge Case 3/4] Malformed Payload & Input Validation...")
     # Send non-JSON body
-    req = urllib.request.Request(f"{GATEWAY_URL}/webhook/alert", data=b"NOT_A_JSON_STRING", headers={"Content-Type": "application/json"}, method="POST")
+    malformed_headers = {"Content-Type": "application/json"}
+    if PAGING_WEBHOOK_TOKEN:
+        malformed_headers["X-Webhook-Token"] = PAGING_WEBHOOK_TOKEN
+    req = urllib.request.Request(f"{GATEWAY_URL}/webhook/alert", data=b"NOT_A_JSON_STRING", headers=malformed_headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=5) as r:
             code = r.status

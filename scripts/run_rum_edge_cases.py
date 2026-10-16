@@ -2,10 +2,10 @@
 """
 Argus Feature F017: Real User Monitoring (RUM) & Session Replay Edge Cases Battery
 Verifies:
-1. Masking correctness across all sensitive formats (PAN, SSN, tokens, emails, passwords).
+1. Masking correctness across all sensitive formats (PAN, SSN, tokens, emails, passwords) & XSS neutralization.
 2. Large session payload handling (1,000+ DOM events & large mutation trees).
 3. Replay rendering resilience with missing / 404 external assets and broken stylesheets.
-4. Malformed payload rejection and input validation guardrails.
+4. Malformed payload rejection, unauthenticated ingest rejection (401), and input validation guardrails.
 """
 
 import json
@@ -17,21 +17,30 @@ import urllib.parse
 import urllib.request
 
 RUM_URL = os.environ.get("RUM_URL", "http://argus-rum-collector.argus-system.svc.cluster.local:8082")
+RUM_INGEST_TOKEN = os.environ.get("RUM_INGEST_TOKEN", "")
 
-def http_get(url: str, timeout: int = 10) -> tuple[int, str]:
-    req = urllib.request.Request(url)
+def _auth_headers(extra: dict = None, include_auth: bool = True) -> dict:
+    hdrs = {}
+    if include_auth and RUM_INGEST_TOKEN:
+        hdrs["X-RUM-Ingest-Token"] = RUM_INGEST_TOKEN
+    if extra:
+        hdrs.update(extra)
+    return hdrs
+
+def http_get(url: str, timeout: int = 10, include_auth: bool = True) -> tuple[int, str]:
+    req = urllib.request.Request(url, headers=_auth_headers(include_auth=include_auth))
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, resp.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8", errors="replace")
 
-def http_post_json(url: str, payload: any, timeout: int = 10) -> tuple[int, any]:
+def http_post_json(url: str, payload: any, timeout: int = 10, include_auth: bool = True) -> tuple[int, any]:
     if isinstance(payload, str):
         data = payload.encode("utf-8")
     else:
         data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    req = urllib.request.Request(url, data=data, headers=_auth_headers({"Content-Type": "application/json"}, include_auth=include_auth))
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8"))
@@ -183,18 +192,19 @@ def main():
         failed += 1
 
     # -------------------------------------------------------------
-    # Edge Case 3: Replay Resilience with Missing / Broken Assets
+    # Edge Case 3: Replay Resilience with Missing / Broken Assets & Stored XSS Defense
     # -------------------------------------------------------------
-    print("--> [Edge Case 3/4] Replay Player Resilience with Missing / 404 External Assets...")
+    print("--> [Edge Case 3/4] Replay Player Resilience with Missing / 404 External Assets & XSS Neutralization...")
     s3 = f"sess-missing-assets-{secrets.token_hex(4)}"
     broken_html_snapshot = (
         "<html><head>"
         "<link rel='stylesheet' href='https://invalid-nonexistent-cdn.internal/style.css'>"
         "<script src='http://127.0.0.1:9999/broken.js'></script>"
         "</head><body>"
-        "<img src='https://missing-image-host.invalid/broken.png' alt='missing'/>"
+        "<img src='https://missing-image-host.invalid/broken.png' onerror='alert(1)' alt='missing'/>"
         "<h1>Page with Broken Links</h1>"
         "<p>This page should replay cleanly despite missing resources.</p>"
+        "</script><script>alert('xss-breakout')</script>"
         "</body></html>"
     )
 
@@ -221,34 +231,37 @@ def main():
     http_post_json(f"{RUM_URL}/v1/rum/ingest", missing_asset_payload)
     p_code, player_html = http_get(f"{RUM_URL}/v1/rum/player/{s3}")
 
-    if p_code == 200 and "DOM State Replay Viewport" in player_html and "net::ERR_NAME_NOT_RESOLVED" in player_html:
-        print("    PASS: Replay player safely sandboxes broken assets and renders gracefully with error timeline.")
+    xss_blocked = "alert('xss-breakout')" not in player_html and "onerror=" not in player_html
+    if p_code == 200 and "DOM State Replay Viewport" in player_html and "net::ERR_NAME_NOT_RESOLVED" in player_html and xss_blocked:
+        print("    PASS: Replay player safely sandboxes broken assets, strips XSS payloads, and renders gracefully.")
         passed += 1
     else:
-        print(f"FAIL: Missing assets broke player (HTTP {p_code})", file=sys.stderr)
+        print(f"FAIL: Missing assets or XSS check failed (HTTP {p_code}, xss_blocked={xss_blocked})", file=sys.stderr)
         failed += 1
 
     # -------------------------------------------------------------
-    # Edge Case 4: Malformed Payload & Input Validation Guardrails
+    # Edge Case 4: Malformed Payload, Unauthenticated Ingest & Input Validation Guardrails
     # -------------------------------------------------------------
-    print("--> [Edge Case 4/4] Malformed Payload & Schema Input Validation Guardrails...")
-    # 4a. Empty body
+    print("--> [Edge Case 4/4] Malformed Payload, Unauthenticated Ingest & Schema Input Validation Guardrails...")
+    # 4a. Unauthenticated ingest rejected with 401
+    c_unauth, _ = http_post_json(f"{RUM_URL}/v1/rum/ingest", {"sessionId": "sess-unauth", "events": []}, include_auth=False)
+    # 4b. Empty body
     c1, _ = http_post_json(f"{RUM_URL}/v1/rum/ingest", "")
-    # 4b. Invalid JSON syntax
+    # 4c. Invalid JSON syntax
     c2, _ = http_post_json(f"{RUM_URL}/v1/rum/ingest", "{\"sessionId\": broken-json")
-    # 4c. Missing sessionId
+    # 4d. Missing sessionId
     c3, _ = http_post_json(f"{RUM_URL}/v1/rum/ingest", {"events": []})
-    # 4d. Array instead of object
+    # 4e. Array instead of object
     c4, _ = http_post_json(f"{RUM_URL}/v1/rum/ingest", ["not-an-object"])
 
-    # 4e. Liveness check post attacks
-    c_live, live_resp = http_get(f"{RUM_URL}/healthz")
+    # 4f. Liveness check post attacks
+    c_live, live_resp = http_get(f"{RUM_URL}/healthz", include_auth=False)
 
-    if c1 == 400 and c2 == 400 and c3 == 400 and c4 == 400 and c_live == 200:
-        print("    PASS: Malformed payloads strictly rejected (4x HTTP 400); collector liveness intact (HTTP 200).")
+    if c_unauth == 401 and c1 == 400 and c2 == 400 and c3 == 400 and c4 == 400 and c_live == 200:
+        print("    PASS: Unauthenticated ingest rejected (HTTP 401), malformed payloads rejected (4x HTTP 400); collector liveness intact (HTTP 200).")
         passed += 1
     else:
-        print(f"FAIL: Input validation failed: c1={c1}, c2={c2}, c3={c3}, c4={c4}, c_live={c_live}", file=sys.stderr)
+        print(f"FAIL: Input validation failed: c_unauth={c_unauth}, c1={c1}, c2={c2}, c3={c3}, c4={c4}, c_live={c_live}", file=sys.stderr)
         failed += 1
 
     # Summary

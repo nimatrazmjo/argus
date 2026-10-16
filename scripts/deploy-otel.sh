@@ -4,7 +4,11 @@ set -euo pipefail
 
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 MIRROR_REGISTRY="${ARGUS_IMAGE_REGISTRY:-localhost:5001}"
-PASSWORD="${CLICKHOUSE_PASSWORD:-argus123}"
+if [ -z "${CLICKHOUSE_PASSWORD:-}" ]; then
+  PASSWORD=$(kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" -o jsonpath='{.data.CLICKHOUSE_PASSWORD}' 2>/dev/null | base64 -d || echo "")
+else
+  PASSWORD="${CLICKHOUSE_PASSWORD}"
+fi
 
 echo "================================================================="
 echo "      ARGUS OPENTELEMETRY COLLECTOR PIPELINE DEPLOYMENT          "

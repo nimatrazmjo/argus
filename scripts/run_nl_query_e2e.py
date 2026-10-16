@@ -9,23 +9,51 @@ Validates:
 5. Incident auto-summarization on F020 cascading failure graph.
 """
 
+import base64
+import hashlib
+import hmac
 import json
 import os
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 
 LLM_URL = os.environ.get(
     "LLM_URL", "http://argus-aiops-llm.argus-system.svc.cluster.local:9098"
 ).rstrip("/")
+JWT_SECRET = os.environ.get("JWT_SECRET", "").strip()
+OIDC_ISSUER = os.environ.get("OIDC_ISSUER", "http://argus-idp.argus-system.svc.cluster.local:8089")
+OIDC_AUDIENCE = os.environ.get("OIDC_AUDIENCE", "argus-platform")
 EVIDENCE_DIR = os.environ.get("EVIDENCE_DIR", "/tmp/evidence-f021")
 os.makedirs(EVIDENCE_DIR, exist_ok=True)
 
-AUTH_HEADER = {"Authorization": "Bearer test-token-admin", "Content-Type": "application/json"}
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
+
+def make_signed_jwt(role: str = "admin", sub: str = "alice.admin", tenant_id: str = "default") -> str:
+    if not JWT_SECRET:
+        raise RuntimeError("JWT_SECRET environment variable is required to mint signed test tokens")
+    now = int(time.time())
+    header = {"alg": "HS256", "typ": "JWT", "kid": "argus-idp-key-1"}
+    payload = {
+        "iss": OIDC_ISSUER,
+        "aud": OIDC_AUDIENCE,
+        "sub": sub,
+        "role": role,
+        "roles": [role.capitalize()],
+        "tenant_id": tenant_id,
+        "iat": now,
+        "nbf": now,
+        "exp": now + 3600
+    }
+    h_b64 = _b64url_encode(json.dumps(header).encode("utf-8"))
+    p_b64 = _b64url_encode(json.dumps(payload).encode("utf-8"))
+    sig = hmac.new(JWT_SECRET.encode("utf-8"), f"{h_b64}.{p_b64}".encode("utf-8"), hashlib.sha256).digest()
+    return f"{h_b64}.{p_b64}.{_b64url_encode(sig)}"
 
 def http_json(url: str, method: str = "GET", data: dict = None, headers: dict = None) -> dict:
-    req_headers = dict(AUTH_HEADER)
+    req_headers = {"Authorization": f"Bearer {make_signed_jwt('admin')}", "Content-Type": "application/json"}
     if headers:
         req_headers.update(headers)
     body = json.dumps(data).encode("utf-8") if data is not None else None
@@ -152,7 +180,6 @@ def main():
 
     # Step 5: Incident Auto-Summarization E2E
     print("\n[Step 5] Synthesizing Executive Post-Mortem on F020 Cascading Outage...")
-    # Feed correlated cascading failure payload from F020
     incident_payload = {
         "incident_id": "INC-CORR-20261015-001",
         "probable_root_cause": {

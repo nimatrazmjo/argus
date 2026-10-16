@@ -30,7 +30,7 @@ fi
 echo "    Transcript archived: ${EVIDENCE_DIR}/edge-cases-verification.txt ($(wc -l < "${EVIDENCE_DIR}/edge-cases-verification.txt" | tr -d ' ') lines)"
 
 echo "--> [3/3] Ensuring clean baseline state..."
-kubectl exec </dev/null -n "${NAMESPACE}" deployment/argus-sample-service -- wget -qO- --post-data="" http://127.0.0.1:8080/api/slo/reset >/dev/null
+kubectl exec </dev/null -n "${NAMESPACE}" deployment/argus-sample-service -- sh -c 'wget -qO- --header="Authorization: Bearer ${SAMPLE_APP_API_TOKEN}" --post-data="" http://127.0.0.1:8080/api/slo/reset >/dev/null'
 
 echo "================================================================="
 echo "   FEATURE F012 EDGE CASES VERIFIED 100% GREEN!                  "

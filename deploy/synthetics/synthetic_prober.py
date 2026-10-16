@@ -5,6 +5,7 @@ Executes blackbox API checks, multi-step transaction flows, and authenticated en
 Exposes standard Prometheus metrics on port 9115 (/metrics) for OTel Collector scraping.
 """
 
+import hmac
 import json
 import os
 import sys
@@ -17,6 +18,22 @@ import threading
 PORT = int(os.environ.get("PORT", "9115"))
 SAMPLE_SERVICE_URL = os.environ.get("SAMPLE_SERVICE_URL", "http://argus-sample-service.argus-system.svc.cluster.local:8080").rstrip("/")
 PROBE_INTERVAL = int(os.environ.get("PROBE_INTERVAL", "300"))
+SYNTHETIC_BEARER_TOKEN = os.environ.get("SYNTHETIC_BEARER_TOKEN", "")
+
+
+def verify_prober_auth(headers) -> tuple[bool, int, str]:
+    """Authenticates state-changing requests via Authorization: Bearer or X-Synthetic-Token header."""
+    if not SYNTHETIC_BEARER_TOKEN:
+        return False, 500, "Server configuration error: SYNTHETIC_BEARER_TOKEN is not configured"
+    header_tok = headers.get("X-Synthetic-Token", "").strip()
+    if header_tok and hmac.compare_digest(header_tok, SYNTHETIC_BEARER_TOKEN):
+        return True, 200, "OK"
+    auth_header = headers.get("Authorization", "").strip()
+    if auth_header.startswith("Bearer "):
+        bearer_tok = auth_header.split(" ", 1)[1].strip()
+        if bearer_tok and hmac.compare_digest(bearer_tok, SYNTHETIC_BEARER_TOKEN):
+            return True, 200, "OK"
+    return False, 401, "Unauthorized: valid Bearer or X-Synthetic-Token required"
 
 # Global probe metrics & status
 LOCK = threading.Lock()
@@ -102,7 +119,7 @@ def run_all_probes() -> dict:
             name="auth_validation",
             url=f"{SAMPLE_SERVICE_URL}/healthz",
             expected_code=200,
-            headers={"Authorization": "Bearer argus-synthetic-token-prod"},
+            headers={"Authorization": f"Bearer {SYNTHETIC_BEARER_TOKEN}"} if SYNTHETIC_BEARER_TOKEN else {},
             expected_substr="healthy"
         )
 
@@ -205,6 +222,11 @@ class SyntheticProberHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         global SIMULATED_TARGET_FAILURE
+        auth_ok, auth_code, auth_err = verify_prober_auth(self.headers)
+        if not auth_ok:
+            self._send_text(auth_code, json.dumps({"error": auth_err}), "application/json")
+            return
+
         if self.path == "/api/run":
             res = run_all_probes()
             self._send_text(200, json.dumps(res, indent=2), "application/json")

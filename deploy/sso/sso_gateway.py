@@ -20,14 +20,22 @@ import os
 import signal
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 PORT = int(os.environ.get("PORT", "8088"))
-JWT_SECRET = os.environ.get("JWT_SECRET", "argus-agency-piv-cac-shared-secret-key-32b")
+JWT_SECRET = os.environ.get("JWT_SECRET", "").strip()
 IDP_URL = os.environ.get("IDP_URL", "http://argus-idp.argus-system.svc.cluster.local:8089").rstrip("/")
+EXPECTED_ISSUER = os.environ.get("OIDC_ISSUER", "http://argus-idp.argus-system.svc.cluster.local:8089").rstrip("/")
+EXPECTED_AUDIENCE = os.environ.get("OIDC_AUDIENCE", "argus-platform")
 UPSTREAM_URL = os.environ.get("UPSTREAM_URL", "http://signoz.argus-system.svc.cluster.local:8080").rstrip("/")
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get(
+        "CORS_ALLOWED_ORIGINS", "https://argus.dhs.gov,http://localhost:8080,http://localhost:8088"
+    ).split(",") if o.strip()
+]
 
 def b64url_decode(s: str) -> bytes:
     rem = len(s) % 4
@@ -35,22 +43,45 @@ def b64url_decode(s: str) -> bytes:
         s += "=" * (4 - rem)
     return base64.urlsafe_b64decode(s)
 
-def verify_jwt(token: str, secret: str = JWT_SECRET) -> tuple[bool, dict, str]:
+def _get_jwt_secret(secret: str = None) -> str:
+    val = secret if secret is not None else os.environ.get("JWT_SECRET", JWT_SECRET)
+    return (val or "").strip()
+
+def verify_jwt(token: str, secret: str = None) -> tuple[bool, dict, str]:
+    signing_secret = _get_jwt_secret(secret)
+    if not signing_secret:
+        return False, {}, "Gateway signing secret is not configured"
     parts = token.split(".")
     if len(parts) != 3:
         return False, {}, "Malformed token format"
     try:
         h_b64, p_b64, s_b64 = parts
+        header = json.loads(b64url_decode(h_b64).decode("utf-8"))
+        if not isinstance(header, dict) or header.get("alg") != "HS256" or header.get("typ") not in (None, "JWT"):
+            return False, {}, "Unsupported or invalid JWT algorithm"
         msg = f"{h_b64}.{p_b64}".encode("utf-8")
-        expected_sig = hmac.new(secret.encode("utf-8"), msg, hashlib.sha256).digest()
+        expected_sig = hmac.new(signing_secret.encode("utf-8"), msg, hashlib.sha256).digest()
         actual_sig = b64url_decode(s_b64)
         if not hmac.compare_digest(expected_sig, actual_sig):
             return False, {}, "Invalid cryptographic signature"
         payload = json.loads(b64url_decode(p_b64).decode("utf-8"))
-        exp = payload.get("exp", 0)
+        if not isinstance(payload, dict):
+            return False, {}, "Invalid token claims payload"
         now = int(time.time())
-        if exp < now:
+        exp = payload.get("exp")
+        if not isinstance(exp, (int, float)) or exp < now:
             return False, payload, "Token has expired"
+        nbf = payload.get("nbf")
+        if nbf is not None and (not isinstance(nbf, (int, float)) or now < int(nbf) - 5):
+            return False, payload, "Token is not yet valid (nbf)"
+        iss = payload.get("iss")
+        if iss is not None and iss != EXPECTED_ISSUER:
+            return False, payload, "Invalid token issuer"
+        aud = payload.get("aud")
+        if aud is not None:
+            valid_aud = (aud == EXPECTED_AUDIENCE) if isinstance(aud, str) else (isinstance(aud, list) and EXPECTED_AUDIENCE in aud)
+            if not valid_aud:
+                return False, payload, "Invalid token audience"
         return True, payload, ""
     except Exception as e:
         return False, {}, f"Token validation error: {e}"
@@ -89,21 +120,16 @@ LOGIN_HTML = """<!DOCTYPE html>
     <div class="card">
         <div class="logo">🛡️ Argus Agency SSO</div>
         <p class="subtitle">Homeland Security Enterprise Observability Access <span class="piv-badge">PIV/CAC Ready</span></p>
-        <form method="POST" action="/sso/login">
+        <form method="POST" action="/sso/login" autocomplete="off">
             <div class="form-group">
-                <label for="username">Select Agency Identity (NIST SP 800-63-3 AAL3)</label>
-                <select id="username" name="username">
-                    <option value="alice.admin@dhs.gov">Alice Vance — SOC Administrator (Role: Admin)</option>
-                    <option value="bob.operator@dhs.gov">Bob Miller — SOC Operator (Role: Operator / Editor)</option>
-                    <option value="carol.viewer@dhs.gov">Carol Danvers — Security Analyst (Role: Viewer)</option>
-                    <option value="mallory.unassigned@dhs.gov">Mallory Unassigned — Contractor (Role: NoAccess)</option>
-                </select>
+                <label for="username">Agency Identity (NIST SP 800-63-3 AAL3)</label>
+                <input type="email" id="username" name="username" placeholder="user@dhs.gov" required>
             </div>
             <div class="form-group">
                 <label for="password">Password / PIV PIN</label>
-                <input type="password" id="password" name="password" value="admin_pass">
+                <input type="password" id="password" name="password" required>
             </div>
-            <button type="submit">Authenticate & Enter Platform</button>
+            <button type="submit">Authenticate &amp; Enter Platform</button>
         </form>
     </div>
 </body>
@@ -111,13 +137,22 @@ LOGIN_HTML = """<!DOCTYPE html>
 """
 
 class SSOGatewayHandler(BaseHTTPRequestHandler):
-    def send_json(self, status_code: int, data: dict):
+    def _apply_cors_and_security_headers(self, is_identity_endpoint: bool = False):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Cache-Control", "no-store")
+        origin = self.headers.get("Origin", "")
+        if not is_identity_endpoint and origin and origin in ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Scope-TenantID")
+
+    def send_json(self, status_code: int, data: dict, is_identity_endpoint: bool = False):
         body = json.dumps(data).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Scope-TenantID")
+        self._apply_cors_and_security_headers(is_identity_endpoint=is_identity_endpoint)
         self.end_headers()
         self.wfile.write(body)
 
@@ -140,11 +175,17 @@ class SSOGatewayHandler(BaseHTTPRequestHandler):
         )
 
     def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Scope-TenantID")
-        self.end_headers()
+        origin = self.headers.get("Origin", "")
+        if origin and origin in ALLOWED_ORIGINS:
+            self.send_response(204)
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Scope-TenantID")
+            self.end_headers()
+        else:
+            self.send_response(403)
+            self.end_headers()
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -159,6 +200,9 @@ class SSOGatewayHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
             self.end_headers()
             self.wfile.write(body)
             return
@@ -190,7 +234,7 @@ class SSOGatewayHandler(BaseHTTPRequestHandler):
             self.send_json(403, {"error": "forbidden", "message": "User has no assigned monitoring roles in agency directory."})
             return
 
-        # Identity introspection endpoint
+        # Identity introspection endpoint (strictly no wildcard CORS — M3)
         if path == "/sso/me":
             self.log_audit(user, role, tenant, "GET", path, 200, "ALLOW_ME")
             self.send_json(200, {
@@ -203,7 +247,7 @@ class SSOGatewayHandler(BaseHTTPRequestHandler):
                     "canMutateAlerts": role in ("Admin", "Operator"),
                     "canAdministerPlatform": role == "Admin"
                 }
-            })
+            }, is_identity_endpoint=True)
             return
 
         # Forward authorized GET request
@@ -227,8 +271,16 @@ class SSOGatewayHandler(BaseHTTPRequestHandler):
                 qs = urllib.parse.parse_qs(body_bytes.decode("utf-8"))
                 params = {k: v[0] for k, v in qs.items()}
 
+            if not isinstance(params, dict):
+                params = {}
+
             username = params.get("username", "")
             password = params.get("password", "")
+
+            if not username or not password:
+                self.log_audit(username or "anonymous", "none", "none", "POST", "/sso/login", 401, "LOGIN_MISSING_CREDENTIALS")
+                self.send_json(401, {"error": "unauthorized", "message": "Authentication failed. Invalid username or password."}, is_identity_endpoint=True)
+                return
 
             # Call internal IdP to exchange credentials for token
             idp_req = urllib.request.Request(
@@ -242,26 +294,34 @@ class SSOGatewayHandler(BaseHTTPRequestHandler):
                     access_token = token_data.get("access_token", "")
                     role = token_data.get("roles", ["Viewer"])[0]
                     self.log_audit(username, role, token_data.get("tenant_id", "default"), "POST", "/sso/login", 200, "LOGIN_SUCCESS")
-                    
+
+                    cookie_val = f"argus_session_token={access_token}; Path=/; HttpOnly; Secure; SameSite=Strict"
                     accept = self.headers.get("Accept", "")
                     if "text/html" in accept:
                         # Redirect to dashboard with Set-Cookie
                         self.send_response(302)
-                        self.send_header("Set-Cookie", f"argus_session_token={access_token}; Path=/; HttpOnly; SameSite=Lax")
+                        self.send_header("Set-Cookie", cookie_val)
                         self.send_header("Location", "/sso/me")
                         self.end_headers()
                         return
                     else:
                         self.send_response(200)
-                        self.send_header("Set-Cookie", f"argus_session_token={access_token}; Path=/; HttpOnly; SameSite=Lax")
-                        self.send_header("Content-Type", "application/json")
+                        self.send_header("Set-Cookie", cookie_val)
+                        self.send_header("Content-Type", "application/json; charset=utf-8")
+                        self.send_header("X-Content-Type-Options", "nosniff")
+                        self.send_header("Cache-Control", "no-store")
                         self.end_headers()
                         self.wfile.write(json.dumps(token_data).encode("utf-8"))
                         return
             except urllib.error.HTTPError as e:
-                err_body = e.read().decode("utf-8", errors="replace")
-                self.log_audit(username, "none", "none", "POST", "/sso/login", 401, "LOGIN_FAILED")
-                self.send_json(401, {"error": "unauthorized", "message": f"IdP Authentication Failed: {err_body}"})
+                # Log error code internally without leaking raw upstream IdP body to caller (M4)
+                _ = e.read()
+                self.log_audit(username, "none", "none", "POST", "/sso/login", 401, f"LOGIN_FAILED_UPSTREAM_{e.code}")
+                self.send_json(401, {"error": "unauthorized", "message": "Authentication failed. Invalid username or password."}, is_identity_endpoint=True)
+                return
+            except Exception:
+                self.log_audit(username, "none", "none", "POST", "/sso/login", 502, "LOGIN_UPSTREAM_UNAVAILABLE")
+                self.send_json(502, {"error": "bad_gateway", "message": "Authentication service temporarily unavailable."}, is_identity_endpoint=True)
                 return
 
         # API / Upstream mutation routes
@@ -280,6 +340,11 @@ class SSOGatewayHandler(BaseHTTPRequestHandler):
         user = claims.get("email", claims.get("sub", "unknown"))
         role = map_claims_to_role(claims)
         tenant = claims.get("tenant_id", "default")
+
+        if role == "NoAccess":
+            self.log_audit(user, role, tenant, "POST", path, 403, "DENY_NO_ROLE")
+            self.send_json(403, {"error": "forbidden", "message": "User has no assigned monitoring roles in agency directory."})
+            return
 
         # RBAC Mutation Guard: Viewers are strictly prohibited from mutating resources
         if role == "Viewer":
@@ -336,6 +401,10 @@ class SSOGatewayHandler(BaseHTTPRequestHandler):
 
 
 def run():
+    if not _get_jwt_secret():
+        sys.stderr.write("ERROR: JWT_SECRET environment variable must be set before starting argus-sso-gateway.\n")
+        sys.exit(1)
+
     server_address = ("", PORT)
     httpd = HTTPServer(server_address, SSOGatewayHandler)
 

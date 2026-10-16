@@ -91,12 +91,17 @@ def main():
         "password": "some_password"
     })
     c3, _ = http_get(f"{GATEWAY_URL}/api/v1/rules")  # No credentials provided
+    c4, _ = http_post_json(f"{IDP_URL}/protocol/openid-connect/token", {
+        "grant_type": "password",
+        "username": "alice.admin@dhs.gov",
+        "password": ""
+    })
 
-    if c1 == 401 and c2 == 401 and c3 == 401:
-        print("    PASS: Bad password, unknown user, and missing token safely rejected with HTTP 401.")
+    if c1 == 401 and c2 == 401 and c3 == 401 and c4 == 401:
+        print("    PASS: Bad password, empty password, unknown user, and missing token safely rejected with HTTP 401.")
         passed += 1
     else:
-        print(f"FAIL: Failed auth was not rejected properly: c1={c1}, c2={c2}, c3={c3}", file=sys.stderr)
+        print(f"FAIL: Failed auth was not rejected properly: c1={c1}, c2={c2}, c3={c3}, c4={c4}", file=sys.stderr)
         failed += 1
 
     # -------------------------------------------------------------

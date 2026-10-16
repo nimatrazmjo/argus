@@ -50,6 +50,11 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: SAMPLE_APP_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: argus-sample-app-secret
+                  key: SAMPLE_APP_API_TOKEN
           resources:
             requests:
               cpu: 50m

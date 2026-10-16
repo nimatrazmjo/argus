@@ -14,6 +14,8 @@ echo "================================================================="
 echo "--> [1/4] Ensuring AIOps LLM Service infrastructure is ready via apply-llm.sh..."
 "${ROOT_DIR}/deploy/llm/apply-llm.sh"
 
+JWT_SECRET_VAL="$(kubectl get secret argus-sso-secret -n "${NAMESPACE}" -o jsonpath='{.data.jwt-secret}' | base64 -d)"
+
 SAMPLE_POD=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=argus-sample-service --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
 if [ -z "${SAMPLE_POD}" ]; then
   SAMPLE_POD=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=argus-aiops-llm --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}')
@@ -24,6 +26,7 @@ mkdir -p "${EVIDENCE_DIR}"
 echo "--> [2/4] Executing NL Query & Incident Summarization E2E suite via cluster pod..."
 kubectl exec -n "${NAMESPACE}" "${SAMPLE_POD}" -- env \
   LLM_URL="http://argus-aiops-llm.${NAMESPACE}.svc.cluster.local:9098" \
+  JWT_SECRET="${JWT_SECRET_VAL}" \
   EVIDENCE_DIR="/tmp/evidence-f021" \
   python -c "
 import os

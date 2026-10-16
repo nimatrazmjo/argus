@@ -10,9 +10,35 @@ echo "================================================================="
 echo "       ARGUS REAL USER MONITORING (RUM) & REPLAY ROLLOUT (F017)   "
 echo "================================================================="
 
+echo "--> [0/3] Ensuring Kubernetes Secrets (argus-clickhouse-secret, argus-rum-secret)..."
+if [ -n "${CLICKHOUSE_PASSWORD:-}" ]; then
+  EFFECTIVE_CH_PASS="${CLICKHOUSE_PASSWORD}"
+elif kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+  EFFECTIVE_CH_PASS="$(kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" -o jsonpath='{.data.password}' | base64 -d)"
+else
+  EFFECTIVE_CH_PASS="$(openssl rand -hex 24)"
+  kubectl create secret generic argus-clickhouse-secret \
+    -n "${NAMESPACE}" \
+    --from-literal=password="${EFFECTIVE_CH_PASS}" \
+    --dry-run=client -o yaml | kubectl apply -f -
+fi
+
+if [ -n "${RUM_INGEST_TOKEN:-}" ]; then
+  EFFECTIVE_RUM_TOKEN="${RUM_INGEST_TOKEN}"
+elif kubectl get secret argus-rum-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+  EFFECTIVE_RUM_TOKEN="$(kubectl get secret argus-rum-secret -n "${NAMESPACE}" -o jsonpath='{.data.ingest-token}' | base64 -d)"
+else
+  EFFECTIVE_RUM_TOKEN="$(openssl rand -hex 32)"
+fi
+
+kubectl create secret generic argus-rum-secret \
+  -n "${NAMESPACE}" \
+  --from-literal=ingest-token="${EFFECTIVE_RUM_TOKEN}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 echo "--> [1/3] Ensuring ClickHouse RUM tables (rum_sessions, rum_events)..."
-CH_POD=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=clickhouse-operator -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
-kubectl exec -i chi-argus-clickhouse-argus-cluster-0-0-0 -n "${NAMESPACE}" -c clickhouse -- clickhouse-client --password argus123 --multiquery < "${SCRIPT_DIR}/rum-schema.sql"
+kubectl exec -i chi-argus-clickhouse-argus-cluster-0-0-0 -n "${NAMESPACE}" -c clickhouse -- \
+  clickhouse-client --password "${EFFECTIVE_CH_PASS}" --multiquery < "${SCRIPT_DIR}/rum-schema.sql"
 
 echo "--> [2/3] Updating ConfigMap and applying argus-rum-collector deployment..."
 kubectl create configmap argus-rum-collector-code \

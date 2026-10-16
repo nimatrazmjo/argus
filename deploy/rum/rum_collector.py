@@ -2,16 +2,18 @@
 """
 Argus Feature F017: Real User Monitoring (RUM) & DOM Session Replay Collector
 Provides:
-1. Ingestion endpoint (/v1/rum/ingest) with defense-in-depth PII redaction.
+1. Authenticated ingestion endpoint (/v1/rum/ingest) with defense-in-depth PII redaction & XSS sanitization.
 2. Air-gapped client tracker script (/v1/rum/tracker.js) with client-side masking.
 3. Session listing and query API (/v1/rum/sessions).
 4. Full session replay timeline API (/v1/rum/replay/<session_id>).
-5. Visual DOM Replay Player (/v1/rum/player/<session_id>).
-6. ClickHouse persistence (default.rum_sessions, default.rum_events).
+5. Visual DOM Replay Player (/v1/rum/player/<session_id>) with strict CSP & safe DOM construction.
+6. Parameterized / JSONEachRow ClickHouse persistence (default.rum_sessions, default.rum_events).
 7. Prometheus metrics exposition (/metrics) and health probe (/healthz).
 """
 
 import base64
+import hashlib
+import hmac
 import html
 import json
 import os
@@ -31,7 +33,14 @@ CLICKHOUSE_HTTP = os.environ.get(
     "http://chi-argus-clickhouse-argus-cluster-0-0.argus-system.svc.cluster.local:8123"
 ).rstrip("/")
 CLICKHOUSE_USER = os.environ.get("CLICKHOUSE_USER", "default")
-CLICKHOUSE_PASSWORD = os.environ.get("CLICKHOUSE_PASSWORD", "argus123")
+CLICKHOUSE_PASSWORD = os.environ.get("CLICKHOUSE_PASSWORD", "").strip()
+RUM_INGEST_TOKEN = os.environ.get("RUM_INGEST_TOKEN", "").strip()
+JWT_SECRET = os.environ.get("JWT_SECRET", "").strip()
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get(
+        "CORS_ALLOWED_ORIGINS", "https://argus.dhs.gov,http://localhost:8080,http://localhost:8082,http://localhost:8088"
+    ).split(",") if o.strip()
+]
 
 # Metrics counters
 METRICS_LOCK = threading.Lock()
@@ -50,6 +59,45 @@ RE_CREDIT_CARD = re.compile(r'\b(?:\d{4}[ -]?){3}\d{4}\b')
 RE_SSN = re.compile(r'\b\d{3}-\d{2}-\d{4}\b')
 RE_BEARER = re.compile(r'(?i)Bearer\s+[A-Za-z0-9._~+/-]+=*')
 RE_SECRET_KV = re.compile(r'(?i)\b(password|passwd|pwd|secret|token|api[_-]?key|card|cvv|ssn)\b\s*[:=]\s*["\']?([^"\'\s&,]+)["\']?')
+
+# Regex patterns for HTML/script XSS neutralization at ingest (C4)
+RE_SCRIPT_TAG = re.compile(r'(?is)<\s*script\b[^>]*>.*?<\s*/\s*script\s*>')
+RE_DANGEROUS_TAGS = re.compile(r'(?is)<\s*/?\s*(?:script|iframe|object|embed|applet|meta|base|svg|math)\b[^>]*>')
+RE_EVENT_HANDLER_ATTR = re.compile(r'(?i)\s+on[a-z0-9_]+\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s>]+)')
+RE_JS_URI = re.compile(r'(?i)(?:javascript|vbscript|data\s*:\s*text/html)\s*:')
+
+def sanitize_html_fragment(raw_html: str) -> str:
+    """Strips executable script tags, dangerous containers, inline event handlers, and javascript: URIs."""
+    if not isinstance(raw_html, str):
+        return ""
+    cleaned = RE_SCRIPT_TAG.sub("", raw_html)
+    cleaned = RE_DANGEROUS_TAGS.sub("", cleaned)
+    cleaned = RE_EVENT_HANDLER_ATTR.sub("", cleaned)
+    cleaned = RE_JS_URI.sub("blocked:", cleaned)
+    return cleaned
+
+def safe_json_for_script(obj) -> str:
+    """Safely serializes data to JSON for embedding inside an HTML <script> block without </script> breakout (C4)."""
+    raw = json.dumps(obj)
+    return (
+        raw.replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+
+def escape_clickhouse_string(val: str) -> str:
+    """Escapes backslashes, single quotes, and control characters for ClickHouse string literals (H1)."""
+    if not isinstance(val, str):
+        val = str(val)
+    return (
+        val.replace("\\", "\\\\")
+        .replace("'", "\\'")
+        .replace("\0", "")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+    )
 
 def redact_string(val: str) -> tuple[str, int]:
     """Sanitizes PII in string values, returning (sanitized_val, redacted_count)."""
@@ -72,10 +120,11 @@ def redact_string(val: str) -> tuple[str, int]:
     res = RE_SSN.sub(repl_ssn, res)
     res = RE_BEARER.sub(repl_bearer, res)
     res = RE_SECRET_KV.sub(repl_kv, res)
+    res = sanitize_html_fragment(res)
     return res, redactions
 
 def deep_redact(obj) -> tuple[any, int]:
-    """Recursively redacts PII throughout nested dictionaries, lists, and strings."""
+    """Recursively redacts PII and sanitizes active script payloads throughout nested dicts, lists, and strings."""
     redacted_count = 0
     if isinstance(obj, dict):
         new_dict = {}
@@ -92,6 +141,10 @@ def deep_redact(obj) -> tuple[any, int]:
             elif is_sensitive_context and k_lower in ("value", "raw", "raw_value", "input_value", "text"):
                 new_dict[k] = "[REDACTED]"
                 redacted_count += 1
+            elif k_lower == "bodyhtml" and isinstance(v, str):
+                sanitized_v, count = redact_string(v)
+                new_dict[k] = sanitize_html_fragment(sanitized_v)
+                redacted_count += count
             else:
                 new_v, count = deep_redact(v)
                 new_dict[k] = new_v
@@ -108,11 +161,74 @@ def deep_redact(obj) -> tuple[any, int]:
         return redact_string(obj)
     return obj, 0
 
-def execute_clickhouse_query(sql: str) -> bool:
-    """Executes a query against ClickHouse HTTP interface."""
-    url = f"{CLICKHOUSE_HTTP}/?wait_end_of_query=1"
+def _b64url_decode(s: str) -> bytes:
+    rem = len(s) % 4
+    if rem > 0:
+        s += "=" * (4 - rem)
+    return base64.urlsafe_b64decode(s)
+
+def verify_rum_auth(headers) -> bool:
+    """
+    Authenticates RUM ingestion and replay queries via X-RUM-Ingest-Token, Bearer token, or session JWT (C4).
+    Fails closed when neither RUM_INGEST_TOKEN nor JWT_SECRET is configured.
+    """
+    expected_ingest_tok = os.environ.get("RUM_INGEST_TOKEN", RUM_INGEST_TOKEN).strip()
+    jwt_secret = os.environ.get("JWT_SECRET", JWT_SECRET).strip()
+    if not expected_ingest_tok and not jwt_secret:
+        return False
+
+    # 1. Check X-RUM-Ingest-Token header
+    ingest_hdr = headers.get("X-RUM-Ingest-Token", "").strip()
+    if ingest_hdr and expected_ingest_tok and hmac.compare_digest(ingest_hdr.encode("utf-8"), expected_ingest_tok.encode("utf-8")):
+        return True
+
+    # 2. Extract Bearer token or session cookie
+    token = ""
+    auth_hdr = headers.get("Authorization", "").strip()
+    if auth_hdr.startswith("Bearer "):
+        token = auth_hdr.split(" ", 1)[1].strip()
+    else:
+        cookie_hdr = headers.get("Cookie", "")
+        for c in cookie_hdr.split(";"):
+            c = c.strip()
+            if c.startswith("argus_session_token="):
+                token = c.split("=", 1)[1].strip()
+                break
+
+    if not token:
+        return False
+
+    if expected_ingest_tok and hmac.compare_digest(token.encode("utf-8"), expected_ingest_tok.encode("utf-8")):
+        return True
+
+    if jwt_secret:
+        parts = token.split(".")
+        if len(parts) == 3:
+            try:
+                h_b64, p_b64, s_b64 = parts
+                header = json.loads(_b64url_decode(h_b64).decode("utf-8"))
+                if isinstance(header, dict) and header.get("alg") == "HS256":
+                    expected_sig = hmac.new(jwt_secret.encode("utf-8"), f"{h_b64}.{p_b64}".encode("utf-8"), hashlib.sha256).digest()
+                    if hmac.compare_digest(expected_sig, _b64url_decode(s_b64)):
+                        payload = json.loads(_b64url_decode(p_b64).decode("utf-8"))
+                        exp = payload.get("exp", 0)
+                        if isinstance(exp, (int, float)) and exp >= time.time():
+                            return True
+            except Exception:
+                pass
+
+    return False
+
+def execute_clickhouse_query(sql: str, params: dict = None) -> bool:
+    """Executes a query (optionally parameterized) against ClickHouse HTTP interface (H1/H3)."""
+    ch_pass = os.environ.get("CLICKHOUSE_PASSWORD", CLICKHOUSE_PASSWORD).strip()
+    query_qs = {"wait_end_of_query": "1"}
+    if params:
+        for k, v in params.items():
+            query_qs[f"param_{k}"] = str(v)
+    url = f"{CLICKHOUSE_HTTP}/?{urllib.parse.urlencode(query_qs)}"
     req = urllib.request.Request(url, data=sql.encode("utf-8"), method="POST")
-    auth = f"{CLICKHOUSE_USER}:{CLICKHOUSE_PASSWORD}"
+    auth = f"{CLICKHOUSE_USER}:{ch_pass}"
     b64_auth = base64.b64encode(auth.encode()).decode()
     req.add_header("Authorization", f"Basic {b64_auth}")
     try:
@@ -132,6 +248,7 @@ TRACKER_JS = """/**
         sessionId: null,
         userId: null,
         traceId: null,
+        ingestToken: null,
         collectorUrl: '/v1/rum/ingest',
         eventsQueue: [],
         maxQueue: 50,
@@ -141,6 +258,7 @@ TRACKER_JS = """/**
         init: function(opts) {
             opts = opts || {};
             this.collectorUrl = opts.collectorUrl || this.collectorUrl;
+            this.ingestToken = opts.ingestToken || '';
             this.userId = opts.userId || 'anonymous-' + Math.random().toString(36).substr(2, 6);
             this.sessionId = opts.sessionId || 'sess-' + Math.random().toString(36).substr(2, 9);
             this.traceId = opts.traceId || this.generateTraceId();
@@ -259,16 +377,17 @@ TRACKER_JS = """/**
             };
 
             var dataStr = JSON.stringify(payload);
-            if (navigator.sendBeacon) {
-                navigator.sendBeacon(this.collectorUrl, dataStr);
-            } else {
-                fetch(this.collectorUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: dataStr,
-                    keepalive: true
-                }).catch(function(err) {});
+            var headers = { 'Content-Type': 'application/json' };
+            if (this.ingestToken) {
+                headers['X-RUM-Ingest-Token'] = this.ingestToken;
             }
+            fetch(this.collectorUrl, {
+                method: 'POST',
+                headers: headers,
+                body: dataStr,
+                keepalive: true,
+                credentials: 'same-origin'
+            }).catch(function(err) {});
         },
 
         startTimer: function() {
@@ -283,24 +402,26 @@ TRACKER_JS = """/**
 })(window);
 """
 
-def generate_player_html(session_id: str, session: dict, events: list) -> str:
-    """Generates the interactive, responsive DOM Replay Player HTML page."""
-    s_id = html.escape(session_id)
-    user_id = html.escape(session.get("userId", "anonymous"))
-    trace_id = html.escape(session.get("traceId", "none"))
-    page_url = html.escape(session.get("pageUrl", "/"))
-    duration_s = round(session.get("durationMs", 0) / 1000.0, 2)
+def generate_player_html(session_id: str, session: dict, events: list, csp_nonce: str = "") -> str:
+    """Generates the interactive, responsive DOM Replay Player HTML page with XSS-safe JSON & DOM construction (C4)."""
+    s_id = html.escape(str(session_id))
+    user_id = html.escape(str(session.get("userId", "anonymous")))
+    trace_id = html.escape(str(session.get("traceId", "none")))
+    page_url = html.escape(str(session.get("pageUrl", "/")))
+    duration_s = round(float(session.get("durationMs", 0)) / 1000.0, 2)
     ev_count = len(events)
-    err_count = session.get("errorsCount", 0)
+    err_count = int(session.get("errorsCount", 0))
 
-    events_json = json.dumps(events)
+    # Safely encode JSON for <script> context so </script>, <!--, <, >, & are neutralized (C4)
+    events_json = safe_json_for_script(events)
+    nonce_attr = f' nonce="{html.escape(csp_nonce)}"' if csp_nonce else ""
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Argus RUM Session Replay — {s_id}</title>
-    <style>
+    <style{nonce_attr}>
         :root {{
             --bg-primary: #0f172a;
             --bg-secondary: #1e293b;
@@ -496,6 +617,7 @@ def generate_player_html(session_id: str, session: dict, events: list) -> str:
         <div class="meta-group">
             <div>Session: <strong>{s_id}</strong></div>
             <div>User: <strong>{user_id}</strong></div>
+            <div>Page: <strong>{page_url}</strong></div>
             <div>Duration: <strong>{duration_s}s</strong></div>
             <div>Events: <strong>{ev_count}</strong></div>
             <div class="meta-trace">Trace: <a href="/api/v1/traces/{trace_id}"><strong>{trace_id[:12]}...</strong></a></div>
@@ -510,7 +632,7 @@ def generate_player_html(session_id: str, session: dict, events: list) -> str:
                     <p style="color: #64748b; font-size: 0.9rem;">Interactive snapshot of client-rendered DOM with masked form fields.</p>
                     <hr style="margin: 16px 0; border: none; border-top: 1px solid #e2e8f0;">
                     <div id="reconstructedDom">
-                        <!-- Populated by events -->
+                        <!-- Populated safely via DOM APIs -->
                     </div>
                 </div>
             </div>
@@ -537,12 +659,12 @@ def generate_player_html(session_id: str, session: dict, events: list) -> str:
                 <span style="font-size: 0.75rem; color: var(--accent-rose);">{err_count} errors</span>
             </div>
             <div class="events-list" id="eventsList">
-                <!-- Dynamically populated -->
+                <!-- Dynamically populated via textContent -->
             </div>
         </div>
     </main>
 
-    <script>
+    <script{nonce_attr}>
         const events = {events_json};
         let currentIndex = 0;
         let isPlaying = false;
@@ -554,20 +676,91 @@ def generate_player_html(session_id: str, session: dict, events: list) -> str:
         const timeDisplay = document.getElementById('timeDisplay');
         const playBtn = document.getElementById('playBtn');
 
+        const SAFE_TAGS = new Set(['DIV', 'SPAN', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'FORM', 'LABEL', 'INPUT', 'BUTTON', 'HR', 'UL', 'OL', 'LI', 'STRONG', 'EM', 'CODE']);
+        const SAFE_ATTRS = new Set(['id', 'class', 'type', 'name', 'value', 'placeholder', 'alt', 'data-index', 'data-masked']);
+
+        function sanitizeDomTree(htmlString) {{
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(String(htmlString || ''), 'text/html');
+            const fragment = document.createDocumentFragment();
+
+            function cloneSafeNode(node) {{
+                if (node.nodeType === Node.TEXT_NODE) {{
+                    return document.createTextNode(node.textContent || '');
+                }}
+                if (node.nodeType !== Node.ELEMENT_NODE) {{
+                    return null;
+                }}
+                const tagName = node.tagName.toUpperCase();
+                if (!SAFE_TAGS.has(tagName)) {{
+                    return null;
+                }}
+                const el = document.createElement(tagName.toLowerCase());
+                for (const attr of Array.from(node.attributes)) {{
+                    const name = attr.name.toLowerCase();
+                    if (SAFE_ATTRS.has(name)) {{
+                        el.setAttribute(name, attr.value);
+                    }}
+                }}
+                for (const child of Array.from(node.childNodes)) {{
+                    const safeChild = cloneSafeNode(child);
+                    if (safeChild) {{
+                        el.appendChild(safeChild);
+                    }}
+                }}
+                return el;
+            }}
+
+            if (doc.body) {{
+                for (const child of Array.from(doc.body.childNodes)) {{
+                    const safeChild = cloneSafeNode(child);
+                    if (safeChild) {{
+                        fragment.appendChild(safeChild);
+                    }}
+                }}
+            }}
+            return fragment;
+        }}
+
         function renderEventsList() {{
-            list.innerHTML = '';
+            list.replaceChildren();
             events.forEach((ev, i) => {{
                 const card = document.createElement('div');
                 card.className = 'event-card' + (i === currentIndex ? ' active' : '');
-                const isMasked = ev.maskedValue || (ev.payload && ev.payload.isMasked);
-                card.innerHTML = `
-                    <div class="event-header">
-                        <span class="event-type ${{ev.type}}">${{ev.type}}</span>
-                        <span style="color: var(--text-secondary);">${{ev.timestamp.split('T')[1].substr(0, 8)}}</span>
-                    </div>
-                    <div>Target: <code>${{ev.targetSelector || ev.targetTag || 'body'}}</code></div>
-                    ${{isMasked ? '<div class="event-masked">🛡️ PII Masked (***)</div>' : ''}}
-                `;
+                const isMasked = Boolean(ev.maskedValue || (ev.payload && ev.payload.isMasked));
+
+                const header = document.createElement('div');
+                header.className = 'event-header';
+
+                const typeSpan = document.createElement('span');
+                const safeType = String(ev.type || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '');
+                typeSpan.className = 'event-type ' + safeType;
+                typeSpan.textContent = String(ev.type || 'unknown');
+
+                const timeSpan = document.createElement('span');
+                timeSpan.style.color = 'var(--text-secondary)';
+                const tsParts = String(ev.timestamp || '').split('T');
+                timeSpan.textContent = tsParts.length > 1 ? tsParts[1].substr(0, 8) : String(ev.timestamp || '');
+
+                header.appendChild(typeSpan);
+                header.appendChild(timeSpan);
+
+                const targetDiv = document.createElement('div');
+                targetDiv.appendChild(document.createTextNode('Target: '));
+                const targetCode = document.createElement('code');
+                targetCode.textContent = String(ev.targetSelector || ev.targetTag || 'body');
+                targetDiv.appendChild(targetCode);
+
+                card.appendChild(header);
+                card.appendChild(targetDiv);
+
+                if (isMasked) {{
+                    const maskedBadge = document.createElement('div');
+                    maskedBadge.className = 'event-masked';
+                    maskedBadge.textContent = '🛡️ PII Masked (***)';
+                    card.appendChild(maskedBadge);
+                }}
+
                 card.onclick = () => jumpTo(i);
                 list.appendChild(card);
             }});
@@ -575,18 +768,30 @@ def generate_player_html(session_id: str, session: dict, events: list) -> str:
 
         function applyEvent(ev) {{
             if (ev.type === 'dom_snapshot' && ev.payload && ev.payload.snapshot) {{
-                screen.innerHTML = ev.payload.snapshot.bodyHtml || '<p style="color:#64748b;">[Blank DOM Snapshot]</p>';
+                const rawHtml = ev.payload.snapshot.bodyHtml;
+                if (rawHtml) {{
+                    screen.replaceChildren(sanitizeDomTree(rawHtml));
+                }} else {{
+                    const emptyP = document.createElement('p');
+                    emptyP.style.color = '#64748b';
+                    emptyP.textContent = '[Blank DOM Snapshot]';
+                    screen.replaceChildren(emptyP);
+                }}
             }} else if (ev.type === 'input') {{
-                const target = screen.querySelector(ev.targetSelector);
-                if (target) {{
-                    target.value = ev.maskedValue || '***';
-                }}
+                try {{
+                    const target = screen.querySelector(ev.targetSelector);
+                    if (target) {{
+                        target.value = ev.maskedValue || '***';
+                    }}
+                }} catch (e) {{}}
             }} else if (ev.type === 'click') {{
-                const target = screen.querySelector(ev.targetSelector);
-                if (target) {{
-                    target.style.outline = '2px solid #06b6d4';
-                    setTimeout(() => target.style.outline = '', 400);
-                }}
+                try {{
+                    const target = screen.querySelector(ev.targetSelector);
+                    if (target) {{
+                        target.style.outline = '2px solid #06b6d4';
+                        setTimeout(() => target.style.outline = '', 400);
+                    }}
+                }} catch (e) {{}}
             }}
         }}
 
@@ -603,7 +808,7 @@ def generate_player_html(session_id: str, session: dict, events: list) -> str:
         function updateUI() {{
             const pct = events.length > 0 ? (currentIndex / events.length) * 100 : 0;
             fill.style.width = pct + '%';
-            timeDisplay.innerText = currentIndex + ' / ' + events.length + ' events';
+            timeDisplay.textContent = currentIndex + ' / ' + events.length + ' events';
             document.querySelectorAll('.event-card').forEach((c, idx) => {{
                 c.classList.toggle('active', idx === currentIndex - 1);
             }});
@@ -611,7 +816,7 @@ def generate_player_html(session_id: str, session: dict, events: list) -> str:
 
         function play() {{
             isPlaying = true;
-            playBtn.innerText = 'Pause ❚❚';
+            playBtn.textContent = 'Pause ❚❚';
             timer = setInterval(() => {{
                 if (currentIndex >= events.length) {{
                     pause();
@@ -623,14 +828,14 @@ def generate_player_html(session_id: str, session: dict, events: list) -> str:
 
         function pause() {{
             isPlaying = false;
-            playBtn.innerText = 'Play ▶';
+            playBtn.textContent = 'Play ▶';
             if (timer) clearInterval(timer);
         }}
 
         function jumpTo(idx) {{
             pause();
             currentIndex = 0;
-            screen.innerHTML = '';
+            screen.replaceChildren();
             for (let i = 0; i <= idx && i < events.length; i++) {{
                 applyEvent(events[i]);
             }}
@@ -656,23 +861,34 @@ def generate_player_html(session_id: str, session: dict, events: list) -> str:
 """
 
 class RUMRequestHandler(BaseHTTPRequestHandler):
+    def _apply_cors_headers(self):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        origin = self.headers.get("Origin", "")
+        if origin and origin in ALLOWED_ORIGINS:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-RUM-Ingest-Token, traceparent")
+
     def send_json(self, status_code: int, data: dict):
         body = json.dumps(data).encode("utf-8")
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, traceparent")
+        self._apply_cors_headers()
         self.end_headers()
         self.wfile.write(body)
 
     def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, traceparent")
-        self.end_headers()
+        origin = self.headers.get("Origin", "")
+        if origin and origin in ALLOWED_ORIGINS:
+            self.send_response(204)
+            self._apply_cors_headers()
+            self.end_headers()
+        else:
+            self.send_response(403)
+            self.end_headers()
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -698,7 +914,8 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
                     "# TYPE argus_rum_events_total counter"
                 ]
                 for etype, cnt in TOTAL_EVENTS_BY_TYPE.items():
-                    lines.append(f'argus_rum_events_total{{event_type="{etype}"}} {cnt}')
+                    safe_etype = re.sub(r'[^a-zA-Z0-9_-]', '_', str(etype))
+                    lines.append(f'argus_rum_events_total{{event_type="{safe_etype}"}} {cnt}')
                 lines.append("")
                 body = "\n".join(lines).encode("utf-8")
                 self.send_response(200)
@@ -714,14 +931,17 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/javascript; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self._apply_cors_headers()
             self.send_header("Cache-Control", "public, max-age=3600")
             self.end_headers()
             self.wfile.write(body)
             return
 
-        # List sessions
+        # List sessions (requires auth)
         if path in ("/v1/rum/sessions", "/v1/rum/sessions/"):
+            if not verify_rum_auth(self.headers):
+                self.send_json(401, {"error": "unauthorized", "message": "Authentication required to list RUM sessions"})
+                return
             trace_id_filter = query.get("trace_id", [None])[0]
             with STORAGE_LOCK:
                 sessions_list = []
@@ -732,8 +952,11 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
             self.send_json(200, {"sessions": sessions_list, "count": len(sessions_list)})
             return
 
-        # Full session replay JSON
+        # Full session replay JSON (requires auth)
         if path.startswith("/v1/rum/replay/"):
+            if not verify_rum_auth(self.headers):
+                self.send_json(401, {"error": "unauthorized", "message": "Authentication required to access session replay"})
+                return
             session_id = path.replace("/v1/rum/replay/", "").strip("/")
             with STORAGE_LOCK:
                 s_meta = IN_MEMORY_SESSIONS.get(session_id)
@@ -749,8 +972,11 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
             })
             return
 
-        # Visual DOM Replay Player HTML
+        # Visual DOM Replay Player HTML (requires auth + strict CSP — C4)
         if path.startswith("/v1/rum/player/"):
+            if not verify_rum_auth(self.headers):
+                self.send_json(401, {"error": "unauthorized", "message": "Authentication required to open replay player"})
+                return
             session_id = path.replace("/v1/rum/player/", "").strip("/")
             with STORAGE_LOCK:
                 s_meta = IN_MEMORY_SESSIONS.get(session_id, {
@@ -762,66 +988,76 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
                     "errorsCount": 0
                 })
                 events = IN_MEMORY_EVENTS.get(session_id, [])
-            html_content = generate_player_html(session_id, s_meta, events).encode("utf-8")
+            csp_nonce = secrets.token_hex(16)
+            html_content = generate_player_html(session_id, s_meta, events, csp_nonce=csp_nonce).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(html_content)))
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header(
+                "Content-Security-Policy",
+                f"default-src 'none'; script-src 'nonce-{csp_nonce}'; style-src 'nonce-{csp_nonce}' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+            )
+            self._apply_cors_headers()
             self.end_headers()
             self.wfile.write(html_content)
             return
 
         # Sample interactive frontend demonstrating RUM and PII masking
         if path in ("/checkout", "/v1/rum/sample"):
-            sample_html = """<!DOCTYPE html>
+            csp_nonce = secrets.token_hex(16)
+            sample_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Argus Store — Secure Checkout</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; }
-        .checkout-container { max-width: 600px; margin: 0 auto; background: #1e293b; padding: 28px; border-radius: 8px; border: 1px solid #334155; }
-        h1 { font-size: 1.5rem; margin-bottom: 8px; color: #06b6d4; }
-        p.subtitle { color: #94a3b8; font-size: 0.9rem; margin-bottom: 24px; }
-        .form-group { margin-bottom: 16px; }
-        label { display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: #cbd5e1; }
-        .masked-badge { font-size: 0.7rem; background: rgba(244, 63, 94, 0.2); color: #f43f5e; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }
-        input { width: 100%; padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #fff; font-size: 0.95rem; box-sizing: border-box; }
-        input:focus { border-color: #06b6d4; outline: none; }
-        button { width: 100%; background: #06b6d4; color: #0f172a; border: none; padding: 12px; border-radius: 4px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 8px; }
-        button:hover { opacity: 0.9; }
-        .feedback { margin-top: 16px; padding: 12px; border-radius: 4px; display: none; font-size: 0.9rem; }
-        .feedback.success { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; }
+    <style nonce="{csp_nonce}">
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; }}
+        .checkout-container {{ max-width: 600px; margin: 0 auto; background: #1e293b; padding: 28px; border-radius: 8px; border: 1px solid #334155; }}
+        h1 {{ font-size: 1.5rem; margin-bottom: 8px; color: #06b6d4; }}
+        p.subtitle {{ color: #94a3b8; font-size: 0.9rem; margin-bottom: 24px; }}
+        .form-group {{ margin-bottom: 16px; }}
+        label {{ display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 600; color: #cbd5e1; }}
+        .masked-badge {{ font-size: 0.7rem; background: rgba(244, 63, 94, 0.2); color: #f43f5e; padding: 2px 6px; border-radius: 4px; margin-left: 6px; }}
+        input {{ width: 100%; padding: 10px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 4px; color: #fff; font-size: 0.95rem; box-sizing: border-box; }}
+        input:focus {{ border-color: #06b6d4; outline: none; }}
+        button {{ width: 100%; background: #06b6d4; color: #0f172a; border: none; padding: 12px; border-radius: 4px; font-weight: 700; font-size: 1rem; cursor: pointer; margin-top: 8px; }}
+        button:hover {{ opacity: 0.9; }}
+        .feedback {{ margin-top: 16px; padding: 12px; border-radius: 4px; display: none; font-size: 0.9rem; }}
+        .feedback.success {{ background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; }}
     </style>
-    <script src="/v1/rum/tracker.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            if (window.ArgusRUM) {
-                window.ArgusRUM.init({
+    <script nonce="{csp_nonce}" src="/v1/rum/tracker.js"></script>
+    <script nonce="{csp_nonce}">
+        document.addEventListener('DOMContentLoaded', function() {{
+            if (window.ArgusRUM) {{
+                window.ArgusRUM.init({{
                     collectorUrl: '/v1/rum/ingest',
                     userId: 'customer-jane-doe',
                     sessionId: 'sess-sample-demo'
-                });
-            }
-        });
-        function handleCheckout(e) {
+                }});
+            }}
+        }});
+        function handleCheckout(e) {{
             e.preventDefault();
-            if (window.ArgusRUM) {
-                window.ArgusRUM.recordEvent('click', { tag: 'button', id: 'submitBtn', text: 'Complete Purchase' });
+            if (window.ArgusRUM) {{
+                window.ArgusRUM.recordEvent('click', {{ tag: 'button', id: 'submitBtn', text: 'Complete Purchase' }});
                 window.ArgusRUM.flush();
-            }
+            }}
             const fb = document.getElementById('feedbackMsg');
             fb.style.display = 'block';
             fb.className = 'feedback success';
-            fb.innerText = 'Order submitted successfully! RUM telemetry beacon flushed.';
-        }
+            fb.textContent = 'Order submitted successfully! RUM telemetry beacon flushed.';
+        }}
+        document.addEventListener('DOMContentLoaded', function() {{
+            const form = document.getElementById('checkoutForm');
+            if (form) form.addEventListener('submit', handleCheckout);
+        }});
     </script>
 </head>
 <body>
     <div class="checkout-container">
         <h1>Argus Store — Secure Checkout</h1>
         <p class="subtitle">Demonstrating Client-Side and Server-Side PII Masking during DOM Session Recording</p>
-        <form id="checkoutForm" onsubmit="handleCheckout(event)">
+        <form id="checkoutForm" autocomplete="off">
             <div class="form-group">
                 <label for="fullName">Full Name (Public Field)</label>
                 <input type="text" id="fullName" name="fullName" value="Jane Doe" required>
@@ -832,11 +1068,11 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
             </div>
             <div class="form-group">
                 <label for="password">Account Password <span class="masked-badge">Masked (***)</span></label>
-                <input type="password" id="password" name="password" placeholder="••••••••••••" value="SuperSecretPassword123!" required>
+                <input type="password" id="password" name="password" placeholder="••••••••••••" required>
             </div>
             <div class="form-group">
                 <label for="creditCard">Credit Card Number <span class="masked-badge">Masked (***)</span></label>
-                <input type="text" id="creditCard" name="creditCard" data-masked="true" value="4111-2222-3333-4444" required>
+                <input type="text" id="creditCard" name="creditCard" data-masked="true" placeholder="••••-••••-••••-••••" required>
             </div>
             <div class="form-group">
                 <label for="deliveryNotes">Delivery Instructions (Public Field)</label>
@@ -851,7 +1087,11 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(sample_html)))
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header(
+                "Content-Security-Policy",
+                f"default-src 'none'; script-src 'self' 'nonce-{csp_nonce}'; style-src 'nonce-{csp_nonce}' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+            )
+            self._apply_cors_headers()
             self.end_headers()
             self.wfile.write(sample_html)
             return
@@ -863,6 +1103,11 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
         path = parsed.path
 
         if path in ("/v1/rum/ingest", "/v1/rum/ingest/"):
+            # Require authentication on ingest (C4)
+            if not verify_rum_auth(self.headers):
+                self.send_json(401, {"error": "unauthorized", "message": "Valid RUM ingest token or Bearer JWT required"})
+                return
+
             content_len = int(self.headers.get("Content-Length", 0))
             if content_len == 0:
                 self.send_json(400, {"error": "empty payload"})
@@ -885,14 +1130,14 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
                 self.send_json(400, {"error": "missing or invalid sessionId"})
                 return
 
-            # Apply server-side defense-in-depth PII sanitization
+            # Apply server-side defense-in-depth PII sanitization & HTML/XSS stripping (C4)
             sanitized_payload, pii_redactions = deep_redact(raw_payload)
 
-            user_id = sanitized_payload.get("userId", "anonymous")
-            user_email = sanitized_payload.get("userEmail", "")
-            trace_id = sanitized_payload.get("traceId", "")
-            page_url = sanitized_payload.get("pageUrl", "/")
-            user_agent = sanitized_payload.get("userAgent", self.headers.get("User-Agent", ""))
+            user_id = str(sanitized_payload.get("userId", "anonymous"))
+            user_email = str(sanitized_payload.get("userEmail", ""))
+            trace_id = str(sanitized_payload.get("traceId", ""))
+            page_url = str(sanitized_payload.get("pageUrl", "/"))
+            user_agent = str(sanitized_payload.get("userAgent", self.headers.get("User-Agent", "")))
             client_ip = self.client_address[0] if self.client_address else "127.0.0.1"
             # Mask client IP (keep first 2 octets)
             ip_parts = client_ip.split(".")
@@ -903,7 +1148,7 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
                 events = []
 
             now_iso = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
-            errors_in_batch = sum(1 for e in events if e.get("type") == "console_error")
+            errors_in_batch = sum(1 for e in events if isinstance(e, dict) and e.get("type") == "console_error")
 
             # Store in memory
             with STORAGE_LOCK:
@@ -940,56 +1185,61 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
                 global TOTAL_PII_REDACTED
                 TOTAL_PII_REDACTED += pii_redactions
                 for e in events:
-                    etype = str(e.get("type", "unknown"))
-                    TOTAL_EVENTS_BY_TYPE[etype] = TOTAL_EVENTS_BY_TYPE.get(etype, 0) + 1
+                    if isinstance(e, dict):
+                        etype = str(e.get("type", "unknown"))
+                        TOTAL_EVENTS_BY_TYPE[etype] = TOTAL_EVENTS_BY_TYPE.get(etype, 0) + 1
 
-            # Asynchronous ClickHouse ingestion
+            # Asynchronous ClickHouse ingestion using parameterized queries / JSONEachRow (H1)
             def persist_clickhouse():
-                # 1. Update session row
-                escaped_s_id = session_id.replace("'", "''")
-                escaped_u_id = user_id.replace("'", "''")
-                escaped_email = str(user_email).replace("'", "''")
-                escaped_trace = trace_id.replace("'", "''")
-                escaped_agent = user_agent.replace("'", "''")
-                escaped_url = page_url.replace("'", "''")
-
-                sql_session = f"""
+                sql_session = """
                 INSERT INTO default.rum_sessions (
                     session_id, user_id, user_email_masked, start_time, end_time,
                     duration_ms, events_count, errors_count, trace_id, user_agent,
                     page_url, ip_masked, metadata
                 ) VALUES (
-                    '{escaped_s_id}', '{escaped_u_id}', '{escaped_email}',
-                    '{now_iso}', '{now_iso}', 1000, {len(events)}, {errors_in_batch},
-                    '{escaped_trace}', '{escaped_agent}', '{escaped_url}', '{ip_masked}',
+                    {s_id:String}, {u_id:String}, {u_email:String},
+                    {start_ts:String}, {end_ts:String}, 1000, {ev_cnt:UInt32}, {err_cnt:UInt32},
+                    {t_id:String}, {u_agent:String}, {p_url:String}, {ip_m:String},
                     map('collector', 'argus-rum-collector')
                 )
                 """
-                execute_clickhouse_query(sql_session)
+                execute_clickhouse_query(sql_session, params={
+                    "s_id": session_id,
+                    "u_id": user_id,
+                    "u_email": user_email,
+                    "start_ts": now_iso,
+                    "end_ts": now_iso,
+                    "ev_cnt": len(events),
+                    "err_cnt": errors_in_batch,
+                    "t_id": trace_id,
+                    "u_agent": user_agent,
+                    "p_url": page_url,
+                    "ip_m": ip_masked,
+                })
 
-                # 2. Insert event rows
-                for ev in events:
-                    e_id = ev.get("eventId", f"evt-{secrets.token_hex(4)}").replace("'", "''")
-                    e_type = str(ev.get("type", "unknown")).replace("'", "''")
-                    e_tag = str(ev.get("targetTag", "")).replace("'", "''")
-                    e_tid = str(ev.get("targetId", "")).replace("'", "''")
-                    e_cls = str(ev.get("targetClass", "")).replace("'", "''")
-                    e_sel = str(ev.get("targetSelector", "")).replace("'", "''")
-                    e_mask = str(ev.get("maskedValue", "")).replace("'", "''")
-                    e_pay = json.dumps(ev.get("payload", {})).replace("'", "''")
-
-                    sql_evt = f"""
-                    INSERT INTO default.rum_events (
-                        session_id, event_id, timestamp, event_type,
-                        target_tag, target_id, target_class, target_selector,
-                        masked_value, payload, trace_id
-                    ) VALUES (
-                        '{escaped_s_id}', '{e_id}', '{now_iso}', '{e_type}',
-                        '{e_tag}', '{e_tid}', '{e_cls}', '{e_sel}',
-                        '{e_mask}', '{e_pay}', '{escaped_trace}'
-                    )
-                    """
-                    execute_clickhouse_query(sql_evt)
+                # Batch insert events via JSONEachRow (completely immune to SQL string literal injection — H1)
+                if events:
+                    json_rows = []
+                    for ev in events:
+                        if not isinstance(ev, dict):
+                            continue
+                        row = {
+                            "session_id": session_id,
+                            "event_id": str(ev.get("eventId", f"evt-{secrets.token_hex(4)}")),
+                            "timestamp": now_iso,
+                            "event_type": str(ev.get("type", "unknown")),
+                            "target_tag": str(ev.get("targetTag", "")),
+                            "target_id": str(ev.get("targetId", "")),
+                            "target_class": str(ev.get("targetClass", "")),
+                            "target_selector": str(ev.get("targetSelector", "")),
+                            "masked_value": str(ev.get("maskedValue", "")),
+                            "payload": json.dumps(ev.get("payload", {})),
+                            "trace_id": trace_id
+                        }
+                        json_rows.append(json.dumps(row))
+                    if json_rows:
+                        sql_evt_batch = "INSERT INTO default.rum_events FORMAT JSONEachRow\n" + "\n".join(json_rows) + "\n"
+                        execute_clickhouse_query(sql_evt_batch)
 
             threading.Thread(target=persist_clickhouse, daemon=True).start()
 

@@ -68,7 +68,7 @@ done
 
 # 4. Clean reset
 echo "--> [4/4] Resetting SLO tracker counters to baseline..."
-kubectl exec </dev/null -n "${NAMESPACE}" deployment/argus-sample-service -- wget -qO- --post-data="" http://127.0.0.1:8080/api/slo/reset >/dev/null
+kubectl exec </dev/null -n "${NAMESPACE}" deployment/argus-sample-service -- sh -c 'wget -qO- --header="Authorization: Bearer ${SAMPLE_APP_API_TOKEN}" --post-data="" http://127.0.0.1:8080/api/slo/reset >/dev/null'
 echo "    SLO tracker successfully reset."
 
 echo "================================================================="

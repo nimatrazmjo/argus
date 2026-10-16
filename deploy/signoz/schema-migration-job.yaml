@@ -19,29 +19,47 @@ spec:
         - name: ready
           image: localhost:5001/argus/signoz-otel-collector:v0.144.13
           imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
           args:
             - "migrate"
             - "ready"
-            - "--clickhouse-dsn=tcp://default:argus123@clickhouse-argus-clickhouse:9000"
+            - "--clickhouse-dsn=tcp://default:$(CLICKHOUSE_PASSWORD)@clickhouse-argus-clickhouse:9000"
             - "--clickhouse-cluster=cluster"
             - "--clickhouse-replication=true"
         - name: bootstrap
           image: localhost:5001/argus/signoz-otel-collector:v0.144.13
           imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
           args:
             - "migrate"
             - "bootstrap"
-            - "--clickhouse-dsn=tcp://default:argus123@clickhouse-argus-clickhouse:9000"
+            - "--clickhouse-dsn=tcp://default:$(CLICKHOUSE_PASSWORD)@clickhouse-argus-clickhouse:9000"
             - "--clickhouse-cluster=cluster"
             - "--clickhouse-replication=true"
         - name: sync
           image: localhost:5001/argus/signoz-otel-collector:v0.144.13
           imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
           args:
             - "migrate"
             - "sync"
             - "up"
-            - "--clickhouse-dsn=tcp://default:argus123@clickhouse-argus-clickhouse:9000"
+            - "--clickhouse-dsn=tcp://default:$(CLICKHOUSE_PASSWORD)@clickhouse-argus-clickhouse:9000"
             - "--clickhouse-cluster=cluster"
             - "--clickhouse-replication=true"
             - "--timeout=5m"
@@ -49,11 +67,17 @@ spec:
         - name: async
           image: localhost:5001/argus/signoz-otel-collector:v0.144.13
           imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
           args:
             - "migrate"
             - "async"
             - "up"
-            - "--clickhouse-dsn=tcp://default:argus123@clickhouse-argus-clickhouse:9000"
+            - "--clickhouse-dsn=tcp://default:$(CLICKHOUSE_PASSWORD)@clickhouse-argus-clickhouse:9000"
             - "--clickhouse-cluster=cluster"
             - "--clickhouse-replication=true"
             - "--timeout=5m"

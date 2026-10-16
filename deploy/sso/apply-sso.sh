@@ -10,6 +10,20 @@ echo "================================================================="
 echo "       ARGUS AGENCY SSO & RBAC GATEWAY ROLLOUT (F016)            "
 echo "================================================================="
 
+echo "--> [0/3] Ensuring Kubernetes Secret argus-sso-secret exists..."
+if [ -n "${JWT_SECRET:-}" ]; then
+  EFFECTIVE_JWT_SECRET="${JWT_SECRET}"
+elif kubectl get secret argus-sso-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+  EFFECTIVE_JWT_SECRET="$(kubectl get secret argus-sso-secret -n "${NAMESPACE}" -o jsonpath='{.data.jwt-secret}' | base64 -d)"
+else
+  EFFECTIVE_JWT_SECRET="$(openssl rand -hex 32)"
+fi
+
+kubectl create secret generic argus-sso-secret \
+  -n "${NAMESPACE}" \
+  --from-literal=jwt-secret="${EFFECTIVE_JWT_SECRET}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 echo "--> [1/3] Updating ConfigMaps for Agency IdP and SSO Gateway..."
 kubectl create configmap argus-idp-code \
   -n "${NAMESPACE}" \

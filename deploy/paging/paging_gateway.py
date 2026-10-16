@@ -6,6 +6,7 @@ Provides duplicate alert suppression, state synchronization (firing -> New, reso
 and an asynchronous exponential-backoff retry queue for destination resilience during network outages.
 """
 
+import hmac
 import json
 import os
 import sys
@@ -23,6 +24,22 @@ SERVICENOW_URL = os.environ.get(
 ).rstrip("/")
 DEDUP_WINDOW_SECONDS = int(os.environ.get("DEDUP_WINDOW_SECONDS", "300"))
 MAX_RETRIES = int(os.environ.get("MAX_RETRIES", "5"))
+PAGING_WEBHOOK_TOKEN = os.environ.get("PAGING_WEBHOOK_TOKEN", "")
+
+
+def verify_paging_auth(headers) -> tuple[bool, int, str]:
+    """Authenticates state-changing requests via X-Webhook-Token or Authorization: Bearer header."""
+    if not PAGING_WEBHOOK_TOKEN:
+        return False, 500, "Server configuration error: PAGING_WEBHOOK_TOKEN is not configured"
+    webhook_token = headers.get("X-Webhook-Token", "").strip()
+    if webhook_token and hmac.compare_digest(webhook_token, PAGING_WEBHOOK_TOKEN):
+        return True, 200, "OK"
+    auth_header = headers.get("Authorization", "").strip()
+    if auth_header.startswith("Bearer "):
+        bearer_token = auth_header.split(" ", 1)[1].strip()
+        if bearer_token and hmac.compare_digest(bearer_token, PAGING_WEBHOOK_TOKEN):
+            return True, 200, "OK"
+    return False, 401, "Unauthorized: valid X-Webhook-Token or Bearer token required"
 
 # Global thread-safe state
 LOCK = threading.Lock()
@@ -195,6 +212,11 @@ class PagingGatewayHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         global ACTIVE_INCIDENTS, STATS
+        auth_ok, auth_code, auth_err = verify_paging_auth(self.headers)
+        if not auth_ok:
+            self._send_json(auth_code, {"error": auth_err})
+            return
+
         content_len = int(self.headers.get("Content-Length", 0))
         raw_body = self.rfile.read(content_len).decode("utf-8") if content_len > 0 else ""
 

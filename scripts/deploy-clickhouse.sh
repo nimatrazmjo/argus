@@ -28,6 +28,11 @@ kubectl wait --for=condition=Ready pod -l clickhouse-keeper.altinity.com/chk=arg
 
 # 4. Deploy ClickHouse HA Installation
 echo "--> [4/4] Deploying ClickHouse HA Installation..."
+if ! kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+  CH_PWD="${CLICKHOUSE_PASSWORD:-$(openssl rand -hex 16)}"
+  kubectl create secret generic argus-clickhouse-secret -n "${NAMESPACE}" \
+    --from-literal=CLICKHOUSE_PASSWORD="${CH_PWD}"
+fi
 kubectl apply -f deploy/clickhouse/clickhouse-ha.yaml
 
 echo "    Waiting for ClickHouse pods to be ready..."

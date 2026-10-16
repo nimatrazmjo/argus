@@ -11,14 +11,17 @@ Provides:
 5. In-boundary egress auditing (0 unauthorized external outbound requests).
 """
 
+import base64
+import hashlib
+import hmac
 import json
 import os
+import re
 import sys
 import time
-import re
-import urllib.request
 import urllib.error
 import urllib.parse
+import urllib.request
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 
@@ -31,6 +34,11 @@ BEDROCK_ENDPOINT = os.environ.get(
     "BEDROCK_ENDPOINT", f"https://bedrock-runtime.{GOVCLOUD_REGION}.amazonaws.com"
 )
 AIRGAP_MODE = os.environ.get("AIRGAP_MODE", "true").lower() == "true"
+JWT_SECRET = os.environ.get("JWT_SECRET", "").strip()
+EXPECTED_ISSUER = os.environ.get("OIDC_ISSUER", "http://argus-idp.argus-system.svc.cluster.local:8089")
+EXPECTED_AUDIENCE = os.environ.get("OIDC_AUDIENCE", "argus-platform")
+
+TENANT_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
 LOCK = threading.Lock()
 
@@ -173,12 +181,19 @@ def validate_schema_fields(sql: str) -> tuple[bool, str]:
 
     return True, "OK"
 
+def escape_clickhouse_string(val: str) -> str:
+    """Safely escapes string literals for ClickHouse SQL (including backslashes and quotes)."""
+    return val.replace("\\", "\\\\").replace("'", "\\'").replace("\0", "").replace("\n", "\\n").replace("\r", "\\r")
+
 def translate_nl_to_sql(nl_query: str, tenant_id: str = "default") -> tuple[str, str, dict]:
     """
     Translates Natural Language observability questions to ClickHouse SQL.
     Returns (status, sql_query, metadata).
     status: 'ok', 'ambiguous', 'error'
     """
+    if not isinstance(tenant_id, str) or not TENANT_ID_RE.match(tenant_id):
+        return "error", "", {"error": "Invalid or untrusted tenant_id format."}
+
     raw_lower = nl_query.lower().strip()
     words = raw_lower.split()
     if words:
@@ -230,7 +245,7 @@ def translate_nl_to_sql(nl_query: str, tenant_id: str = "default") -> tuple[str,
         limit = 5
         limit_match = re.search(r"top\s+(\d+)", query_lower)
         if limit_match:
-            limit = int(limit_match.group(1))
+            limit = min(max(int(limit_match.group(1)), 1), 100)
 
         time_window = "1 HOUR"
         if "15 minute" in query_lower:
@@ -311,12 +326,18 @@ def translate_nl_to_sql(nl_query: str, tenant_id: str = "default") -> tuple[str,
             "GROUP BY ServiceName ORDER BY span_count DESC LIMIT 10"
         )
 
-    # Multi-tenant enforcement: Inject tenant filter if tenant is not default
+    # Multi-tenant enforcement: Inject validated & escaped tenant filter if tenant is not default (H2)
+    query_params = {}
+    parameterized_sql = sql
     if tenant_id and tenant_id != "default":
+        safe_tenant = escape_clickhouse_string(tenant_id)
+        query_params["param_tenant_id"] = tenant_id
         if "WHERE" in sql:
-            sql = sql.replace("WHERE ", f"WHERE (ResourceAttributes['tenant_id'] = '{tenant_id}') AND ")
+            parameterized_sql = sql.replace("WHERE ", "WHERE (ResourceAttributes['tenant_id'] = {tenant_id:String}) AND ")
+            sql = sql.replace("WHERE ", f"WHERE (ResourceAttributes['tenant_id'] = '{safe_tenant}') AND ")
         else:
-            sql = sql.replace("GROUP BY", f"WHERE (ResourceAttributes['tenant_id'] = '{tenant_id}') GROUP BY")
+            parameterized_sql = sql.replace("GROUP BY", "WHERE (ResourceAttributes['tenant_id'] = {tenant_id:String}) GROUP BY")
+            sql = sql.replace("GROUP BY", f"WHERE (ResourceAttributes['tenant_id'] = '{safe_tenant}') GROUP BY")
 
     # Safety checks
     is_safe, safety_err = validate_sql_safety(sql)
@@ -331,7 +352,9 @@ def translate_nl_to_sql(nl_query: str, tenant_id: str = "default") -> tuple[str,
     return "ok", sql, {
         "domain": domain,
         "sanitized_injection": was_injected,
-        "tenant_id": tenant_id
+        "tenant_id": tenant_id,
+        "parameterized_sql": parameterized_sql,
+        "query_params": query_params
     }
 
 def generate_incident_summary(incident_payload: dict) -> dict:
@@ -400,47 +423,84 @@ def generate_incident_summary(incident_payload: dict) -> dict:
         "generated_at": time.time()
     }
 
-def authenticate_jwt_role(auth_header: str) -> tuple[bool, str, str, str]:
+def _b64url_decode(s: str) -> bytes:
+    rem = len(s) % 4
+    if rem > 0:
+        s += "=" * (4 - rem)
+    return base64.urlsafe_b64decode(s)
+
+def authenticate_jwt_role(auth_header: str, secret: str = None) -> tuple[bool, str, str, str]:
     """
-    Validates Authorization Bearer JWT.
+    Validates Authorization Bearer JWT with full cryptographic HMAC-SHA256 verification.
     Returns (authorized, role, username, tenant_id).
     Valid roles: 'admin', 'operator', 'viewer'.
     """
     if not auth_header or not auth_header.startswith("Bearer "):
         return False, "", "", ""
 
-    token = auth_header.split(" ", 1)[1].strip()
+    signing_secret = (secret if secret is not None else os.environ.get("JWT_SECRET", JWT_SECRET)).strip()
+    if not signing_secret:
+        return False, "", "", ""
 
-    # Parse JWT payload without external library dependencies
+    token = auth_header.split(" ", 1)[1].strip()
     parts = token.split(".")
     if len(parts) != 3:
-        # Fallback support for simulated tokens in dev/test (e.g. bearer-admin, bearer-operator, bearer-viewer)
-        if token.startswith("token-") or token.startswith("test-"):
-            role = "viewer"
-            if "admin" in token:
-                role = "admin"
-            elif "operator" in token:
-                role = "operator"
-            tenant = "tenant_alpha" if "alpha" in token else "default"
-            return True, role, f"user-{role}", tenant
         return False, "", "", ""
 
     try:
-        import base64
-        # Base64url decode payload
-        payload_b64 = parts[1]
-        payload_b64 += "=" * ((4 - len(payload_b64) % 4) % 4)
-        payload_json = base64.urlsafe_b64decode(payload_b64).decode("utf-8")
-        claims = json.loads(payload_json)
-
-        # Check expiration
-        exp = claims.get("exp", 0)
-        if exp and exp < time.time():
+        h_b64, p_b64, s_b64 = parts
+        header = json.loads(_b64url_decode(h_b64).decode("utf-8"))
+        if not isinstance(header, dict) or header.get("alg") != "HS256" or header.get("typ") not in (None, "JWT"):
             return False, "", "", ""
 
-        role = claims.get("role", "viewer").lower()
-        username = claims.get("sub", claims.get("username", "user"))
-        tenant = claims.get("tenant_id", "default")
+        msg = f"{h_b64}.{p_b64}".encode("utf-8")
+        expected_sig = hmac.new(signing_secret.encode("utf-8"), msg, hashlib.sha256).digest()
+        actual_sig = _b64url_decode(s_b64)
+        if not hmac.compare_digest(expected_sig, actual_sig):
+            return False, "", "", ""
+
+        claims = json.loads(_b64url_decode(p_b64).decode("utf-8"))
+        if not isinstance(claims, dict):
+            return False, "", "", ""
+
+        now = time.time()
+        exp = claims.get("exp")
+        if not isinstance(exp, (int, float)) or exp < now:
+            return False, "", "", ""
+
+        nbf = claims.get("nbf")
+        if nbf is not None and (not isinstance(nbf, (int, float)) or now < float(nbf) - 5):
+            return False, "", "", ""
+
+        iss = claims.get("iss")
+        if iss is not None and iss != EXPECTED_ISSUER:
+            return False, "", "", ""
+
+        aud = claims.get("aud")
+        if aud is not None:
+            valid_aud = (aud == EXPECTED_AUDIENCE) if isinstance(aud, str) else (isinstance(aud, list) and EXPECTED_AUDIENCE in aud)
+            if not valid_aud:
+                return False, "", "", ""
+
+        # Determine role from verified claims
+        raw_role = str(claims.get("role", "")).lower()
+        groups = claims.get("groups", []) if isinstance(claims.get("groups"), list) else []
+        roles = [str(r).lower() for r in (claims.get("roles", []) if isinstance(claims.get("roles"), list) else [])]
+
+        if raw_role == "admin" or "admin" in roles or "dhs-soc-admins" in groups:
+            role = "admin"
+        elif raw_role == "operator" or "operator" in roles or "dhs-soc-operators" in groups:
+            role = "operator"
+        elif raw_role == "viewer" or "viewer" in roles or "dhs-soc-viewers" in groups:
+            role = "viewer"
+        else:
+            return False, "", "", ""
+
+        username = str(claims.get("sub", claims.get("username", "user")))
+        tenant = str(claims.get("tenant_id", "default"))
+        if not TENANT_ID_RE.match(tenant):
+            return False, "", "", ""
+
         return True, role, username, tenant
     except Exception:
         return False, "", "", ""
@@ -451,6 +511,7 @@ class AIOpsLLMHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(body)
 
@@ -531,27 +592,18 @@ class AIOpsLLMHandler(BaseHTTPRequestHandler):
         content_len = int(self.headers.get("Content-Length", 0))
         raw_body = self.rfile.read(content_len).decode("utf-8") if content_len > 0 else ""
 
-        # Authenticate JWT & RBAC role
+        # Strictly authenticate JWT & RBAC role (no header or test-token backdoors — C1)
         auth_header = self.headers.get("Authorization", "")
         authorized, role, user, tenant = authenticate_jwt_role(auth_header)
 
-        # Allow unauthenticated queries only if test header present or if health/test endpoint
         if not authorized:
-            # Check for simulated testing tokens
-            test_token = self.headers.get("X-Argus-Test-Role", "")
-            if test_token in ("admin", "operator", "viewer"):
-                authorized = True
-                role = test_token
-                user = f"test-{test_token}"
-                tenant = self.headers.get("X-Argus-Tenant", "default")
-            else:
-                with LOCK:
-                    STATS["rbac_denials_total"] += 1
-                self._send_json(401, {
-                    "error": "Unauthorized",
-                    "detail": "Missing, invalid, or expired Authorization Bearer token."
-                })
-                return
+            with LOCK:
+                STATS["rbac_denials_total"] += 1
+            self._send_json(401, {
+                "error": "Unauthorized",
+                "detail": "Missing, invalid, or expired Authorization Bearer token."
+            })
+            return
 
         # -------------------------------------------------------------
         # 1. Natural Language Telemetry Query (NL-to-SQL)
@@ -621,6 +673,8 @@ class AIOpsLLMHandler(BaseHTTPRequestHandler):
                 "status": "ok",
                 "nl_query": query,
                 "generated_sql": sql,
+                "parameterized_sql": meta.get("parameterized_sql", sql),
+                "query_params": meta.get("query_params", {}),
                 "domain": meta.get("domain"),
                 "sanitized_injection": meta.get("sanitized_injection", False),
                 "translation_time_ms": t_elapsed_ms,
@@ -688,6 +742,9 @@ class AIOpsLLMHandler(BaseHTTPRequestHandler):
         self._send_json(404, {"error": "Not Found"})
 
 def run_server():
+    if not os.environ.get("JWT_SECRET", JWT_SECRET).strip():
+        sys.stderr.write("ERROR: JWT_SECRET environment variable must be set before starting argus-aiops-llm.\n")
+        sys.exit(1)
     server = HTTPServer(("0.0.0.0", PORT), AIOpsLLMHandler)
     print(f"[AIOps-LLM-Service] Listening on port {PORT} in GovCloud region {GOVCLOUD_REGION}...")
     server.serve_forever()

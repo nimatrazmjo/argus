@@ -21,8 +21,9 @@ if [ -z "${SAMPLE_POD}" ]; then
 fi
 
 # 2. Execute E2E Verification
+SYNTHETIC_BEARER_TOKEN=$(kubectl get secret argus-synthetic-secret -n "${NAMESPACE}" -o jsonpath='{.data.SYNTHETIC_BEARER_TOKEN}' 2>/dev/null | base64 -d || echo "")
 echo "--> [2/4] Executing synthetic probing E2E controller via cluster pod..."
-kubectl exec -n "${NAMESPACE}" "${SAMPLE_POD}" -- python -c "
+kubectl exec -n "${NAMESPACE}" "${SAMPLE_POD}" -- env SYNTHETIC_BEARER_TOKEN="${SYNTHETIC_BEARER_TOKEN}" python -c "
 $(cat "${SCRIPT_DIR}/run_synthetics_e2e.py")
 "
 

@@ -7,7 +7,7 @@ Verifies:
 3. Client-side and server-side PII masking (passwords, credit cards, emails, SSNs).
 4. ClickHouse persistence in default.rum_sessions and default.rum_events.
 5. Replay timeline retrieval (/v1/rum/replay/<session_id>) with verified masking.
-6. Visual DOM Replay Player (/v1/rum/player/<session_id>) generation.
+6. Visual DOM Replay Player (/v1/rum/player/<session_id>) generation with CSP.
 7. Bi-directional correlation between client session and backend APM trace ID.
 """
 
@@ -22,19 +22,33 @@ import urllib.request
 
 RUM_URL = os.environ.get("RUM_URL", "http://argus-rum-collector.argus-system.svc.cluster.local:8082")
 CLICKHOUSE_HTTP = os.environ.get("CLICKHOUSE_HTTP", "http://chi-argus-clickhouse-argus-cluster-0-0.argus-system.svc.cluster.local:8123")
+CLICKHOUSE_USER = os.environ.get("CLICKHOUSE_USER", "default")
+CLICKHOUSE_PASSWORD = os.environ.get("CLICKHOUSE_PASSWORD", "")
+RUM_INGEST_TOKEN = os.environ.get("RUM_INGEST_TOKEN", "")
 EVIDENCE_DIR = os.environ.get("EVIDENCE_DIR", "/tmp/evidence-f017")
 
-def http_get(url: str, timeout: int = 10) -> tuple[int, str]:
-    req = urllib.request.Request(url)
+def _auth_headers(extra: dict = None) -> dict:
+    hdrs = {}
+    if RUM_INGEST_TOKEN:
+        hdrs["X-RUM-Ingest-Token"] = RUM_INGEST_TOKEN
+    if extra:
+        hdrs.update(extra)
+    return hdrs
+
+def http_get(url: str, timeout: int = 10, headers: dict = None) -> tuple[int, str]:
+    req = urllib.request.Request(url, headers=_auth_headers(headers))
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, resp.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8", errors="replace")
 
-def http_post_json(url: str, payload: dict, timeout: int = 10) -> tuple[int, dict]:
+def http_post_json(url: str, payload: dict, timeout: int = 10, headers: dict = None) -> tuple[int, dict]:
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    req_hdrs = _auth_headers({"Content-Type": "application/json"})
+    if headers:
+        req_hdrs.update(headers)
+    req = urllib.request.Request(url, data=data, headers=req_hdrs)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8"))
@@ -45,10 +59,12 @@ def http_post_json(url: str, payload: dict, timeout: int = 10) -> tuple[int, dic
         except Exception:
             return e.code, {"error": body}
 
-def ch_query(sql: str, user: str = "default", password: str = "argus123") -> str:
+def ch_query(sql: str, user: str = None, password: str = None) -> str:
+    u = user if user is not None else CLICKHOUSE_USER
+    p = password if password is not None else CLICKHOUSE_PASSWORD
     url = f"{CLICKHOUSE_HTTP}/?wait_end_of_query=1"
     req = urllib.request.Request(url, data=sql.encode("utf-8"), method="POST")
-    auth = f"{user}:{password}"
+    auth = f"{u}:{p}"
     b64_auth = base64.b64encode(auth.encode()).decode()
     req.add_header("Authorization", f"Basic {b64_auth}")
     try:
@@ -92,7 +108,6 @@ def main():
     safe_name = "Alice User"
     safe_notes = "Deliver to security dock 4"
 
-    now_ns = int(time.time() * 1e9)
     ts1 = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(time.time()))
     ts2 = time.strftime("%Y-%m-%dT%H:%M:%S.200Z", time.gmtime(time.time() + 0.2))
     ts3 = time.strftime("%Y-%m-%dT%H:%M:%S.400Z", time.gmtime(time.time() + 0.4))
@@ -196,7 +211,6 @@ def main():
     raw_ch_sess = ch_query(sql_check_session)
     ch_sess_data = json.loads(raw_ch_sess).get("data", [])
     if not ch_sess_data:
-        # Retry once after 2 seconds
         time.sleep(2)
         raw_ch_sess = ch_query(sql_check_session)
         ch_sess_data = json.loads(raw_ch_sess).get("data", [])

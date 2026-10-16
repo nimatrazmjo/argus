@@ -14,13 +14,17 @@ import urllib.error
 GATEWAY_URL = os.environ.get("GATEWAY_URL", "http://argus-paging-gateway.argus-system.svc.cluster.local:9099")
 SERVICENOW_URL = os.environ.get("SERVICENOW_URL", "http://argus-servicenow-mock.argus-system.svc.cluster.local:8088")
 EVIDENCE_DIR = os.environ.get("EVIDENCE_DIR", "/tmp/evidence-f013")
+PAGING_WEBHOOK_TOKEN = os.environ.get("PAGING_WEBHOOK_TOKEN", "")
 
 def http_json(url: str, data: dict = None, method: str = None) -> tuple[int, dict]:
     m = method or ("POST" if data is not None else "GET")
+    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    if PAGING_WEBHOOK_TOKEN:
+        headers["X-Webhook-Token"] = PAGING_WEBHOOK_TOKEN
     req = urllib.request.Request(
         url,
         data=json.dumps(data).encode("utf-8") if data is not None else None,
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        headers=headers,
         method=m
     )
     try:

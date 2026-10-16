@@ -6,6 +6,7 @@ Supports configurable edge case simulation (dropped span, missing trace id, cloc
 Provides in-service SLO tracking, error budget burndown calculation, and visual dashboard.
 """
 
+import hmac
 import json
 import os
 import sys
@@ -32,10 +33,26 @@ POD_NAME = os.environ.get("POD_NAME", "sample-service-pod")
 NODE_NAME = os.environ.get("NODE_NAME", "docker-desktop")
 SLO_TARGET_PERCENT = float(os.environ.get("SLO_TARGET_PERCENT", "99.0"))
 SLO_LATENCY_TARGET_MS = float(os.environ.get("SLO_LATENCY_TARGET_MS", "500.0"))
+SAMPLE_APP_API_TOKEN = os.environ.get("SAMPLE_APP_API_TOKEN", "")
 
 # Global in-memory storage for received alert webhooks
 RECEIVED_ALERTS = []
 ALERTS_LOCK = threading.Lock()
+
+
+def verify_sample_app_auth(headers) -> tuple[bool, int, str]:
+    """Authenticates state-changing requests via Authorization: Bearer or X-Argus-Token header."""
+    if not SAMPLE_APP_API_TOKEN:
+        return False, 500, "Server configuration error: SAMPLE_APP_API_TOKEN is not configured"
+    argus_tok = headers.get("X-Argus-Token", "").strip()
+    if argus_tok and hmac.compare_digest(argus_tok, SAMPLE_APP_API_TOKEN):
+        return True, 200, "OK"
+    auth_header = headers.get("Authorization", "").strip()
+    if auth_header.startswith("Bearer "):
+        bearer_tok = auth_header.split(" ", 1)[1].strip()
+        if bearer_tok and hmac.compare_digest(bearer_tok, SAMPLE_APP_API_TOKEN):
+            return True, 200, "OK"
+    return False, 401, "Unauthorized: valid Bearer or X-Argus-Token required"
 
 
 class SLOTracker:
@@ -865,6 +882,19 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         # SLO Reset endpoint
         if path == "/api/slo/reset":
+            if self.command != "POST":
+                self.send_response(405)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error": "Method Not Allowed"}')
+                return
+            auth_ok, auth_code, auth_err = verify_sample_app_auth(self.headers)
+            if not auth_ok:
+                self.send_response(auth_code)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": auth_err}).encode("utf-8"))
+                return
             slo_tracker.reset()
             status = slo_tracker.get_status()
             emit_slo_metrics(status)
@@ -887,6 +917,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         # Webhook Alert Ingestion & Query endpoint
         if path == "/api/alerts":
             if self.command == "POST":
+                auth_ok, auth_code, auth_err = verify_sample_app_auth(self.headers)
+                if not auth_ok:
+                    self.send_response(auth_code)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": auth_err}).encode("utf-8"))
+                    return
                 content_len = int(self.headers.get("Content-Length", 0))
                 body = self.rfile.read(content_len).decode("utf-8") if content_len > 0 else "{}"
                 try:

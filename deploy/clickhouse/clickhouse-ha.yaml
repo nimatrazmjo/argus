@@ -14,7 +14,10 @@ spec:
         - host: chk-argus-keeper-keeper-cluster-0-0
           port: 2181
     users:
-      default/password: "argus123"
+      default/password/valueFrom:
+        secretKeyRef:
+          name: argus-clickhouse-secret
+          key: CLICKHOUSE_PASSWORD
       default/networks/ip: "::/0"
       default/settings/allow_experimental_json_type: "1"
       default/settings/allow_experimental_object_type: "1"
@@ -69,7 +72,7 @@ spec:
                   <host>chi-argus-clickhouse-argus-cluster-0-0</host>
                   <port>9000</port>
                   <user>default</user>
-                  <password>argus123</password>
+                  <password from_env="CLICKHOUSE_PASSWORD"/>
                 </replica>
               </shard>
             </cluster>
@@ -88,6 +91,12 @@ spec:
             - name: clickhouse
               image: localhost:5001/argus/clickhouse-server:25.12.5
               imagePullPolicy: IfNotPresent
+              env:
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: argus-clickhouse-secret
+                      key: CLICKHOUSE_PASSWORD
               resources:
                 requests:
                   cpu: 500m

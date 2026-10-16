@@ -5,6 +5,7 @@ Validates zero-traffic handling, budget exhaustion clamping, independent latency
 burn rate thresholds, and rapid recovery reset.
 """
 
+import os
 import urllib.request
 import urllib.parse
 import json
@@ -12,6 +13,7 @@ import sys
 import time
 
 BASE_URL = "http://127.0.0.1:8080"
+SAMPLE_APP_API_TOKEN = os.environ.get("SAMPLE_APP_API_TOKEN", "")
 
 
 def http_get(url, timeout=30):
@@ -21,7 +23,9 @@ def http_get(url, timeout=30):
 
 
 def http_post(url, data=None, headers=None, timeout=30):
-    headers = headers or {}
+    headers = dict(headers) if headers else {}
+    if SAMPLE_APP_API_TOKEN and "Authorization" not in headers:
+        headers["Authorization"] = f"Bearer {SAMPLE_APP_API_TOKEN}"
     body = json.dumps(data).encode("utf-8") if data is not None else b""
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as resp:

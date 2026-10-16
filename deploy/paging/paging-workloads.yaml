@@ -105,6 +105,11 @@ spec:
               value: "300"
             - name: MAX_RETRIES
               value: "5"
+            - name: PAGING_WEBHOOK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: argus-paging-secret
+                  key: PAGING_WEBHOOK_TOKEN
           ports:
             - containerPort: 9099
               name: http

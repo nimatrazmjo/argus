@@ -18,8 +18,10 @@ fi
 
 mkdir -p "${EVIDENCE_DIR}"
 
+PAGING_WEBHOOK_TOKEN=$(kubectl get secret argus-paging-secret -n "${NAMESPACE}" -o jsonpath='{.data.PAGING_WEBHOOK_TOKEN}' 2>/dev/null | base64 -d || echo "")
+
 echo "--> [1/2] Executing paging edge cases test suite in cluster..."
-OUTPUT=$(kubectl exec -n "${NAMESPACE}" "${SAMPLE_POD}" -- python -c "
+OUTPUT=$(kubectl exec -n "${NAMESPACE}" "${SAMPLE_POD}" -- env PAGING_WEBHOOK_TOKEN="${PAGING_WEBHOOK_TOKEN}" python -c "
 $(cat "${SCRIPT_DIR}/run_paging_edge_cases.py")
 ")
 

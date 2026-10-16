@@ -33,6 +33,11 @@ spec:
               value: "http://argus-sample-service.argus-system.svc.cluster.local:8080"
             - name: PROBE_INTERVAL
               value: "300"
+            - name: SYNTHETIC_BEARER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: argus-synthetic-secret
+                  key: SYNTHETIC_BEARER_TOKEN
           ports:
             - containerPort: 9115
               name: metrics

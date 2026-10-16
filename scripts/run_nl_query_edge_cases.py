@@ -6,23 +6,54 @@ Validates:
 2. Hallucinated schema / table / column rejection.
 3. Prompt injection and jailbreak neutralization.
 4. Mutating SQL statement blockage (read-only SELECT enforcement).
-5. RBAC role enforcement (Unauthenticated 401, Viewer restriction 403, Admin 200).
-6. Multi-tenant row-level scope injection.
+5. RBAC role enforcement (Unauthenticated 401, forged/test-token/header-backdoor 401, Viewer restriction 403, Admin 200).
+6. Multi-tenant row-level scope injection & tenant_id injection prevention.
 7. Commercial public AI egress prevention (firewall block).
 """
 
+import base64
+import hashlib
+import hmac
 import json
 import os
 import sys
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 
 LLM_URL = os.environ.get(
     "LLM_URL", "http://argus-aiops-llm.argus-system.svc.cluster.local:9098"
 ).rstrip("/")
+JWT_SECRET = os.environ.get("JWT_SECRET", "").strip()
+OIDC_ISSUER = os.environ.get("OIDC_ISSUER", "http://argus-idp.argus-system.svc.cluster.local:8089")
+OIDC_AUDIENCE = os.environ.get("OIDC_AUDIENCE", "argus-platform")
 EVIDENCE_DIR = os.environ.get("EVIDENCE_DIR", "/tmp/evidence-f021")
 os.makedirs(EVIDENCE_DIR, exist_ok=True)
+
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
+
+def make_signed_jwt(role: str = "admin", sub: str = "alice.admin", tenant_id: str = "default", secret: str = None) -> str:
+    signing_secret = secret if secret is not None else JWT_SECRET
+    if not signing_secret:
+        raise RuntimeError("JWT_SECRET environment variable is required to mint signed test tokens")
+    now = int(time.time())
+    header = {"alg": "HS256", "typ": "JWT", "kid": "argus-idp-key-1"}
+    payload = {
+        "iss": OIDC_ISSUER,
+        "aud": OIDC_AUDIENCE,
+        "sub": sub,
+        "role": role,
+        "roles": [role.capitalize()],
+        "tenant_id": tenant_id,
+        "iat": now,
+        "nbf": now,
+        "exp": now + 3600
+    }
+    h_b64 = _b64url_encode(json.dumps(header).encode("utf-8"))
+    p_b64 = _b64url_encode(json.dumps(payload).encode("utf-8"))
+    sig = hmac.new(signing_secret.encode("utf-8"), f"{h_b64}.{p_b64}".encode("utf-8"), hashlib.sha256).digest()
+    return f"{h_b64}.{p_b64}.{_b64url_encode(sig)}"
 
 def http_request(url: str, method: str = "GET", data: dict = None, headers: dict = None) -> tuple[int, dict]:
     req_headers = {"Content-Type": "application/json"}
@@ -49,8 +80,8 @@ def main():
     print("=================================================================")
 
     edge_case_results = {}
-    admin_auth = {"Authorization": "Bearer test-token-admin"}
-    viewer_auth = {"Authorization": "Bearer test-token-viewer"}
+    admin_auth = {"Authorization": f"Bearer {make_signed_jwt('admin', 'alice.admin', 'default')}"}
+    viewer_auth = {"Authorization": f"Bearer {make_signed_jwt('viewer', 'carol.viewer', 'tenant_beta')}"}
 
     # -------------------------------------------------------------
     # Edge Case 1: Ambiguous Query Clarification
@@ -128,7 +159,6 @@ def main():
     # Edge Case 4: Mutating SQL Statement Blockage
     # -------------------------------------------------------------
     print("\n[Edge Case 4] Testing Mutating SQL Mutation Blockage...")
-    # Attempt direct mutation injection
     code, resp = http_request(
         f"{LLM_URL}/api/nl-query",
         method="POST",
@@ -144,9 +174,9 @@ def main():
     }
 
     # -------------------------------------------------------------
-    # Edge Case 5: RBAC Role Separation Enforcement
+    # Edge Case 5: RBAC Role Separation & Auth Bypass Prevention
     # -------------------------------------------------------------
-    print("\n[Edge Case 5] Testing RBAC Role Separation (F016 Integration)...")
+    print("\n[Edge Case 5] Testing RBAC Role Separation & Forged Token Rejection (F016 Integration)...")
     # 5a. Unauthenticated request
     code_unauth, resp_unauth = http_request(
         f"{LLM_URL}/api/nl-query",
@@ -156,7 +186,31 @@ def main():
     print(f"[+] Unauthenticated Request (HTTP {code_unauth}): {resp_unauth.get('error')}")
     assert code_unauth == 401
 
-    # 5b. Viewer role querying restricted unaggregated logs
+    # 5b. Forged JWT signature, legacy test-token prefix, and X-Argus-Test-Role header backdoor must all fail with 401
+    forged_jwt = make_signed_jwt("admin", "attacker", "default", secret="wrong-signing-key-attacker")
+    code_forged, _ = http_request(
+        f"{LLM_URL}/api/nl-query",
+        method="POST",
+        data={"query": "What is the CPU usage?"},
+        headers={"Authorization": f"Bearer {forged_jwt}"}
+    )
+    code_test_tok, _ = http_request(
+        f"{LLM_URL}/api/nl-query",
+        method="POST",
+        data={"query": "What is the CPU usage?"},
+        headers={"Authorization": "Bearer test-token-admin"}
+    )
+    code_hdr_backdoor, _ = http_request(
+        f"{LLM_URL}/api/nl-query",
+        method="POST",
+        data={"query": "What is the CPU usage?"},
+        headers={"X-Argus-Test-Role": "admin", "X-Argus-Tenant": "default"}
+    )
+    assert code_forged == 401, f"Forged JWT was not rejected: {code_forged}"
+    assert code_test_tok == 401, f"Legacy test-token backdoor was not rejected: {code_test_tok}"
+    assert code_hdr_backdoor == 401, f"X-Argus-Test-Role header backdoor was not rejected: {code_hdr_backdoor}"
+
+    # 5c. Viewer role querying restricted unaggregated logs
     code_viewer, resp_viewer = http_request(
         f"{LLM_URL}/api/nl-query",
         method="POST",
@@ -166,7 +220,7 @@ def main():
     print(f"[+] Viewer Log Query Restriction (HTTP {code_viewer}): {resp_viewer.get('error')}")
     assert code_viewer == 403
 
-    # 5c. Admin role allowed
+    # 5d. Admin role allowed
     code_admin, resp_admin = http_request(
         f"{LLM_URL}/api/nl-query",
         method="POST",
@@ -176,17 +230,17 @@ def main():
     print(f"[+] Admin Log Query (HTTP {code_admin}): status={resp_admin.get('status')}")
     assert code_admin == 200
 
-    print("[+] PASS: RBAC authorization matrix strictly enforced across Admin, Viewer, and Unauthenticated states.")
+    print("[+] PASS: RBAC authorization matrix and HMAC signature verification strictly enforced.")
     edge_case_results["rbac_enforcement"] = {
         "status": "PASS",
-        "detail": "Unauthenticated denied 401; Viewer restricted from raw logs 403; Admin granted 200."
+        "detail": "Unauthenticated/forged/backdoor denied 401; Viewer restricted from raw logs 403; Admin granted 200."
     }
 
     # -------------------------------------------------------------
     # Edge Case 6: Multi-Tenant Row-Level Scope Injection
     # -------------------------------------------------------------
-    print("\n[Edge Case 6] Testing Multi-Tenant Scope Injection...")
-    tenant_auth = {"Authorization": "Bearer test-token-operator-alpha"}
+    print("\n[Edge Case 6] Testing Multi-Tenant Scope Injection & SQLi Guardrails...")
+    tenant_auth = {"Authorization": f"Bearer {make_signed_jwt('operator', 'bob.operator', 'tenant_alpha')}"}
     code_t, resp_t = http_request(
         f"{LLM_URL}/api/nl-query",
         method="POST",
@@ -197,10 +251,21 @@ def main():
     print(f"    SQL: {resp_t.get('generated_sql')}")
     assert code_t == 200
     assert "tenant_alpha" in resp_t.get("generated_sql", "")
-    print("[+] PASS: Tenant isolation filter automatically injected into ClickHouse SQL.")
+
+    # Verify malicious tenant_id in signed token is rejected
+    bad_tenant_auth = {"Authorization": f"Bearer {make_signed_jwt('operator', 'bob.operator', \"tenant_alpha') OR 1=1 --\")}"}
+    code_bad_t, _ = http_request(
+        f"{LLM_URL}/api/nl-query",
+        method="POST",
+        data={"query": "Show slowest endpoints in the last hour"},
+        headers=bad_tenant_auth
+    )
+    assert code_bad_t == 401, f"Malicious tenant_id was not rejected: {code_bad_t}"
+
+    print("[+] PASS: Tenant isolation filter automatically injected and SQLi tenant_id rejected.")
     edge_case_results["multi_tenant_scoping"] = {
         "status": "PASS",
-        "detail": "Tenant-scoped user token automatically injected WHERE ResourceAttributes['tenant_id'] = 'tenant_alpha'."
+        "detail": "Tenant-scoped user token automatically injected WHERE ResourceAttributes['tenant_id'] = 'tenant_alpha' and rejected malformed tenant_id."
     }
 
     # -------------------------------------------------------------

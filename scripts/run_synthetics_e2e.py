@@ -14,6 +14,7 @@ import urllib.error
 
 PROBER_URL = os.environ.get("PROBER_URL", "http://argus-synthetic-prober.argus-system.svc.cluster.local:9115")
 EVIDENCE_DIR = os.environ.get("EVIDENCE_DIR", "/tmp/evidence-f018")
+SYNTHETIC_BEARER_TOKEN = os.environ.get("SYNTHETIC_BEARER_TOKEN", "")
 
 def http_get(url: str) -> tuple[int, str]:
     req = urllib.request.Request(url)
@@ -25,7 +26,10 @@ def http_get(url: str) -> tuple[int, str]:
 
 def http_post(url: str, data: dict = None) -> tuple[int, str]:
     body = json.dumps(data).encode("utf-8") if data else b""
-    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    headers = {"Content-Type": "application/json"}
+    if SYNTHETIC_BEARER_TOKEN:
+        headers["Authorization"] = f"Bearer {SYNTHETIC_BEARER_TOKEN}"
+    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             return resp.status, resp.read().decode("utf-8")

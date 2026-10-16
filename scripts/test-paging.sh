@@ -21,8 +21,9 @@ if [ -z "${SAMPLE_POD}" ]; then
 fi
 
 # 2. Execute E2E Verification
+PAGING_WEBHOOK_TOKEN=$(kubectl get secret argus-paging-secret -n "${NAMESPACE}" -o jsonpath='{.data.PAGING_WEBHOOK_TOKEN}' 2>/dev/null | base64 -d || echo "")
 echo "--> [2/4] Executing incident paging E2E controller via cluster pod..."
-kubectl exec -n "${NAMESPACE}" "${SAMPLE_POD}" -- python -c "
+kubectl exec -n "${NAMESPACE}" "${SAMPLE_POD}" -- env PAGING_WEBHOOK_TOKEN="${PAGING_WEBHOOK_TOKEN}" python -c "
 $(cat "${SCRIPT_DIR}/run_paging_e2e.py")
 "
 

@@ -4,9 +4,11 @@ set -euo pipefail
 
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 MIRROR_REGISTRY="${ARGUS_IMAGE_REGISTRY:-localhost:5001}"
-CLICKHOUSE_PASSWORD="${CLICKHOUSE_PASSWORD:-argus123}"
+if [ -z "${CLICKHOUSE_PASSWORD:-}" ]; then
+  CLICKHOUSE_PASSWORD=$(kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" -o jsonpath='{.data.CLICKHOUSE_PASSWORD}' 2>/dev/null | base64 -d || echo "")
+fi
 ADMIN_EMAIL="${SIGNOZ_ADMIN_EMAIL:-admin@argus.internal}"
-ADMIN_PASSWORD="${SIGNOZ_ADMIN_PASSWORD:-ArgusAdminPassword123!}"
+ADMIN_PASSWORD="${SIGNOZ_ADMIN_PASSWORD:-$(openssl rand -hex 16)}"
 
 echo "================================================================="
 echo "       ARGUS SIGNOZ OBSERVABILITY PLATFORM DEPLOYMENT            "

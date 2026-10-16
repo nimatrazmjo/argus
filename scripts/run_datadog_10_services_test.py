@@ -22,6 +22,7 @@ import threading
 import subprocess
 import urllib.request
 import urllib.error
+import urllib.parse
 
 SERVICES = [
     {"name": "argus-svc-gateway", "role": "gateway", "port": 8001},
@@ -266,7 +267,8 @@ def test_error_simulation():
 
 def test_clickhouse_persistence():
     print("\n[Test 6] Checking ClickHouse Telemetry Ingestion (NodePort :30123)...")
-    url = "http://localhost:30123/?user=default&password=argus123&query=SELECT+count()+FROM+default.otel_logs"
+    ch_pass = urllib.parse.quote(os.environ.get("CLICKHOUSE_PASSWORD", ""))
+    url = f"http://localhost:30123/?user=default&password={ch_pass}&query=SELECT+count()+FROM+default.otel_logs"
     try:
         with urllib.request.urlopen(url, timeout=3) as resp:
             count = int(resp.read().decode().strip())
