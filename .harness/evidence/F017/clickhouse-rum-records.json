@@ -1,0 +1,10 @@
+{
+  "session": {
+    "session_id": "sess-e2e-bbd22979",
+    "user_id": "customer-alice-bbd22979",
+    "user_email_masked": "[REDACTED_EMAIL]",
+    "trace_id": "61e3e6c3d2e6e8ee758a55bfaa6c8b6d",
+    "events_count": 6
+  },
+  "eventRowsCount": 6
+}

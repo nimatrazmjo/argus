@@ -1,21 +1,21 @@
 [
   {
-    "sys_id": "4142096cc505d449b8f5d22e28b90f98",
-    "number": "INC0010007",
+    "sys_id": "978221d4a34f0f1558137aaf3f8d4861",
+    "number": "INC0010010",
     "short_description": "[ARGUS] Sample service p99 latency exceeded 500ms SLA",
-    "description": "Alert: ArgusServiceLatencySLABreach\nService: argus-sample-service\nSeverity: critical\nFingerprint: fp-1792106535\nDetails: Observed 980ms latency across 5m evaluation window.\nLabels: {\"alertname\": \"ArgusServiceLatencySLABreach\", \"severity\": \"critical\", \"service\": \"argus-sample-service\", \"namespace\": \"argus-system\", \"job\": \"sample-service\"}",
+    "description": "Alert: ArgusServiceLatencySLABreach\nService: argus-sample-service\nSeverity: critical\nFingerprint: fp-1792112690\nDetails: Observed 980ms latency across 5m evaluation window.\nLabels: {\"alertname\": \"ArgusServiceLatencySLABreach\", \"severity\": \"critical\", \"service\": \"argus-sample-service\", \"namespace\": \"argus-system\", \"job\": \"sample-service\"}",
     "urgency": "1",
     "impact": "1",
     "priority": "1",
     "category": "Application",
-    "correlation_id": "fp-1792106535",
+    "correlation_id": "fp-1792112690",
     "state": "6",
     "assignment_group": "DHS-Argus-SRE",
-    "opened_at": "2026-10-15 23:22:15",
-    "sys_created_on": "2026-10-15 23:22:15",
-    "sys_updated_on": "2026-10-15 23:22:16",
-    "work_notes": "Alert condition returned to normal threshold. Ticket marked Resolved automatically.\n[2026-10-15 23:22:16] Alert condition returned to normal threshold. Ticket marked Resolved automatically.",
-    "close_notes": "Alert cleared by Argus Alertmanager at 2026-10-15T23:22:16Z",
+    "opened_at": "2026-10-16 01:04:50",
+    "sys_created_on": "2026-10-16 01:04:50",
+    "sys_updated_on": "2026-10-16 01:04:51",
+    "work_notes": "Alert condition returned to normal threshold. Ticket marked Resolved automatically.\n[2026-10-16 01:04:51] Alert condition returned to normal threshold. Ticket marked Resolved automatically.",
+    "close_notes": "Alert cleared by Argus Alertmanager at 2026-10-16T01:04:51Z",
     "caller_id": "argus-monitoring-automation"
   }
 ]

@@ -1,0 +1,98 @@
+{
+  "sessionId": "sess-e2e-bbd22979",
+  "session": {
+    "sessionId": "sess-e2e-bbd22979",
+    "userId": "customer-alice-bbd22979",
+    "userEmail": "[REDACTED_EMAIL]",
+    "traceId": "61e3e6c3d2e6e8ee758a55bfaa6c8b6d",
+    "pageUrl": "/checkout",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/128.0.0.0",
+    "ipMasked": "10.1.0.0",
+    "startTime": "2026-10-16 01:05:29",
+    "endTime": "2026-10-16 01:05:29",
+    "durationMs": 0,
+    "eventsCount": 6,
+    "errorsCount": 0,
+    "piiRedacted": 4
+  },
+  "events": [
+    {
+      "eventId": "evt-snap-bbd22979",
+      "timestamp": "2026-10-16T01:05:29.000Z",
+      "type": "dom_snapshot",
+      "targetSelector": "document",
+      "payload": {
+        "snapshot": {
+          "title": "Argus Store \u2014 Checkout",
+          "bodyHtml": "<div class='checkout'><h1>Secure Checkout</h1><form><input id='name'/><input id='email'/><input id='password'/><input id='creditCard'/><input id='notes'/><button id='submitBtn'>Buy</button></form></div>"
+        }
+      }
+    },
+    {
+      "eventId": "evt-name-bbd22979",
+      "timestamp": "2026-10-16T01:05:29.200Z",
+      "type": "input",
+      "targetTag": "input",
+      "targetId": "name",
+      "targetSelector": "#name",
+      "maskedValue": "Alice User",
+      "payload": {
+        "isMasked": false,
+        "length": 10
+      }
+    },
+    {
+      "eventId": "evt-pwd-bbd22979",
+      "timestamp": "2026-10-16T01:05:29.400Z",
+      "type": "input",
+      "targetTag": "input",
+      "targetId": "password",
+      "targetSelector": "#password",
+      "maskedValue": "***",
+      "payload": {
+        "isMasked": true,
+        "length": 29,
+        "raw_leak_attempt": "password=[REDACTED]"
+      }
+    },
+    {
+      "eventId": "evt-cc-bbd22979",
+      "timestamp": "2026-10-16T01:05:29.600Z",
+      "type": "input",
+      "targetTag": "input",
+      "targetId": "creditCard",
+      "targetSelector": "#creditCard",
+      "maskedValue": "***",
+      "payload": {
+        "isMasked": true,
+        "length": 19,
+        "raw_leak_attempt": "card=[REDACTED]"
+      }
+    },
+    {
+      "eventId": "evt-notes-bbd22979",
+      "timestamp": "2026-10-16T01:05:30.800Z",
+      "type": "input",
+      "targetTag": "input",
+      "targetId": "notes",
+      "targetSelector": "#notes",
+      "maskedValue": "Deliver to security dock 4",
+      "payload": {
+        "isMasked": false,
+        "notes": "Deliver to security dock 4"
+      }
+    },
+    {
+      "eventId": "evt-click-bbd22979",
+      "timestamp": "2026-10-16T01:05:30.800Z",
+      "type": "click",
+      "targetTag": "button",
+      "targetId": "submitBtn",
+      "targetSelector": "#submitBtn",
+      "payload": {
+        "text": "Complete Purchase"
+      }
+    }
+  ],
+  "eventCount": 6
+}

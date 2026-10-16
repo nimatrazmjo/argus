@@ -2,14 +2,14 @@
   "target": "argus-sample-service",
   "probe_type": "canary_workflow",
   "success": 1,
-  "duration_seconds": 0.044997453689575195,
+  "duration_seconds": 0.017226696014404297,
   "steps": [
     {
       "name": "order_api",
-      "url": "http://argus-sample-service.argus-system.svc.cluster.local:8080/order?order_id=synthetic-probe-1792106569",
+      "url": "http://argus-sample-service.argus-system.svc.cluster.local:8080/order?order_id=synthetic-probe-1792112719",
       "status_code": 200,
       "success": 1,
-      "duration_seconds": 0.03618001937866211,
+      "duration_seconds": 0.014817237854003906,
       "error": null
     },
     {
@@ -17,7 +17,7 @@
       "url": "http://argus-sample-service.argus-system.svc.cluster.local:8080/slo",
       "status_code": 200,
       "success": 1,
-      "duration_seconds": 0.005028486251831055,
+      "duration_seconds": 0.0012371540069580078,
       "error": null
     },
     {
@@ -25,9 +25,9 @@
       "url": "http://argus-sample-service.argus-system.svc.cluster.local:8080/healthz",
       "status_code": 200,
       "success": 1,
-      "duration_seconds": 0.0037889480590820312,
+      "duration_seconds": 0.0011723041534423828,
       "error": null
     }
   ],
-  "timestamp": 1792106569.3593616
+  "timestamp": 1792112719.1328328
 }

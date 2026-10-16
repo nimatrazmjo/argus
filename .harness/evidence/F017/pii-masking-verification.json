@@ -1,0 +1,10 @@
+{
+  "sessionId": "sess-e2e-bbd22979",
+  "traceId": "61e3e6c3d2e6e8ee758a55bfaa6c8b6d",
+  "userEmailMasked": "[REDACTED_EMAIL]",
+  "passwordMasked": true,
+  "creditCardMasked": true,
+  "rawLeaksDetected": 0,
+  "gatewayRedactionsCount": 4,
+  "status": "VERIFIED_SECURE"
+}

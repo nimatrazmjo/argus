@@ -22,6 +22,4 @@ DEC-010 (2026-10-15): OpenSLO standard specification, in-service SLI accounting,
 DEC-011 (2026-10-15): Paging Webhook Gateway and ServiceNow Incident Routing implemented for alert dispatch (Feature F013). — Webhook translation from Alertmanager to ServiceNow Table API format, with exponential backoff queueing for destination outages and alert fingerprint duplicate suppression. [ADR-0009]
 DEC-012 (2026-10-15): ClickHouse Row-Level Security (RLS) policies, per-tenant resource quotas, and OTel gateway cardinality guardrails implemented (Feature F015). — Tenant isolation enforced at database kernel level (`ResourceAttributes['tenant_id'] = currentUser()`), strict noisy-neighbor execution quotas, and collector-level exploding attribute stripping. [ADR-0010]
 DEC-013 (2026-10-15): In-cluster Synthetic Canary Probing, Multi-step Checks & Prometheus Exporter implemented (Feature F018). — Scheduled blackbox API/HTTP probes, authenticated canary verification, `argus_synthetic_probe_*` metrics on port 9115, and SigNoz Ruler synthetic failure alert rules. [ADR-0011]
-
-
-
+DEC-014 (2026-10-15): Real User Monitoring (RUM) & DOM Session Replay Engine deployed beside SigNoz with multi-tier PII masking (Feature F017). — OpenReplay-compatible rrweb DOM session recording and playback, defense-in-depth PII sanitization (passwords, emails, PANs, tokens), ClickHouse session persistence, and W3C traceparent APM correlation on port 8082. [ADR-0012]

@@ -1,5 +1,5 @@
 {
   "user": "default",
-  "query_output": "trace-alpha-28ab43e4\ttenant_alpha\ntrace-beta-28ab43e4\ttenant_beta",
+  "query_output": "trace-alpha-fa233f1f\ttenant_alpha\ntrace-beta-fa233f1f\ttenant_beta",
   "status": "PASS"
 }

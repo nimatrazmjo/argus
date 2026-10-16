@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Argus RUM Session Replay — sess-e2e-bbd22979</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-accent: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-rose: #f43f5e;
+            --accent-amber: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--bg-accent);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--accent-cyan);
+        }
+        .badge {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-active { background: rgba(16, 185, 129, 0.2); color: var(--accent-emerald); }
+        .badge-masked { background: rgba(244, 63, 94, 0.2); color: var(--accent-rose); }
+        .meta-group {
+            display: flex;
+            gap: 20px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .meta-group strong { color: var(--text-primary); }
+        .meta-trace a { color: var(--accent-cyan); text-decoration: none; }
+        .meta-trace a:hover { text-decoration: underline; }
+        
+        main {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            flex: 1;
+            overflow: hidden;
+        }
+        .player-viewport {
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            position: relative;
+        }
+        .viewport-frame {
+            flex: 1;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #111827;
+        }
+        .screen-container {
+            width: 100%;
+            max-width: 900px;
+            height: 100%;
+            background: #ffffff;
+            color: #1f2937;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            padding: 24px;
+            overflow-y: auto;
+            position: relative;
+        }
+        .player-controls {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--bg-accent);
+            padding: 12px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--bg-accent);
+            border-radius: 3px;
+            position: relative;
+            cursor: pointer;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-cyan);
+            border-radius: 3px;
+            transition: width 0.1s linear;
+        }
+        .controls-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .playback-btn {
+            background: var(--accent-cyan);
+            color: #0f172a;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .playback-btn:hover { opacity: 0.9; }
+        .events-panel {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--bg-accent);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--bg-accent);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .events-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .event-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--bg-accent);
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+        .event-card:hover, .event-card.active {
+            border-color: var(--accent-cyan);
+        }
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        .event-type {
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+        .event-type.input { color: var(--accent-amber); }
+        .event-type.click { color: var(--accent-emerald); }
+        .event-type.console_error { color: var(--accent-rose); }
+        .event-masked {
+            display: inline-block;
+            background: rgba(244, 63, 94, 0.2);
+            color: var(--accent-rose);
+            font-size: 0.7rem;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <span>🛡️ Argus RUM Replay</span>
+            <span class="badge badge-active">Session Active</span>
+            <span class="badge badge-masked">PII Redacted</span>
+        </div>
+        <div class="meta-group">
+            <div>Session: <strong>sess-e2e-bbd22979</strong></div>
+            <div>User: <strong>customer-alice-bbd22979</strong></div>
+            <div>Duration: <strong>0.0s</strong></div>
+            <div>Events: <strong>6</strong></div>
+            <div class="meta-trace">Trace: <a href="/api/v1/traces/61e3e6c3d2e6e8ee758a55bfaa6c8b6d"><strong>61e3e6c3d2e6...</strong></a></div>
+        </div>
+    </header>
+
+    <main>
+        <div class="player-viewport">
+            <div class="viewport-frame">
+                <div class="screen-container" id="domScreen">
+                    <h2 style="margin-bottom: 12px; color: #1e293b;">DOM State Replay Viewport</h2>
+                    <p style="color: #64748b; font-size: 0.9rem;">Interactive snapshot of client-rendered DOM with masked form fields.</p>
+                    <hr style="margin: 16px 0; border: none; border-top: 1px solid #e2e8f0;">
+                    <div id="reconstructedDom">
+                        <!-- Populated by events -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="player-controls">
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="controls-row">
+                    <div style="display: flex; gap: 8px;">
+                        <button class="playback-btn" id="playBtn">Play ▶</button>
+                        <button class="playback-btn" style="background: var(--bg-accent); color: #fff;" id="stepBtn">Step ❯</button>
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);" id="timeDisplay">
+                        0.00s / 0.0s
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="events-panel">
+            <div class="panel-header">
+                <span>Event Stream (6)</span>
+                <span style="font-size: 0.75rem; color: var(--accent-rose);">0 errors</span>
+            </div>
+            <div class="events-list" id="eventsList">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const events = [{"eventId": "evt-snap-bbd22979", "timestamp": "2026-10-16T01:05:29.000Z", "type": "dom_snapshot", "targetSelector": "document", "payload": {"snapshot": {"title": "Argus Store \u2014 Checkout", "bodyHtml": "<div class='checkout'><h1>Secure Checkout</h1><form><input id='name'/><input id='email'/><input id='password'/><input id='creditCard'/><input id='notes'/><button id='submitBtn'>Buy</button></form></div>"}}}, {"eventId": "evt-name-bbd22979", "timestamp": "2026-10-16T01:05:29.200Z", "type": "input", "targetTag": "input", "targetId": "name", "targetSelector": "#name", "maskedValue": "Alice User", "payload": {"isMasked": false, "length": 10}}, {"eventId": "evt-pwd-bbd22979", "timestamp": "2026-10-16T01:05:29.400Z", "type": "input", "targetTag": "input", "targetId": "password", "targetSelector": "#password", "maskedValue": "***", "payload": {"isMasked": true, "length": 29, "raw_leak_attempt": "password=[REDACTED]"}}, {"eventId": "evt-cc-bbd22979", "timestamp": "2026-10-16T01:05:29.600Z", "type": "input", "targetTag": "input", "targetId": "creditCard", "targetSelector": "#creditCard", "maskedValue": "***", "payload": {"isMasked": true, "length": 19, "raw_leak_attempt": "card=[REDACTED]"}}, {"eventId": "evt-notes-bbd22979", "timestamp": "2026-10-16T01:05:30.800Z", "type": "input", "targetTag": "input", "targetId": "notes", "targetSelector": "#notes", "maskedValue": "Deliver to security dock 4", "payload": {"isMasked": false, "notes": "Deliver to security dock 4"}}, {"eventId": "evt-click-bbd22979", "timestamp": "2026-10-16T01:05:30.800Z", "type": "click", "targetTag": "button", "targetId": "submitBtn", "targetSelector": "#submitBtn", "payload": {"text": "Complete Purchase"}}];
+        let currentIndex = 0;
+        let isPlaying = false;
+        let timer = null;
+
+        const screen = document.getElementById('reconstructedDom');
+        const list = document.getElementById('eventsList');
+        const fill = document.getElementById('progressFill');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const playBtn = document.getElementById('playBtn');
+
+        function renderEventsList() {
+            list.innerHTML = '';
+            events.forEach((ev, i) => {
+                const card = document.createElement('div');
+                card.className = 'event-card' + (i === currentIndex ? ' active' : '');
+                const isMasked = ev.maskedValue || (ev.payload && ev.payload.isMasked);
+                card.innerHTML = `
+                    <div class="event-header">
+                        <span class="event-type ${ev.type}">${ev.type}</span>
+                        <span style="color: var(--text-secondary);">${ev.timestamp.split('T')[1].substr(0, 8)}</span>
+                    </div>
+                    <div>Target: <code>${ev.targetSelector || ev.targetTag || 'body'}</code></div>
+                    ${isMasked ? '<div class="event-masked">🛡️ PII Masked (***)</div>' : ''}
+                `;
+                card.onclick = () => jumpTo(i);
+                list.appendChild(card);
+            });
+        }
+
+        function applyEvent(ev) {
+            if (ev.type === 'dom_snapshot' && ev.payload && ev.payload.snapshot) {
+                screen.innerHTML = ev.payload.snapshot.bodyHtml || '<p style="color:#64748b;">[Blank DOM Snapshot]</p>';
+            } else if (ev.type === 'input') {
+                const target = screen.querySelector(ev.targetSelector);
+                if (target) {
+                    target.value = ev.maskedValue || '***';
+                }
+            } else if (ev.type === 'click') {
+                const target = screen.querySelector(ev.targetSelector);
+                if (target) {
+                    target.style.outline = '2px solid #06b6d4';
+                    setTimeout(() => target.style.outline = '', 400);
+                }
+            }
+        }
+
+        function step() {
+            if (currentIndex >= events.length) {
+                pause();
+                return;
+            }
+            applyEvent(events[currentIndex]);
+            currentIndex++;
+            updateUI();
+        }
+
+        function updateUI() {
+            const pct = events.length > 0 ? (currentIndex / events.length) * 100 : 0;
+            fill.style.width = pct + '%';
+            timeDisplay.innerText = currentIndex + ' / ' + events.length + ' events';
+            document.querySelectorAll('.event-card').forEach((c, idx) => {
+                c.classList.toggle('active', idx === currentIndex - 1);
+            });
+        }
+
+        function play() {
+            isPlaying = true;
+            playBtn.innerText = 'Pause ❚❚';
+            timer = setInterval(() => {
+                if (currentIndex >= events.length) {
+                    pause();
+                } else {
+                    step();
+                }
+            }, 300);
+        }
+
+        function pause() {
+            isPlaying = false;
+            playBtn.innerText = 'Play ▶';
+            if (timer) clearInterval(timer);
+        }
+
+        function jumpTo(idx) {
+            pause();
+            currentIndex = 0;
+            screen.innerHTML = '';
+            for (let i = 0; i <= idx && i < events.length; i++) {
+                applyEvent(events[i]);
+            }
+            currentIndex = idx + 1;
+            updateUI();
+        }
+
+        playBtn.onclick = () => {
+            if (isPlaying) pause(); else play();
+        };
+        document.getElementById('stepBtn').onclick = () => {
+            pause();
+            step();
+        };
+
+        renderEventsList();
+        if (events.length > 0) {
+            step();
+        }
+    </script>
+</body>
+</html>

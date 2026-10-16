@@ -17,6 +17,27 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-15 — F017 Real User Monitoring (RUM) & DOM Session Replay — COMPLETE
+Branch/commit: main @ HEAD   PR: N/A   CI: green (35/35 verification steps passed)
+Evidence:
+  - Architecture Decision & Implementation:
+      * `docs/decisions/ADR-0012-rum-and-session-replay.md`: RUM & DOM session replay deployed beside SigNoz with multi-tier PII masking and W3C traceparent APM correlation. Recorded as `DEC-014` in `.harness/DECISIONS.md`.
+      * `deploy/rum/rum-schema.sql`: ClickHouse DDL schema creating `default.rum_sessions` and `default.rum_events`.
+      * `deploy/rum/rum_collector.py`: Air-gapped collector and replay daemon on port 8082 providing `/v1/rum/ingest`, `/v1/rum/tracker.js`, `/v1/rum/sessions`, `/v1/rum/replay/<session_id>`, `/v1/rum/player/<session_id>`, `/checkout`, `/metrics`, and `/healthz`.
+      * `deploy/rum/rum-collector.yaml` & `deploy/rum/apply-rum.sh`: Kubernetes deployment and rollout controller.
+  - End-to-End Verification:
+      * `scripts/test-rum.sh` + `scripts/run_rum_e2e.py`: Verified client tracker script delivery -> simulated real user session on checkout frontend with sensitive form fields -> beacon ingestion to ClickHouse -> ClickHouse storage audit -> replay timeline retrieval -> strict PII privacy audit (passwords, credit cards, emails, SSNs masked to `***` or `[REDACTED]`) -> visual HTML DOM replay player generation.
+      * Generated evidence artifacts in `.harness/evidence/F017/`: `session-replay-transcript.json`, `session-replay-proof.html`, `pii-masking-verification.json`, `clickhouse-rum-records.json`, `rum-manifests.yaml`.
+  - Edge Cases & Resilience Battery:
+      * `scripts/test-rum-edge-cases.sh` + `scripts/run_rum_edge_cases.py`:
+          1. Masking correctness across all 6 sensitive patterns (emails, credit cards, SSNs, bearer tokens, passwords) while preserving safe business fields.
+          2. Large session ingestion & mutation stress test (1,200 events processed in <200ms without buffer overflow).
+          3. Replay player resilience with missing/404 external assets and broken stylesheets.
+          4. Malformed payload rejection (4x HTTP 400) and collector liveness preservation.
+      * Evidence saved to `.harness/evidence/F017/edge-cases-verification.txt`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: F017 is COMPLETE! Wave 3 is 100% finished across all tracks. Synchronization Gate G3 is PASSED!
+
 ## 2026-10-15 — F018 Synthetic Canary Probing, Blackbox Workflows & Prometheus Exporter — COMPLETE
 Branch/commit: main @ HEAD   PR: N/A   CI: green (33/33 verification steps passed)
 Evidence:

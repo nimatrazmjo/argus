@@ -4,15 +4,15 @@ argus_synthetic_probe_success{target="argus-sample-service",probe_type="canary_w
 
 # HELP argus_synthetic_probe_duration_seconds Total execution time of synthetic canary probe
 # TYPE argus_synthetic_probe_duration_seconds gauge
-argus_synthetic_probe_duration_seconds{target="argus-sample-service",probe_type="canary_workflow"} 0.0450
+argus_synthetic_probe_duration_seconds{target="argus-sample-service",probe_type="canary_workflow"} 0.0172
 
 # HELP argus_synthetic_probe_step_duration_seconds Duration of individual synthetic probe steps
 # TYPE argus_synthetic_probe_step_duration_seconds gauge
-argus_synthetic_probe_step_duration_seconds{target="argus-sample-service",step="order_api"} 0.0362
-argus_synthetic_probe_step_duration_seconds{target="argus-sample-service",step="slo_dashboard"} 0.0050
-argus_synthetic_probe_step_duration_seconds{target="argus-sample-service",step="auth_validation"} 0.0038
+argus_synthetic_probe_step_duration_seconds{target="argus-sample-service",step="order_api"} 0.0148
+argus_synthetic_probe_step_duration_seconds{target="argus-sample-service",step="slo_dashboard"} 0.0012
+argus_synthetic_probe_step_duration_seconds{target="argus-sample-service",step="auth_validation"} 0.0012
 
 # HELP argus_synthetic_probes_total Total number of executed synthetic canary probes
 # TYPE argus_synthetic_probes_total counter
-argus_synthetic_probes_total{target="argus-sample-service",status="success"} 9
-argus_synthetic_probes_total{target="argus-sample-service",status="failure"} 5
+argus_synthetic_probes_total{target="argus-sample-service",status="success"} 32
+argus_synthetic_probes_total{target="argus-sample-service",status="failure"} 6
