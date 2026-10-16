@@ -1,0 +1,1042 @@
+# ==============================================================================
+# PROJECT ARGUS — 10 MICROSERVICES DATADOG EMULATION WORKLOADS
+# ==============================================================================
+
+# 1. GATEWAY SERVICE (:8001)
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-svc-gateway
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-gateway
+    app.kubernetes.io/part-of: argus-services
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8001
+      targetPort: 8001
+  selector:
+    app.kubernetes.io/name: argus-svc-gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-svc-gateway
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-svc-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-svc-gateway
+        app.kubernetes.io/part-of: argus-services
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: gateway
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-u", "/app/service_template.py"]
+          ports:
+            - name: http
+              containerPort: 8001
+          env:
+            - name: SERVICE_NAME
+              value: "argus-svc-gateway"
+            - name: SERVICE_ROLE
+              value: "gateway"
+            - name: PORT
+              value: "8001"
+            - name: ENV
+              value: "production"
+            - name: VERSION
+              value: "1.0.0"
+            - name: DATACENTER
+              value: "us-gov-west-1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://argus-gateway-collector.argus-system:4318"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8001
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8001
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-services-code
+---
+
+# 2. AUTH SERVICE (:8002)
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-svc-auth
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-auth
+    app.kubernetes.io/part-of: argus-services
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8002
+      targetPort: 8002
+  selector:
+    app.kubernetes.io/name: argus-svc-auth
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-svc-auth
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-svc-auth
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-svc-auth
+        app.kubernetes.io/part-of: argus-services
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: auth
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-u", "/app/service_template.py"]
+          ports:
+            - name: http
+              containerPort: 8002
+          env:
+            - name: SERVICE_NAME
+              value: "argus-svc-auth"
+            - name: SERVICE_ROLE
+              value: "auth"
+            - name: PORT
+              value: "8002"
+            - name: ENV
+              value: "production"
+            - name: VERSION
+              value: "1.0.0"
+            - name: DATACENTER
+              value: "us-gov-west-1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://argus-gateway-collector.argus-system:4318"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8002
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8002
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-services-code
+---
+
+# 3. CATALOG SERVICE (:8003)
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-svc-catalog
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-catalog
+    app.kubernetes.io/part-of: argus-services
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8003
+      targetPort: 8003
+  selector:
+    app.kubernetes.io/name: argus-svc-catalog
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-svc-catalog
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-catalog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-svc-catalog
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-svc-catalog
+        app.kubernetes.io/part-of: argus-services
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: catalog
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-u", "/app/service_template.py"]
+          ports:
+            - name: http
+              containerPort: 8003
+          env:
+            - name: SERVICE_NAME
+              value: "argus-svc-catalog"
+            - name: SERVICE_ROLE
+              value: "catalog"
+            - name: PORT
+              value: "8003"
+            - name: ENV
+              value: "production"
+            - name: VERSION
+              value: "1.0.0"
+            - name: DATACENTER
+              value: "us-gov-west-1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://argus-gateway-collector.argus-system:4318"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8003
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8003
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-services-code
+---
+
+# 4. ORDER SERVICE (:8004)
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-svc-order
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-order
+    app.kubernetes.io/part-of: argus-services
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8004
+      targetPort: 8004
+  selector:
+    app.kubernetes.io/name: argus-svc-order
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-svc-order
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-order
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-svc-order
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-svc-order
+        app.kubernetes.io/part-of: argus-services
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: order
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-u", "/app/service_template.py"]
+          ports:
+            - name: http
+              containerPort: 8004
+          env:
+            - name: SERVICE_NAME
+              value: "argus-svc-order"
+            - name: SERVICE_ROLE
+              value: "order"
+            - name: PORT
+              value: "8004"
+            - name: ENV
+              value: "production"
+            - name: VERSION
+              value: "1.0.0"
+            - name: DATACENTER
+              value: "us-gov-west-1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://argus-gateway-collector.argus-system:4318"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8004
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8004
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-services-code
+---
+
+# 5. INVENTORY SERVICE (:8005)
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-svc-inventory
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-inventory
+    app.kubernetes.io/part-of: argus-services
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8005
+      targetPort: 8005
+  selector:
+    app.kubernetes.io/name: argus-svc-inventory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-svc-inventory
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-inventory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-svc-inventory
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-svc-inventory
+        app.kubernetes.io/part-of: argus-services
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: inventory
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-u", "/app/service_template.py"]
+          ports:
+            - name: http
+              containerPort: 8005
+          env:
+            - name: SERVICE_NAME
+              value: "argus-svc-inventory"
+            - name: SERVICE_ROLE
+              value: "inventory"
+            - name: PORT
+              value: "8005"
+            - name: ENV
+              value: "production"
+            - name: VERSION
+              value: "1.0.0"
+            - name: DATACENTER
+              value: "us-gov-west-1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://argus-gateway-collector.argus-system:4318"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8005
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8005
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-services-code
+---
+
+# 6. PAYMENT SERVICE (:8006)
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-svc-payment
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-payment
+    app.kubernetes.io/part-of: argus-services
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8006
+      targetPort: 8006
+  selector:
+    app.kubernetes.io/name: argus-svc-payment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-svc-payment
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-payment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-svc-payment
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-svc-payment
+        app.kubernetes.io/part-of: argus-services
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: payment
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-u", "/app/service_template.py"]
+          ports:
+            - name: http
+              containerPort: 8006
+          env:
+            - name: SERVICE_NAME
+              value: "argus-svc-payment"
+            - name: SERVICE_ROLE
+              value: "payment"
+            - name: PORT
+              value: "8006"
+            - name: ENV
+              value: "production"
+            - name: VERSION
+              value: "1.0.0"
+            - name: DATACENTER
+              value: "us-gov-west-1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://argus-gateway-collector.argus-system:4318"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8006
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8006
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-services-code
+---
+
+# 7. BILLING SERVICE (:8007)
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-svc-billing
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-billing
+    app.kubernetes.io/part-of: argus-services
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8007
+      targetPort: 8007
+  selector:
+    app.kubernetes.io/name: argus-svc-billing
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-svc-billing
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-billing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-svc-billing
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-svc-billing
+        app.kubernetes.io/part-of: argus-services
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: billing
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-u", "/app/service_template.py"]
+          ports:
+            - name: http
+              containerPort: 8007
+          env:
+            - name: SERVICE_NAME
+              value: "argus-svc-billing"
+            - name: SERVICE_ROLE
+              value: "billing"
+            - name: PORT
+              value: "8007"
+            - name: ENV
+              value: "production"
+            - name: VERSION
+              value: "1.0.0"
+            - name: DATACENTER
+              value: "us-gov-west-1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://argus-gateway-collector.argus-system:4318"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8007
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8007
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-services-code
+---
+
+# 8. SHIPPING SERVICE (:8008)
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-svc-shipping
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-shipping
+    app.kubernetes.io/part-of: argus-services
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8008
+      targetPort: 8008
+  selector:
+    app.kubernetes.io/name: argus-svc-shipping
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-svc-shipping
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-shipping
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-svc-shipping
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-svc-shipping
+        app.kubernetes.io/part-of: argus-services
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: shipping
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-u", "/app/service_template.py"]
+          ports:
+            - name: http
+              containerPort: 8008
+          env:
+            - name: SERVICE_NAME
+              value: "argus-svc-shipping"
+            - name: SERVICE_ROLE
+              value: "shipping"
+            - name: PORT
+              value: "8008"
+            - name: ENV
+              value: "production"
+            - name: VERSION
+              value: "1.0.0"
+            - name: DATACENTER
+              value: "us-gov-west-1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://argus-gateway-collector.argus-system:4318"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8008
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8008
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-services-code
+---
+
+# 9. NOTIFICATION SERVICE (:8009)
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-svc-notification
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-notification
+    app.kubernetes.io/part-of: argus-services
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8009
+      targetPort: 8009
+  selector:
+    app.kubernetes.io/name: argus-svc-notification
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-svc-notification
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-notification
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-svc-notification
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-svc-notification
+        app.kubernetes.io/part-of: argus-services
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: notification
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-u", "/app/service_template.py"]
+          ports:
+            - name: http
+              containerPort: 8009
+          env:
+            - name: SERVICE_NAME
+              value: "argus-svc-notification"
+            - name: SERVICE_ROLE
+              value: "notification"
+            - name: PORT
+              value: "8009"
+            - name: ENV
+              value: "production"
+            - name: VERSION
+              value: "1.0.0"
+            - name: DATACENTER
+              value: "us-gov-west-1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://argus-gateway-collector.argus-system:4318"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8009
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8009
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-services-code
+---
+
+# 10. RECOMMENDATION SERVICE (:8010)
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-svc-recommendation
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-recommendation
+    app.kubernetes.io/part-of: argus-services
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 8010
+      targetPort: 8010
+  selector:
+    app.kubernetes.io/name: argus-svc-recommendation
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-svc-recommendation
+  namespace: argus-system
+  labels:
+    app.kubernetes.io/name: argus-svc-recommendation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-svc-recommendation
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-svc-recommendation
+        app.kubernetes.io/part-of: argus-services
+    spec:
+      terminationGracePeriodSeconds: 2
+      containers:
+        - name: recommendation
+          image: localhost:5001/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-u", "/app/service_template.py"]
+          ports:
+            - name: http
+              containerPort: 8010
+          env:
+            - name: SERVICE_NAME
+              value: "argus-svc-recommendation"
+            - name: SERVICE_ROLE
+              value: "recommendation"
+            - name: PORT
+              value: "8010"
+            - name: ENV
+              value: "production"
+            - name: VERSION
+              value: "1.0.0"
+            - name: DATACENTER
+              value: "us-gov-west-1"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://argus-gateway-collector.argus-system:4318"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8010
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8010
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-services-code
