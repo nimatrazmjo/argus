@@ -1,31 +1,31 @@
 {
-  "incident_id": "INC-CORR-1792121751-494786",
+  "incident_id": "INC-CORR-1792123562-5334e3",
   "probable_root_cause": {
     "service": "chi-argus-clickhouse",
     "alertname": "ClickHouseConnectionPoolExhausted",
     "confidence": 0.99,
     "score": 1.0,
     "startsAt": "2026-10-15T23:10:00Z",
-    "timestamp": 1792121751.84329,
+    "timestamp": 1792123562.8181648,
     "reason": "Topological root dependency in failure graph with high failure criticality (1.0) and causal precedence."
   },
   "symptoms": [
     {
       "service": "argus-sample-service",
       "alertname": "ServiceHigh5xxErrorRate",
-      "score": 0.5372,
+      "score": 0.5247,
       "hops_from_root": 1,
       "startsAt": "2026-10-15T23:10:03Z",
-      "timestamp": 1792121752.6230564,
+      "timestamp": 1792123563.9436946,
       "relation_to_root": "1-hop downstream caller affected by cascade"
     },
     {
       "service": "argus-auto-service",
       "alertname": "HTTPUpstreamRequestTimeout",
-      "score": 0.3842,
+      "score": 0.3718,
       "hops_from_root": 2,
       "startsAt": "2026-10-15T23:10:06Z",
-      "timestamp": 1792121753.5922172,
+      "timestamp": 1792123565.106843,
       "relation_to_root": "2-hop downstream caller affected by cascade"
     },
     {
@@ -34,7 +34,7 @@
       "score": 0.28,
       "hops_from_root": 3,
       "startsAt": "2026-10-15T23:10:09Z",
-      "timestamp": 1792121754.0788245,
+      "timestamp": 1792123565.5072837,
       "relation_to_root": "3-hop downstream caller affected by cascade"
     }
   ],

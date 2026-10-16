@@ -1,9 +1,9 @@
 # CURRENT TASK — PARALLEL DISPATCH CONTROL
 
-**Wave**: **Wave 4 — Security, Compliance & Cost Governance**  
-**Execution Mode**: Parallel Multi-Subagent Dispatch (see [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md))  
-**Gate Status**: Gate G1 is **PASSED** (8/21 Complete — 38%). Gate G2 is **PASSED** (12/21 Complete — 57%). Gate G3 is **PASSED** (17/21 Complete — 81%). Progress: 18/21 Complete (86%).  
-**Active Wave Features**: `F019` (Track E — Anomaly Monitors), `F020` (Track B — Root-Cause Grouping), `F021` (Track E — Cost Attribution).
+**Wave**: **Wave 5 — Advanced AIOps & Post-Mortem Intelligence (COMPLETED)**  
+**Execution Mode**: Single-Stream Completion & Verification  
+**Gate Status**: Gate G1 is **PASSED** (8/21). Gate G2 is **PASSED** (12/21). Gate G3 is **PASSED** (17/21). Gate G4 is **PASSED** (20/21). Gate G5 is **PASSED** (21/21 Complete — 100%).  
+**Active Wave Features**: All 21 features COMPLETED, verified across 43/43 regression battery steps, and documented.
 
 ---
 
@@ -53,11 +53,16 @@
 
 ---
 
-## Gate G4 Status: PASSED (20/21 Features Complete — 95%)
-All Wave 4 features (F016, F019, F020) are verified 100% green without regressions.
-Next active phase: **Wave 5 — Platform Moat (Feature F021: NL Query & Incident Summarization via Air-Gapped LLM)**.
+## Completed in Wave 5 (Final Platform Moat)
+
+### Package 1: Track E — Feature F021 (NL Query & Incident Summarization) — [COMPLETE]
+- **Status**: COMPLETE & VERIFIED (43/43 verification steps green). Evidence saved to `.harness/evidence/F021/`.
+- **Delivered**: `docs/decisions/ADR-0016-nl-query-and-incident-summarization.md`, `deploy/llm/aiops_llm_service.py`, `deploy/llm/aiops-llm-workloads.yaml`, `deploy/llm/apply-llm.sh`, `scripts/run_nl_query_e2e.py`, `scripts/test-nl-query.sh`, `scripts/run_nl_query_edge_cases.py`, `scripts/test-nl-query-edge-cases.sh`.
 
 ---
 
+## Gate G5 Status: PASSED (21/21 Features Complete — 100%)
+All 5 Waves and 21 Features of Project Argus are implemented, integrated, verified 100% green against the 43-step regression battery, and documented with non-empty cryptographic evidence artifacts.
+
 ## Next Immediate Step
-Implement and verify Feature F021 (NL Query & Incident Summarization) to achieve 100% full platform delivery and ATO readiness.
+Project Argus is 100% delivered and ready for final ATO certification and production deployment.

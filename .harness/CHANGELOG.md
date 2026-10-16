@@ -17,6 +17,32 @@ Notes: <anything the next agent should know>
 ```
 
 <!-- entries go below, newest first -->
+## 2026-10-15 — F021 NL Telemetry Query & Air-Gapped Incident Summarization — COMPLETE
+Branch/commit: main @ HEAD   PR: N/A   CI: green (43/43 verification steps passed)
+Evidence:
+  - Architecture Decision & Implementation:
+      * `docs/decisions/ADR-0016-nl-query-and-incident-summarization.md`: Architectural decision for in-boundary GovCloud Bedrock (`us-gov-west-1`) / air-gapped LLM adapter, read-only ClickHouse SQL AST validation, schema catalog verification, adversarial prompt injection neutralization, and executive incident post-mortem synthesis. Recorded as `DEC-018` in `.harness/DECISIONS.md`.
+      * `deploy/llm/aiops_llm_service.py`: Air-gapped daemon running on port 9098 in `argus-system`. Provides `/api/nl-query`, `/api/summarize/incident`, `/api/schema`, `/api/egress/audit`, and `/metrics`.
+      * `deploy/llm/aiops-llm-workloads.yaml` & `deploy/llm/apply-llm.sh`: Kubernetes Service, Deployment, and rollout sync controller in `argus-system`.
+  - End-to-End Verification:
+      * `scripts/test-nl-query.sh` + `scripts/run_nl_query_e2e.py`:
+          - Verified daemon healthcheck and schema catalog introspection (`default.otel_traces`, `default.otel_logs`, `default.otel_metrics`).
+          - Benchmark Queries: 5/5 queries translated with 100% accuracy and 244ms average latency.
+          - Zero Unauthorized Commercial SaaS Egress: 100% of egress routed to in-boundary GovCloud Bedrock adapter (`us-gov-west-1`), 0 calls to public APIs.
+          - Executive Incident Summarization: Synthesized comprehensive post-mortem for ClickHouse cascading failure including root cause, timeline, affected services, impact radius, and actionable remediation items.
+      * Generated evidence artifacts in `.harness/evidence/F021/`: `nl-to-sql-benchmarks.json`, `govcloud-bedrock-egress-proof.json`, `incident-summary-output.json`, `aiops-llm-workloads.yaml`.
+  - Edge Cases & Resilience Battery:
+      * `scripts/test-nl-query-edge-cases.sh` + `scripts/run_nl_query_edge_cases.py`:
+          1. Ambiguous Query Disambiguation: Suggested clarification candidates for underspecified inputs without executing invalid queries.
+          2. Hallucinated Schema Rejection: Rejection of non-existent tables/columns (`default.ghost_table`) with `HallucinatedTableError` (HTTP 400).
+          3. Adversarial Prompt Injection Neutralization: Sanitized SQL commands and instructions (`DROP TABLE`) embedded in user input, executing only legitimate telemetry reads.
+          4. Mutation Statement Blockage: Direct DDL/DML statements (`DROP`, `ALTER`, `TRUNCATE`, `DELETE`) blocked with HTTP 400 forbidden mutation error.
+          5. Multi-Tenant Scope & RBAC Enforcement: Strict tenant WHERE clause injection (`TenantAlpha` isolation), 401 Unauthorized for missing bearer tokens, and 403 Forbidden for insufficient role permissions (`viewer` role log blocking).
+          6. Commercial SaaS Egress Firewall: Commercial endpoints (`api.openai.com`, `api.anthropic.com`) strictly intercepted and blocked by egress firewall rules.
+      * Generated edge cases artifact: `.harness/evidence/F021/nl-llm-edge-cases-report.json`.
+Evaluator: acceptance=5 correctness=5 boundaries=5 modularity=5 evidence=5 => avg 5.0 (PASS)
+Notes: Project Argus roadmap complete (21/21 features delivered across all 5 phases).
+
 ## 2026-10-15 — F020 Topological Alert Correlation & Root-Cause Grouping — COMPLETE
 Branch/commit: main @ HEAD   PR: N/A   CI: green (41/41 verification steps passed)
 Evidence:

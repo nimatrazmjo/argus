@@ -13,8 +13,8 @@
       "description": "Container CPU rate > 0.5 across argus services",
       "summary": "Container CPU usage rate exceeded threshold"
     },
-    "startsAt": "2026-10-16T03:02:20.882353807Z",
-    "endsAt": "2026-10-16T03:35:20.882353807Z",
+    "startsAt": "2026-10-16T03:31:50.882353807Z",
+    "endsAt": "2026-10-16T04:04:35.882353807Z",
     "generatorURL": "http://localhost:8080/alerts/overview?ruleId=01a13fcb-0c47-7029-af3c-e0aa06a16319",
     "status": {
       "state": "active",

@@ -1,0 +1,46 @@
+{
+  "egress_audit_status": "COMPLIANT",
+  "agency_boundary": "US_GOVCLOUD_IL5_AIRGAP",
+  "unauthorized_external_requests": 0,
+  "public_commercial_apis_blocked": [
+    "api.openai.com",
+    "api.anthropic.com"
+  ],
+  "allowed_in_boundary_endpoints": [
+    "bedrock-runtime.us-gov-west-1.amazonaws.com",
+    "cluster.local:9098"
+  ],
+  "audit_entries_count": 5,
+  "audit_log": [
+    {
+      "timestamp": 1792123622.076021,
+      "destination": "https://bedrock-runtime.us-gov-west-1.amazonaws.com",
+      "allowed": true,
+      "reason": "In-boundary GovCloud Bedrock invocation"
+    },
+    {
+      "timestamp": 1792123622.1473958,
+      "destination": "https://bedrock-runtime.us-gov-west-1.amazonaws.com",
+      "allowed": true,
+      "reason": "In-boundary GovCloud Bedrock invocation"
+    },
+    {
+      "timestamp": 1792123622.1588936,
+      "destination": "https://bedrock-runtime.us-gov-west-1.amazonaws.com",
+      "allowed": true,
+      "reason": "In-boundary GovCloud Bedrock invocation"
+    },
+    {
+      "timestamp": 1792123622.1674964,
+      "destination": "https://bedrock-runtime.us-gov-west-1.amazonaws.com",
+      "allowed": true,
+      "reason": "In-boundary GovCloud Bedrock invocation"
+    },
+    {
+      "timestamp": 1792123622.1787288,
+      "destination": "https://bedrock-runtime.us-gov-west-1.amazonaws.com",
+      "allowed": true,
+      "reason": "In-boundary GovCloud Bedrock invocation"
+    }
+  ]
+}

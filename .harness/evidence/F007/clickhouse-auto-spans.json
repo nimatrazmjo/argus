@@ -1,5 +1,5 @@
-{"timestamp":"2026-10-16 03:26:56.485993167","traceID":"1597f4dab91dc639e6419fe105550baf","spanID":"0836e8975624e54b","serviceName":"argus-auto-service","name":"GET","kind":3,"responseStatusCode":"200"}
-{"timestamp":"2026-10-16 03:26:56.483897626","traceID":"1597f4dab91dc639e6419fe105550baf","spanID":"705e9d46bf5b34c7","serviceName":"argus-auto-service","name":"GET \/api\/order","kind":2,"responseStatusCode":"200"}
-{"timestamp":"2026-10-16 03:26:55.773549375","traceID":"9e1b5d807a5dfeaf7fab8ea6510c37bb","spanID":"27d1385b5576f261","serviceName":"argus-auto-service","name":"GET \/healthz","kind":2,"responseStatusCode":"200"}
-{"timestamp":"2026-10-16 03:26:50.674436970","traceID":"bfd0bd44b219b5c446e777237371e22d","spanID":"4e033e060442f2ab","serviceName":"argus-auto-service","name":"GET \/healthz","kind":2,"responseStatusCode":"200"}
-{"timestamp":"2026-10-16 03:26:47.495789094","traceID":"309b5276dad46860567adedd4cfa6ea0","spanID":"8dda35983a385b2b","serviceName":"argus-auto-service","name":"GET \/healthz","kind":2,"responseStatusCode":"200"}
+{"timestamp":"2026-10-16 03:55:47.312313759","traceID":"7bda1db3a89a9dfe0f92d98be7d9e7c9","spanID":"e829474cf611f866","serviceName":"argus-auto-service","name":"GET \/healthz","kind":2,"responseStatusCode":"200"}
+{"timestamp":"2026-10-16 03:55:45.543128467","traceID":"4aaff81609a2d921725ef6dc914825b6","spanID":"aa51ff2fd6430e5e","serviceName":"argus-auto-service","name":"GET \/healthz","kind":2,"responseStatusCode":"200"}
+{"timestamp":"2026-10-16 03:55:40.505203131","traceID":"3248bb5144f5ebd72075077ded2c48ef","spanID":"44a585c527f05938","serviceName":"argus-auto-service","name":"GET \/healthz","kind":2,"responseStatusCode":"200"}
+{"timestamp":"2026-10-16 03:55:37.322637296","traceID":"68400093840365ccc5ad55faeb2f5197","spanID":"db77e634f7468c9d","serviceName":"argus-auto-service","name":"GET \/healthz","kind":2,"responseStatusCode":"200"}
+{"timestamp":"2026-10-16 03:55:35.494908170","traceID":"895b67c13ac391160eb8c1168efa7414","spanID":"f9b10efcf85469ac","serviceName":"argus-auto-service","name":"GET \/healthz","kind":2,"responseStatusCode":"200"}

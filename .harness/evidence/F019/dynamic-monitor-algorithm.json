@@ -45,8 +45,8 @@
       "type": "EWMA",
       "alpha": 0.2,
       "confidence_k": 3.0,
-      "mean": 45.2942,
-      "std": 2.6705,
+      "mean": 45.5402,
+      "std": 2.0371,
       "sample_count": 30,
       "is_firing": false
     },
@@ -54,8 +54,8 @@
       "type": "EWMA",
       "alpha": 0.15,
       "confidence_k": 3.0,
-      "mean": 61.8131,
-      "std": 0.5424,
+      "mean": 62.0693,
+      "std": 0.7023,
       "sample_count": 30,
       "is_firing": false
     },
@@ -63,8 +63,8 @@
       "type": "EWMA",
       "alpha": 0.25,
       "confidence_k": 3.0,
-      "mean": 87.4973,
-      "std": 6.5211,
+      "mean": 83.7395,
+      "std": 3.9695,
       "sample_count": 30,
       "is_firing": false
     },
@@ -72,22 +72,22 @@
       "type": "Seasonal_Diurnal",
       "period_hours": 24,
       "confidence_k": 3.0,
-      "sample_count": 29,
+      "sample_count": 23,
       "last_evaluation": {
         "metric": "sample_service_diurnal_throughput",
-        "value": 120.3788,
-        "timestamp": 1792121637.588367,
-        "hour": 3,
-        "trend": 128.4819,
-        "seasonal_component": -11.4019,
-        "residual": 5.4981,
-        "residual_std": 5.8652,
-        "upper_bound": 132.4763,
-        "lower_bound": 97.2852,
-        "z_score": 0.9374,
+        "value": 115.1718,
+        "timestamp": 1792123423.9167247,
+        "hour": 4,
+        "trend": 119.3129,
+        "seasonal_component": -1.4744,
+        "residual": -4.4444,
+        "residual_std": 4.8933,
+        "upper_bound": 134.2963,
+        "lower_bound": 104.9362,
+        "z_score": -0.9083,
         "is_anomaly": false,
         "is_firing": false,
-        "sample_count": 29
+        "sample_count": 23
       }
     }
   }

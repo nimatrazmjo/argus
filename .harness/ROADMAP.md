@@ -154,8 +154,8 @@ See [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/work
   - **Can run in parallel with**: F016
   - **Status**: `COMPLETE`
 
-- [ ] **F021** — NL query + incident summarization (LLM layer; Bedrock-backed)
+- [x] **F021** — NL query + incident summarization (LLM layer; Bedrock-backed)
   - **Mode**: `[SEQUENTIAL GATE]` (Wave 5 Final Platform Moat)
   - **Must wait for**: F014 (Data schemas/rollups), F016 (RBAC boundaries), F019, F020 (Incident correlation graphs)
   - **Can run in parallel with**: None (Final sequential integration gate before full ATO sign-off)
-  - **Status**: `NOT STARTED`
+  - **Status**: `COMPLETE`

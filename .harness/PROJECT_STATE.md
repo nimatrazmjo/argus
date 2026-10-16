@@ -4,14 +4,16 @@
 
 ## Where we are
 - **Execution Architecture**: Multi-Track Concurrent Execution Model (see [`.harness/PARALLEL_EXECUTION_GRAPH.md`](file:///Users/nimatullahrazmjo/workstation/argus/.harness/PARALLEL_EXECUTION_GRAPH.md))
-- **Active Wave**: **Wave 4 — Security, Compliance & Cost Governance** (Unlocked at Gate G3)
+- **Active Wave**: **Wave 5 — Advanced AIOps & Post-Mortem Intelligence (COMPLETED)**
 - **Gate Status**:
   - **Sync Gate G1**: **PASSED**. Air-gap compliant core spine operational (OTel -> ClickHouse HA -> SigNoz + Auto-Instrumentation + eBPF Beyla).
   - **Sync Gate G2**: **PASSED**. Concurrent Coverage & Operations Foundation 100% complete across all 4 parallel tracks.
   - **Sync Gate G3**: **PASSED**. Operational Depth & Frontend Signals 100% complete across Tracks B, C, and D.
-- **Completed in Wave 4**:
-  - `F016` — Agency SSO & RBAC via OIDC / CAC/PIV smart cards, role mapping (Admin, Operator, Viewer), and PEP reverse proxy (Complete)
-  - `F019` — Dynamic Anomaly & Forecast Monitors via EWMA and Seasonal Diurnal Decomposition (Complete)
+  - **Sync Gate G4**: **PASSED**. Security, Compliance & Cost Governance 100% complete (F016, F019, F020).
+  - **Sync Gate G5**: **PASSED**. Full Platform Moat & Advanced AIOps 100% complete (F021).
+- **Overall progress**: **21 / 21 features COMPLETE (100%)** — All Project Argus platform features delivered and verified!
+- **Active Phase**: Full Platform ATO Readiness & Production Handover (100% Complete)
+
 - **Completed in Wave 3**:
   - `F012` — SLO tracking, error budget burndown, and multi-window burn rate monitors (Complete)
   - `F013` — Paging path: ServiceNow webhook gateway, retry queue, and deduplication (Complete)
@@ -22,16 +24,17 @@
   - `F009` — Infra metrics: node-exporter + kube-state-metrics (Complete)
   - `F010` — Continuous profiling via Pyroscope (Complete)
   - `F011` — Alerting / monitors: firing-state + dedup; threshold rules (Complete)
-  - `F014` — Retention & downsampling, tiered storage hot/cold, materialized views (Complete)
   - `F019` — Dynamic Anomaly & Forecast Monitors via EWMA and seasonal decomposition (Complete)
   - `F020` — Topological Alert Correlation & Root-Cause Grouping via service topology (Complete)
-- **Overall progress**: 20 / 21 features COMPLETE (95%)
-- **Active Features (Remaining in Wave 5 Moat)**:
-  - **Track E**: `F021` (NL query + incident summarization / LLM layer)
+- **Completed in Wave 5 (Final Platform Moat)**:
+  - `F021` — Natural Language Telemetry Query (NL-to-SQL) & Executive Incident Summarization via GovCloud Bedrock / Air-Gapped LLM Adapter (Complete)
+- **Overall progress**: **21 / 21 features COMPLETE (100%)** — All Project Argus platform features delivered and verified!
+- **Active Phase**: Full Platform ATO Readiness & DHS SRE Operational Handover (Complete)
 
 ## Last verified
 - **Date**: 2026-10-15
-- **Full Verification Suite**: PASS — 41 / 41 verification steps passed 100% green (`scripts/verify.sh </dev/null`).
+- **Full Verification Suite**: PASS — 43 / 43 verification steps passed 100% green (`scripts/verify.sh </dev/null`).
+- **F021 Status**: PASS — Natural Language Telemetry Query (NL-to-SQL) & Executive Incident Summarization verified with AST safety validator (read-only SELECT), defined question set translation benchmarks (traces, metrics, logs, RUM with 100% accuracy), GovCloud Bedrock air-gap egress firewall proof (zero unauthorized commercial API calls), executive incident post-mortem generation for cascading outages, and prompt injection/hallucinated schema/RBAC edge cases (`scripts/test-nl-query.sh` and `scripts/test-nl-query-edge-cases.sh`). Evidence in `.harness/evidence/F021/`.
 - **F020 Status**: PASS — Topological Alert Correlation & Root-Cause Grouping engine verified with service dependency DAG analysis, cascading multi-service failure alert grouping into a single incident, multi-factor probable root-cause ranking (upstream database isolated from downstream symptoms with 99.0% confidence), blast-radius calculation, ServiceNow Table API single-ticket dispatch, and anti-false-merge/cross-tenant/out-of-order edge cases (`scripts/test-correlation-grouping.sh` and `scripts/test-correlation-grouping-edge-cases.sh`). Evidence in `.harness/evidence/F020/`.
 - **F019 Status**: PASS — Dynamic Metric Anomaly Detection & Forecast Monitors verified with EWMA 3-sigma bands, seasonal diurnal decomposition, linear capacity saturation forecasting, 44x false-positive rate reduction vs static thresholding (0.549% vs 24.364%), 100% true positive recall, and cold start/sparse data/regime shift edge cases (`scripts/test-anomaly.sh` and `scripts/test-anomaly-edge-cases.sh`). Evidence in `.harness/evidence/F019/`.
 - **F016 Status**: PASS — Agency IdP (Keycloak OIDC), PIV/CAC certificate claims, SSO reverse proxy gateway, cryptographic token verification, RBAC role separation (Admin, Operator, Viewer), and tenant scope propagation verified (`scripts/test-sso.sh` and `scripts/test-sso-edge-cases.sh`). Evidence in `.harness/evidence/F016/`.

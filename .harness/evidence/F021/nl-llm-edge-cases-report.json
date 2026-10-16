@@ -1,0 +1,30 @@
+{
+  "ambiguous_query_handling": {
+    "status": "PASS",
+    "detail": "Ambiguous input ('What happened yesterday?') returned structured clarifications and domain suggestions."
+  },
+  "hallucinated_schema_rejection": {
+    "status": "PASS",
+    "detail": "Queries requesting non-existent tables or sensitive columns rejected with HallucinatedSchemaError."
+  },
+  "prompt_injection_neutralization": {
+    "status": "PASS",
+    "detail": "Jailbreak and SQL injection payloads stripped from query before AST processing."
+  },
+  "mutation_blockage": {
+    "status": "PASS",
+    "detail": "Destructive SQL keywords (DROP, ALTER, TRUNCATE, DELETE) strictly blocked by AST validator."
+  },
+  "rbac_enforcement": {
+    "status": "PASS",
+    "detail": "Unauthenticated denied 401; Viewer restricted from raw logs 403; Admin granted 200."
+  },
+  "multi_tenant_scoping": {
+    "status": "PASS",
+    "detail": "Tenant-scoped user token automatically injected WHERE ResourceAttributes['tenant_id'] = 'tenant_alpha'."
+  },
+  "commercial_egress_firewall": {
+    "status": "PASS",
+    "detail": "Attempted egress to public OpenAI endpoint strictly blocked by air-gap firewall policy."
+  }
+}

@@ -208,7 +208,7 @@ WAVE 5: FINAL MOAT — AUTONOMOUS LLM LAYER
 | **F018** | Synthetics (Playwright probes) | 04 | D | 3 | `PARALLEL TRACK D` | F011 | F012, F013, F015, F017 | None | `NOT STARTED` |
 | **F019** | Anomaly & forecast monitors | 05 | E | 4 | `PARALLEL TRACK E` | F009, F011 | F016, F020 | F020, F021 | `NOT STARTED` |
 | **F020** | Alert correlation & root-cause | 05 | E | 4 | `PARALLEL TRACK E` | F011, F013, F019 | F016 | F021 | `COMPLETE` |
-| **F021** | NL query & incident summarize | 05 | E | 5 | `SEQUENTIAL GATE` | F014, F016, F019, F020 | None | Full ATO Sign-off | `NOT STARTED` |
+| **F021** | NL query & incident summarize | 05 | E | 5 | `SEQUENTIAL GATE` | F014, F016, F019, F020 | None | Full ATO Sign-off | `COMPLETE` |
 
 ---
 

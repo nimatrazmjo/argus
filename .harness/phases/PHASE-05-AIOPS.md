@@ -54,15 +54,15 @@ Correlation rules/engine manifests; grouped incident payload transcript under `.
 - **Must wait for**: F014 (Data schemas/rollups), F016 (RBAC boundaries), F019 (Anomaly metrics), F020 (Correlated incident graph), Sync Gate G4
 - **Can run in parallel with**: None (Final sequential integration gate before full ATO sign-off)
 - **Blocks**: Full DHS Platform Certification & ATO Readiness
-- **Status**: NOT STARTED
+- **Status**: COMPLETE
 
 ### Acceptance criteria
-- [ ] A natural-language query returns the right telemetry (NL -> ClickHouse SQL) for a defined question set; incidents get an auto-summary.
-- [ ] LLM backend runs within the agency boundary (Bedrock in the approved GovCloud boundary, or an on-prem model) — no data leaves the boundary.
-- [ ] Strictly respects RBAC roles established in F016.
-- [ ] Edge cases: ambiguous query, hallucinated field rejected, prompt-injection from log content neutralized.
-- [ ] E2E: the query set returns correct results; an incident summary is generated.
-- [ ] FULL verify green.
+- [x] A natural-language query returns the right telemetry (NL -> ClickHouse SQL) for a defined question set; incidents get an auto-summary.
+- [x] LLM backend runs within the agency boundary (Bedrock in the approved GovCloud boundary, or an on-prem model) — no data leaves the boundary.
+- [x] Strictly respects RBAC roles established in F016.
+- [x] Edge cases: ambiguous query, hallucinated field rejected, prompt-injection from log content neutralized.
+- [x] E2E: the query set returns correct results; an incident summary is generated.
+- [x] FULL verify green.
 
 ### Evidence expected
 NL-to-SQL translation benchmarks; GovCloud Bedrock egress test proof; incident summary output under `.harness/evidence/F021/`.
