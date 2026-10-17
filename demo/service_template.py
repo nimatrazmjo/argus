@@ -542,7 +542,12 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
 
         # Read body if present
         body_data = {}
-        content_length = int(self.headers.get("Content-Length", 0))
+        try:
+            content_length = max(0, int(self.headers.get("Content-Length", 0) or 0))
+        except ValueError:
+            body_err = json.dumps({"error": "BadRequest", "message": "invalid Content-Length"}).encode("utf-8")
+            self._safe_send_response(400, {"Content-Type": "application/json"}, body_err)
+            return
         if content_length > 0:
             try:
                 body_raw = self.rfile.read(content_length).decode("utf-8", errors="replace")
@@ -550,8 +555,14 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
                 return
             try:
                 body_data = json.loads(body_raw)
-            except Exception:
-                body_data = {"raw": body_raw}
+            except json.JSONDecodeError:
+                body_err = json.dumps({"error": "BadRequest", "message": "malformed JSON"}).encode("utf-8")
+                self._safe_send_response(400, {"Content-Type": "application/json"}, body_err)
+                return
+            if not isinstance(body_data, dict):
+                body_err = json.dumps({"error": "BadRequest", "message": "JSON body must be an object"}).encode("utf-8")
+                self._safe_send_response(400, {"Content-Type": "application/json"}, body_err)
+                return
             DatadogLogger.log(
                 "DEBUG",
                 f"Parsed HTTP payload: {len(body_raw)} bytes",
@@ -633,6 +644,8 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
                 status_code = 409
             elif "Token" in error_kind or "Auth" in error_kind:
                 status_code = 401
+            elif "NotFound" in error_kind:
+                status_code = 404
 
             # Datadog Error Log with Full Stack Trace
             DatadogLogger.log(
@@ -740,7 +753,7 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
                 rec_resp = call_downstream("recommendation", "/recommendation/for-user?user_id=usr_9918", method="GET", trace_id=trace_id, parent_span_id=span_id)
                 return {"items": catalog_resp.get("items"), "recommendations": rec_resp.get("recommendations")}
 
-            return {"service": SERVICE_NAME, "status": "READY", "routes": ["/api/checkout", "/api/search", "/healthz"]}
+            raise RouteNotFoundError(f"unmatched route: {method} {route}")
 
         # -------------------------------------------------------------
         # ROLE 2: AUTH (argus-svc-auth :8002)
@@ -884,10 +897,13 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
                     ]
                 }
 
-        return {"service": SERVICE_NAME, "status": "OK"}
+        raise RouteNotFoundError(f"unmatched route: {method} {route}")
 
 
 # Custom Exceptions for Datadog Error Simulation
+class RouteNotFoundError(Exception):
+    pass
+
 class TokenExpiredException(Exception):
     pass
 

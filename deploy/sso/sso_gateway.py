@@ -23,7 +23,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PORT = int(os.environ.get("PORT", "8088"))
 JWT_SECRET = os.environ.get("JWT_SECRET", "").strip()
@@ -137,6 +137,18 @@ LOGIN_HTML = """<!DOCTYPE html>
 """
 
 class SSOGatewayHandler(BaseHTTPRequestHandler):
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def finish(self):
+        try:
+            super().finish()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def _apply_cors_and_security_headers(self, is_identity_endpoint: bool = False):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
@@ -406,7 +418,8 @@ def run():
         sys.exit(1)
 
     server_address = ("", PORT)
-    httpd = HTTPServer(server_address, SSOGatewayHandler)
+    httpd = ThreadingHTTPServer(server_address, SSOGatewayHandler)
+    httpd.daemon_threads = True
 
     def handle_shutdown(signum, frame):
         sys.stderr.write(f"Argus SSO Gateway received signal {signum}, shutting down cleanly...\n")

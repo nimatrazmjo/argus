@@ -10,7 +10,7 @@ import os
 import sys
 import time
 import secrets
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import threading
 
 PORT = int(os.environ.get("PORT", "8088"))
@@ -23,11 +23,26 @@ SIMULATE_FAILURE = False
 class ServiceNowMockHandler(BaseHTTPRequestHandler):
     def _send_json(self, status: int, data: dict):
         body = json.dumps(data).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def finish(self):
+        try:
+            super().finish()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_GET(self):
         global INCIDENTS, SIMULATE_FAILURE
@@ -170,5 +185,6 @@ class ServiceNowMockHandler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     print(f"Starting Argus Mock ServiceNow Incident Table API Server on port {PORT}...")
-    server = HTTPServer(("0.0.0.0", PORT), ServiceNowMockHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), ServiceNowMockHandler)
+    server.daemon_threads = True
     server.serve_forever()

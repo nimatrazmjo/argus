@@ -22,7 +22,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import threading
 
 PORT = int(os.environ.get("PORT", "9098"))
@@ -508,12 +508,27 @@ def authenticate_jwt_role(auth_header: str, secret: str = None) -> tuple[bool, s
 class AIOpsLLMHandler(BaseHTTPRequestHandler):
     def _send_json(self, status: int, data: dict):
         body = json.dumps(data).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("X-Content-Type-Options", "nosniff")
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def finish(self):
+        try:
+            super().finish()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_GET(self):
         global STATS
@@ -578,11 +593,14 @@ class AIOpsLLMHandler(BaseHTTPRequestHandler):
                     f'argus_aiops_unauthorized_egress_total {STATS["unauthorized_egress_attempts"]}'
                 ]
             body = "\n".join(output) + "\n"
-            self.send_response(200)
-            self.send_header("Content-Type", "text/plain; version=0.0.4")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body.encode("utf-8"))
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; version=0.0.4")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body.encode("utf-8"))
+            except (BrokenPipeError, ConnectionResetError):
+                pass
             return
 
         self._send_json(404, {"error": "Not Found"})
@@ -745,7 +763,8 @@ def run_server():
     if not os.environ.get("JWT_SECRET", JWT_SECRET).strip():
         sys.stderr.write("ERROR: JWT_SECRET environment variable must be set before starting argus-aiops-llm.\n")
         sys.exit(1)
-    server = HTTPServer(("0.0.0.0", PORT), AIOpsLLMHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), AIOpsLLMHandler)
+    server.daemon_threads = True
     print(f"[AIOps-LLM-Service] Listening on port {PORT} in GovCloud region {GOVCLOUD_REGION}...")
     server.serve_forever()
 

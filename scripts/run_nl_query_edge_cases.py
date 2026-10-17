@@ -253,7 +253,8 @@ def main():
     assert "tenant_alpha" in resp_t.get("generated_sql", "")
 
     # Verify malicious tenant_id in signed token is rejected
-    bad_tenant_auth = {"Authorization": f"Bearer {make_signed_jwt('operator', 'bob.operator', \"tenant_alpha') OR 1=1 --\")}"}
+    evil_tenant = "tenant_alpha') OR 1=1 --"
+    bad_tenant_auth = {"Authorization": f"Bearer {make_signed_jwt('operator', 'bob.operator', evil_tenant)}"}
     code_bad_t, _ = http_request(
         f"{LLM_URL}/api/nl-query",
         method="POST",

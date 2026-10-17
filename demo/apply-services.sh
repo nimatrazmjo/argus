@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
+# shellcheck source=../scripts/lib/rollout.sh
+source "${SCRIPT_DIR}/../scripts/lib/rollout.sh"
 STAGGER_DELAY_SECONDS="${STAGGER_DELAY_SECONDS:-2}"
 MAX_KUBECTL_RETRIES="${MAX_KUBECTL_RETRIES:-5}"
 
@@ -69,6 +71,7 @@ if not matched:
 print("\n---\n".join(matched))
 PYEOF
 
+  roll_on_code_change "${NAMESPACE}" "${svc}" "${SCRIPT_DIR}/service_template.py"
   echo "    [${idx}/${total}] Waiting for rollout of deployment/${svc}..."
   kubectl_retry rollout status "deployment/${svc}" -n "${NAMESPACE}" --timeout=120s
 

@@ -20,7 +20,7 @@ import signal
 import sys
 import time
 import urllib.parse
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PORT = int(os.environ.get("PORT", "8089"))
 JWT_SECRET = os.environ.get("JWT_SECRET", "").strip()
@@ -142,6 +142,18 @@ def verify_signed_jwt(token: str, secret: str = None) -> tuple[bool, dict, str]:
 
 
 class IdPRequestHandler(BaseHTTPRequestHandler):
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def finish(self):
+        try:
+            super().finish()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def send_json(self, status_code: int, data: dict):
         body = json.dumps(data).encode("utf-8")
         self.send_response(status_code)
@@ -318,7 +330,8 @@ def run():
         sys.exit(1)
 
     server_address = ("", PORT)
-    httpd = HTTPServer(server_address, IdPRequestHandler)
+    httpd = ThreadingHTTPServer(server_address, IdPRequestHandler)
+    httpd.daemon_threads = True
 
     def handle_shutdown(signum, frame):
         sys.stderr.write(f"Argus IdP received signal {signum}, shutting down cleanly...\n")

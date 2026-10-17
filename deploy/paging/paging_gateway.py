@@ -14,7 +14,7 @@ import time
 import urllib.request
 import urllib.error
 import urllib.parse
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import threading
 from queue import Queue, Empty
 
@@ -178,11 +178,26 @@ worker_thread.start()
 class PagingGatewayHandler(BaseHTTPRequestHandler):
     def _send_json(self, status: int, data: dict):
         body = json.dumps(data).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def finish(self):
+        try:
+            super().finish()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_GET(self):
         global ACTIVE_INCIDENTS, STATS
@@ -379,5 +394,6 @@ class PagingGatewayHandler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     print(f"Starting Argus Paging Gateway & Incident Dispatcher on port {PORT}...")
     print(f"Destination ServiceNow URL: {SERVICENOW_URL}")
-    server = HTTPServer(("0.0.0.0", PORT), PagingGatewayHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), PagingGatewayHandler)
+    server.daemon_threads = True
     server.serve_forever()

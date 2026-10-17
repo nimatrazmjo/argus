@@ -15,7 +15,7 @@ import uuid
 import urllib.request
 import urllib.error
 import urllib.parse
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import threading
 
 PORT = int(os.environ.get("PORT", "9097"))
@@ -289,11 +289,26 @@ def send_to_servicenow(payload: dict, method: str = "POST", url: str = None) -> 
 class CorrelationHandler(BaseHTTPRequestHandler):
     def _send_json(self, status: int, data: dict):
         body = json.dumps(data).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def finish(self):
+        try:
+            super().finish()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_GET(self):
         global TOPOLOGY, INCIDENT_GROUPS, STATS
@@ -363,11 +378,14 @@ class CorrelationHandler(BaseHTTPRequestHandler):
                     f'argus_correlation_reduction_ratio {reduction_ratio}'
                 ]
             body = "\n".join(output) + "\n"
-            self.send_response(200)
-            self.send_header("Content-Type", "text/plain; version=0.0.4")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body.encode("utf-8"))
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; version=0.0.4")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body.encode("utf-8"))
+            except (BrokenPipeError, ConnectionResetError):
+                pass
             return
 
         self._send_json(404, {"error": "Not Found"})
@@ -607,7 +625,8 @@ class CorrelationHandler(BaseHTTPRequestHandler):
         self._send_json(404, {"error": "Not Found"})
 
 def run_server():
-    server = HTTPServer(("0.0.0.0", PORT), CorrelationHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), CorrelationHandler)
+    server.daemon_threads = True
     print(f"[Correlation-Engine] Listening on port {PORT}...")
     server.serve_forever()
 

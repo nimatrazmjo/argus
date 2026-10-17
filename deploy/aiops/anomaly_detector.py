@@ -16,7 +16,7 @@ import json
 import math
 import time
 import random
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -469,19 +469,37 @@ def generate_weekly_benchmark(seed: int = 42) -> Dict[str, Any]:
 class AnomalyRequestHandler(BaseHTTPRequestHandler):
     def _send_json(self, status: int, payload: Dict[str, Any]):
         body = json.dumps(payload, indent=2).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def _send_text(self, status: int, text: str, content_type: str = "text/plain"):
         body = text.encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def finish(self):
+        try:
+            super().finish()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -675,7 +693,8 @@ def initialize_default_monitors():
 
 def main():
     initialize_default_monitors()
-    server = HTTPServer(("0.0.0.0", PORT), AnomalyRequestHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), AnomalyRequestHandler)
+    server.daemon_threads = True
     print(f"Argus Anomaly Detector listening on port {PORT} (AIOps Feature F019)...", flush=True)
     try:
         server.serve_forever()

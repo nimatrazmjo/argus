@@ -15,7 +15,7 @@ import time
 BASE_URL = "http://127.0.0.1:8080"
 SIGNOZ_URL = "http://signoz.argus-system.svc.cluster.local:8080"
 ADMIN_EMAIL = os.environ.get("SIGNOZ_ADMIN_EMAIL", "admin@argus.internal")
-ADMIN_PASSWORD = os.environ.get("SIGNOZ_ADMIN_PASSWORD", "")
+ADMIN_PASSWORD = os.environ.get("SIGNOZ_ADMIN_PASSWORD", "ArgusAdminPassword123!")
 SAMPLE_APP_API_TOKEN = os.environ.get("SAMPLE_APP_API_TOKEN", "")
 
 

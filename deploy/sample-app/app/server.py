@@ -13,7 +13,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import secrets
 import signal
 import threading
@@ -850,8 +850,19 @@ def render_slo_html(status: dict) -> str:
 
 class RequestHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Quiet stdout logging in container
         sys.stderr.write("%s - - [%s] %s\n" % (self.address_string(), self.log_date_time_string(), format % args))
+
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def finish(self):
+        try:
+            super().finish()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_GET(self):
         self.handle_request()
@@ -1108,7 +1119,8 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 def run():
     server_address = ("", PORT)
-    httpd = HTTPServer(server_address, RequestHandler)
+    httpd = ThreadingHTTPServer(server_address, RequestHandler)
+    httpd.daemon_threads = True
 
     def handle_shutdown(signum, frame):
         sys.stderr.write(f"Received signal {signum}, shutting down immediately...\n")

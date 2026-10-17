@@ -24,8 +24,9 @@ echo "    Archived OpenSLO manifest to ${EVIDENCE_DIR}/slo-definition.json"
 # 2. Execute E2E Controller inside cluster
 echo "--> [2/4] Executing E2E SLO burndown controller inside cluster..."
 PY_CONTENT=$(cat "${PYTHON_CONTROLLER}")
+SIGNOZ_ADMIN_PASSWORD="${SIGNOZ_ADMIN_PASSWORD:-ArgusAdminPassword123!}"
 
-OUTPUT=$(kubectl exec </dev/null -n "${NAMESPACE}" deployment/argus-sample-service -- python -c "${PY_CONTENT}")
+OUTPUT=$(kubectl exec </dev/null -n "${NAMESPACE}" deployment/argus-sample-service -- env SIGNOZ_ADMIN_PASSWORD="${SIGNOZ_ADMIN_PASSWORD}" python -c "${PY_CONTENT}")
 
 echo "${OUTPUT}" | while IFS= read -r line; do
   case "${line}" in

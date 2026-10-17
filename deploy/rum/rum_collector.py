@@ -25,7 +25,7 @@ import threading
 import time
 import urllib.parse
 import urllib.request
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 PORT = int(os.environ.get("PORT", "8082"))
 CLICKHOUSE_HTTP = os.environ.get(
@@ -861,6 +861,18 @@ def generate_player_html(session_id: str, session: dict, events: list, csp_nonce
 """
 
 class RUMRequestHandler(BaseHTTPRequestHandler):
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def finish(self):
+        try:
+            super().finish()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def _apply_cors_headers(self):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
@@ -1256,7 +1268,8 @@ class RUMRequestHandler(BaseHTTPRequestHandler):
 
 def run():
     server_address = ("", PORT)
-    httpd = HTTPServer(server_address, RUMRequestHandler)
+    httpd = ThreadingHTTPServer(server_address, RUMRequestHandler)
+    httpd.daemon_threads = True
 
     def handle_shutdown(signum, frame):
         sys.stderr.write(f"RUM collector received signal {signum}, shutting down cleanly...\n")

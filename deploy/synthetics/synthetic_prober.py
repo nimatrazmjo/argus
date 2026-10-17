@@ -12,7 +12,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import threading
 
 PORT = int(os.environ.get("PORT", "9115"))
@@ -160,11 +160,26 @@ t.start()
 class SyntheticProberHandler(BaseHTTPRequestHandler):
     def _send_text(self, status: int, text: str, content_type: str = "text/plain"):
         body = text.encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def finish(self):
+        try:
+            super().finish()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def do_GET(self):
         global PROBE_RESULTS, PROBE_COUNTS, SIMULATED_TARGET_FAILURE
@@ -254,5 +269,6 @@ class SyntheticProberHandler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     print(f"Starting Argus Synthetic Canary Prober on port {PORT}...")
-    server = HTTPServer(("0.0.0.0", PORT), SyntheticProberHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), SyntheticProberHandler)
+    server.daemon_threads = True
     server.serve_forever()
