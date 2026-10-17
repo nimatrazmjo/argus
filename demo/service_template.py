@@ -20,7 +20,7 @@ import threading
 import traceback
 import urllib.request
 import urllib.error
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 SERVICE_NAME = os.environ.get("SERVICE_NAME", "argus-svc-generic")
@@ -93,6 +93,7 @@ def generate_trace_ids():
 
 class DatadogLogger:
     """Datadog Structured Logger emitting to stdout & asynchronous OTLP bridge."""
+    _stdout_lock = threading.Lock()
 
     @staticmethod
     def log(level: str, message: str, trace_id: str = "", span_id: str = "", logger_name: str = "argus.app", **kwargs):
@@ -130,8 +131,9 @@ class DatadogLogger:
 
         # 1. Print structured JSON to stdout for Datadog / Docker / K8s log forwarders
         json_output = json.dumps(log_record)
-        sys.stdout.write(json_output + "\n")
-        sys.stdout.flush()
+        with DatadogLogger._stdout_lock:
+            sys.stdout.write(json_output + "\n")
+            sys.stdout.flush()
 
         # 2. Async forward to OTel Collector gateway for ClickHouse default.otel_logs
         severity_map = {"debug": 5, "info": 9, "warn": 13, "error": 17, "fatal": 21}
@@ -439,6 +441,37 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
         # Suppress BaseHTTPRequestHandler standard stderr output to keep stdout purely JSON
         pass
 
+    def _safe_write(self, payload: bytes) -> bool:
+        """Write response bytes to client socket, dropping BrokenPipeError/ConnectionResetError quietly."""
+        try:
+            self.wfile.write(payload)
+            return True
+        except (BrokenPipeError, ConnectionResetError):
+            return False
+
+    def _safe_send_response(self, status_code: int, headers: dict, payload: bytes) -> bool:
+        """Send status, headers, and payload while quietly dropping early client disconnects."""
+        try:
+            self.send_response(status_code)
+            for k, v in headers.items():
+                self.send_header(k, v)
+            self.end_headers()
+        except (BrokenPipeError, ConnectionResetError):
+            return False
+        return self._safe_write(payload)
+
+    def handle(self):
+        try:
+            super().handle()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def finish(self):
+        try:
+            super().finish()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def _extract_traceparent(self):
         tp = self.headers.get("traceparent")
         if tp:
@@ -473,10 +506,11 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
 
         # 1. Healthcheck endpoint
         if route in ("/healthz", "/health"):
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"status": "HEALTHY", "service": SERVICE_NAME, "role": SERVICE_ROLE, "version": VERSION}).encode())
+            self._safe_send_response(
+                200,
+                {"Content-Type": "application/json"},
+                json.dumps({"status": "HEALTHY", "service": SERVICE_NAME, "role": SERVICE_ROLE, "version": VERSION}).encode("utf-8"),
+            )
             return
 
         # 2. Prometheus /metrics endpoint
@@ -510,7 +544,10 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
         if method == "POST":
             content_length = int(self.headers.get("Content-Length", 0))
             if content_length > 0:
-                body_raw = self.rfile.read(content_length).decode("utf-8", errors="replace")
+                try:
+                    body_raw = self.rfile.read(content_length).decode("utf-8", errors="replace")
+                except (BrokenPipeError, ConnectionResetError):
+                    return
                 try:
                     body_data = json.loads(body_raw)
                 except Exception:
@@ -533,12 +570,15 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
             status_code = 200
 
             resp_bytes = json.dumps(response_data).encode("utf-8")
-            self.send_response(status_code)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("x-trace-id", trace_id)
-            self.send_header("x-span-id", server_span_id)
-            self.end_headers()
-            self.wfile.write(resp_bytes)
+            self._safe_send_response(
+                status_code,
+                {
+                    "Content-Type": "application/json",
+                    "x-trace-id": trace_id,
+                    "x-span-id": server_span_id,
+                },
+                resp_bytes,
+            )
 
             duration_ms = round((time.time() - start_t) * 1000.0, 2)
             end_ns = int(time.time() * 1e9)
@@ -614,11 +654,14 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
             )
 
             err_resp = json.dumps({"error": error_kind, "message": str(exc), "trace_id": trace_id}).encode("utf-8")
-            self.send_response(status_code)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("x-trace-id", trace_id)
-            self.end_headers()
-            self.wfile.write(err_resp)
+            self._safe_send_response(
+                status_code,
+                {
+                    "Content-Type": "application/json",
+                    "x-trace-id": trace_id,
+                },
+                err_resp,
+            )
 
     def _serve_metrics(self):
         lines = [
@@ -646,10 +689,11 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
                 lines.append(f'errors_total{{service="{SERVICE_NAME}",error_type="{ek}"}} {ec}')
 
         out = "\n".join(lines) + "\n"
-        self.send_response(200)
-        self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-        self.end_headers()
-        self.wfile.write(out.encode("utf-8"))
+        self._safe_send_response(
+            200,
+            {"Content-Type": "text/plain; version=0.0.4; charset=utf-8"},
+            out.encode("utf-8"),
+        )
 
     def _dispatch_role_logic(self, route: str, method: str, qparams: dict, body: dict, trace_id: str, span_id: str, trigger_error: str):
         """Dispatches role-specific microservice logic with full step-by-step Datadog logging."""
@@ -849,7 +893,8 @@ def main():
     # Start Async OTLP Emitter loop
     AsyncOTLPEmitter.start()
 
-    server = HTTPServer(("0.0.0.0", PORT), DatadogRequestHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), DatadogRequestHandler)
+    server.daemon_threads = True
     DatadogLogger.log(
         "INFO",
         f"{SERVICE_NAME} daemon started successfully and listening on port {PORT}",

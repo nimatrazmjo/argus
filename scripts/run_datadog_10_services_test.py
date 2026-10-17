@@ -265,9 +265,39 @@ def test_error_simulation():
             else:
                 print(f"         [OK] Verified Datadog multiline stack trace & error attributes for {expected_exc}")
 
+def test_concurrency_and_disconnects():
+    print("\n[Test 5b] Verifying ThreadingHTTPServer Concurrency & Early Disconnect Handling (#4, #5)...")
+    import socket
+    from concurrent.futures import ThreadPoolExecutor
+
+    # 1. Early disconnect (simulating client timeout / reset mid-response)
+    for port, path in [(8001, "/healthz"), (8001, "/api/checkout"), (8001, "/metrics")]:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(2.0)
+        s.connect(("127.0.0.1", port))
+        s.sendall(f"GET {path} HTTP/1.1\r\nHost: localhost\r\n\r\n".encode("utf-8"))
+        s.close()
+    time.sleep(0.2)
+
+    # 2. Concurrent requests across the 10-service mesh
+    def do_checkout(_):
+        req = urllib.request.Request("http://127.0.0.1:8001/api/checkout", method="POST")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+            return resp.status == 200 and data.get("status") == "CHECKOUT_COMPLETED"
+
+    t0 = time.time()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(do_checkout, range(16)))
+    elapsed = time.time() - t0
+    rps = round(16.0 / max(elapsed, 0.001), 1)
+    assert all(results), "All 16 concurrent checkouts must succeed"
+    print(f"    [OK] 16 concurrent 10-hop checkouts completed in {round(elapsed * 1000, 1)}ms ({rps} req/s)")
+    print("[+] PASS: ThreadingHTTPServer concurrency and BrokenPipeError handling verified.")
+
 def test_clickhouse_persistence():
     print("\n[Test 6] Checking ClickHouse Telemetry Ingestion (NodePort :30123)...")
-    ch_pass = urllib.parse.quote(os.environ.get("CLICKHOUSE_PASSWORD", ""))
+    ch_pass = urllib.parse.quote(os.environ.get("CLICKHOUSE_PASSWORD", "argus123"))
     url = f"http://localhost:30123/?user=default&password={ch_pass}&query=SELECT+count()+FROM+default.otel_logs"
     try:
         with urllib.request.urlopen(url, timeout=3) as resp:
@@ -289,6 +319,7 @@ def main():
         trace_id = test_distributed_transaction()
         test_datadog_logging_attributes(trace_id)
         test_error_simulation()
+        test_concurrency_and_disconnects()
         test_clickhouse_persistence()
 
         print("\n=================================================================")
