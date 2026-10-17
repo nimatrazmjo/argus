@@ -6,10 +6,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 
 echo "--> [1/3] Creating / updating Secret & ConfigMap for Synthetic Canary Prober..."
-if ! kubectl get secret argus-synthetic-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
-  SYNTH_TOKEN="${SYNTHETIC_BEARER_TOKEN:-$(openssl rand -hex 24)}"
+if [ -n "${SYNTHETIC_BEARER_TOKEN:-}" ]; then
   kubectl create secret generic argus-synthetic-secret -n "${NAMESPACE}" \
-    --from-literal=SYNTHETIC_BEARER_TOKEN="${SYNTH_TOKEN}" >/dev/null
+    --from-literal=SYNTHETIC_BEARER_TOKEN="${SYNTHETIC_BEARER_TOKEN}" \
+    --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+elif ! kubectl get secret argus-synthetic-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+  kubectl apply -f "${SCRIPT_DIR}/synthetic-secret.yaml" -n "${NAMESPACE}" >/dev/null
 fi
 kubectl create configmap argus-synthetic-prober-code -n "${NAMESPACE}" \
   --from-file=synthetic_prober.py="${SCRIPT_DIR}/synthetic_prober.py" \

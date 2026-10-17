@@ -19,10 +19,10 @@ data:
     processors:
       batch:
         send_batch_size: 10000
-        timeout: 1s
+        timeout: 5s
       batch/meter:
         send_batch_size: 5000
-        timeout: 1s
+        timeout: 5s
       signozspanmetrics/delta:
         metrics_exporter: signozclickhousemetrics
         latency_histogram_buckets: [100us, 1ms, 2ms, 6ms, 10ms, 50ms, 100ms, 250ms, 500ms, 1000ms, 2000ms, 5s, 10s]

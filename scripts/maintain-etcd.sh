@@ -64,11 +64,17 @@ print(data[0]["Status"].get("dbSizeInUse", 0))
 echo "    Current Revision : ${REV}"
 echo "    DB Size (before) : ${DB_SIZE_BEFORE} bytes (in-use: ${DB_IN_USE_BEFORE} bytes)"
 
-echo "--> [2/4] Compacting etcd keyspace up to revision ${REV}..."
-run_etcdctl compact "${REV}" || echo "    (Revision ${REV} already compacted)"
+COMPACT_REV=$(( REV > 500 ? REV - 500 : REV ))
+echo "--> [2/4] Compacting etcd keyspace up to revision ${COMPACT_REV} (current: ${REV})..."
+run_etcdctl compact "${COMPACT_REV}" || echo "    (Revision ${COMPACT_REV} already compacted)"
 
-echo "--> [3/4] Defragmenting etcd boltdb storage..."
-run_etcdctl defrag
+FRAG_BYTES=$(( DB_SIZE_BEFORE - DB_IN_USE_BEFORE ))
+if [ "${FORCE_DEFRAG:-false}" = "true" ] || [ "${FRAG_BYTES}" -gt 8388608 ] || [ "${DB_SIZE_BEFORE}" -gt 33554432 ]; then
+  echo "--> [3/4] Defragmenting etcd boltdb storage (fragmentation: ${FRAG_BYTES} bytes)..."
+  run_etcdctl defrag
+else
+  echo "--> [3/4] Skipping stop-the-world defrag (DB size ${DB_SIZE_BEFORE}B < 32MiB, fragmentation ${FRAG_BYTES}B < 8MiB)."
+fi
 
 echo "--> [4/4] Disarming any etcd alarms and verifying post-defrag status..."
 run_etcdctl alarm disarm >/dev/null 2>&1 || true

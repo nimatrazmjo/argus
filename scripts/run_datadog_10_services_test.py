@@ -235,19 +235,23 @@ def test_error_simulation():
     print("\n[Test 5] Auditing Datadog Error Logging & Stack Trace Capture...")
     scenarios = [
         ("auth_expired", 401, "TokenExpiredException"),
+        ("auth", 401, "TokenExpiredException"),
         ("inventory_exhausted", 409, "StockExhaustedException"),
+        ("inventory", 409, "StockExhaustedException"),
         ("payment_declined", 402, "PaymentGatewayDeclinedException"),
+        ("payment", 402, "PaymentGatewayDeclinedException"),
     ]
 
     for err_type, expected_code, expected_exc in scenarios:
         url = f"http://127.0.0.1:8001/api/checkout?trigger_error={err_type}"
-        req = urllib.request.Request(url, method="POST")
+        req = urllib.request.Request(url, method="GET")
         try:
-            with urllib.request.urlopen(req, timeout=3) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:
                 print(f"    [-] Scenario {err_type} unexpectedly returned HTTP {resp.status}")
                 file_github_issue(f"[BUG] Error Scenario {err_type} did not fail", f"Expected {expected_code}, got {resp.status}")
         except urllib.error.HTTPError as e:
-            print(f"    [OK] Scenario {err_type} correctly returned HTTP {e.code}")
+            assert e.code == expected_code, f"Scenario {err_type} expected HTTP {expected_code}, got HTTP {e.code}"
+            print(f"    [OK] Scenario {err_type} correctly returned HTTP {e.code} (expected {expected_code})")
             time.sleep(0.5)
             collect_stdout()
 

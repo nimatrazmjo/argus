@@ -11,12 +11,13 @@ echo "   ARGUS AIOPS LLM LAYER & INCIDENT SUMMARIZER ROLLOUT (F021)    "
 echo "================================================================="
 
 echo "--> [0/3] Ensuring Kubernetes Secret argus-sso-secret exists..."
-if ! kubectl get secret argus-sso-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
-  EFFECTIVE_JWT_SECRET="${JWT_SECRET:-$(openssl rand -hex 32)}"
+if [ -n "${JWT_SECRET:-}" ]; then
   kubectl create secret generic argus-sso-secret \
     -n "${NAMESPACE}" \
-    --from-literal=jwt-secret="${EFFECTIVE_JWT_SECRET}" \
+    --from-literal=jwt-secret="${JWT_SECRET}" \
     --dry-run=client -o yaml | kubectl apply -f -
+elif ! kubectl get secret argus-sso-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+  kubectl apply -f "${ROOT_DIR}/deploy/sso/sso-secret.yaml" -n "${NAMESPACE}"
 fi
 
 echo "--> [1/3] Updating ConfigMap for AIOps LLM Service..."

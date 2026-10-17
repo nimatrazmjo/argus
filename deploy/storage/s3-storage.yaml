@@ -73,8 +73,8 @@ spec:
               cpu: 50m
               memory: 64Mi
             limits:
-              cpu: 500m
-              memory: 256Mi
+              cpu: 1000m
+              memory: 512Mi
           volumeMounts:
             - name: s3-data
               mountPath: /data

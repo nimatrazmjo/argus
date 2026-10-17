@@ -15,10 +15,10 @@ spec:
       memory: 128Mi
     limits:
       cpu: 500m
-      memory: 384Mi
+      memory: 512Mi
   env:
     - name: GOMEMLIMIT
-      value: "320MiB"
+      value: "420MiB"
     - name: CLICKHOUSE_PASSWORD
       valueFrom:
         secretKeyRef:
@@ -44,8 +44,8 @@ spec:
     processors:
       memory_limiter:
         check_interval: 1s
-        limit_mib: 280
-        spike_limit_mib: 64
+        limit_mib: 400
+        spike_limit_mib: 80
       k8sattributes:
         auth_type: "serviceAccount"
         passthrough: false
@@ -126,8 +126,8 @@ spec:
           log_record:
             - '((severity_number > 0 and severity_number <= 8) or severity_text == "DEBUG" or severity_text == "TRACE") and resource.attributes["service.name"] != "debug-service" and resource.attributes["service.name"] != "sample-debug-service" and resource.attributes["service.debug"] != "true" and resource.attributes["allow_debug"] != "true" and attributes["allow_debug"] != "true"'
       batch:
-        timeout: 1s
-        send_batch_size: 1024
+        timeout: 5s
+        send_batch_size: 2048
 
     exporters:
       clickhouse:
@@ -136,16 +136,30 @@ spec:
         username: "default"
         password: "${env:CLICKHOUSE_PASSWORD}"
         ttl: 72h
-        timeout: 10s
+        timeout: 45s
+        sending_queue:
+          enabled: true
+          num_consumers: 4
+          queue_size: 256
         retry_on_failure:
           enabled: true
           initial_interval: 5s
           max_interval: 30s
-          max_elapsed_time: 5m
+          max_elapsed_time: 1m
       otlp/signoz:
         endpoint: "signoz-otel-collector.argus-system.svc.cluster.local:4317"
         tls:
           insecure: true
+        timeout: 30s
+        sending_queue:
+          enabled: true
+          num_consumers: 2
+          queue_size: 128
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 30s
 
     service:
       pipelines:

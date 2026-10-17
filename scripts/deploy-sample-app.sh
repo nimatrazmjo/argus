@@ -26,8 +26,15 @@ if ! curl -s -f "http://${MIRROR_REGISTRY}/v2/argus/sample-service/manifests/1.0
 fi
 echo "    Verified image ${IMAGE_TAG} in local mirror."
 
-# 3. Apply Kubernetes Deployment & Service
-echo "--> [3/4] Applying Kubernetes Deployment and Service..."
+# 3. Apply Kubernetes Secret, Deployment & Service
+echo "--> [3/4] Applying Kubernetes Secret, Deployment and Service..."
+if [ -n "${SAMPLE_APP_API_TOKEN:-}" ]; then
+  kubectl create secret generic argus-sample-app-secret -n "${NAMESPACE}" \
+    --from-literal=SAMPLE_APP_API_TOKEN="${SAMPLE_APP_API_TOKEN}" \
+    --dry-run=client -o yaml | kubectl apply -f -
+elif ! kubectl get secret argus-sample-app-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+  kubectl apply -f deploy/sample-app/sample-app-secret.yaml -n "${NAMESPACE}"
+fi
 kubectl apply -f deploy/sample-app/sample-service.yaml
 
 # 4. Wait for Rollout Readiness

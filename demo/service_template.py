@@ -352,7 +352,7 @@ def call_downstream(target_service: str, path: str, method: str = "GET", data_di
 
     req = urllib.request.Request(target_url, data=body_bytes, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:
             resp_bytes = resp.read()
             duration_ms = round((time.time() - start_t) * 1000.0, 2)
             end_ns = int(time.time() * 1e9)
@@ -389,6 +389,7 @@ def call_downstream(target_service: str, path: str, method: str = "GET", data_di
         duration_ms = round((time.time() - start_t) * 1000.0, 2)
         end_ns = int(time.time() * 1e9)
         err_msg = e.read().decode("utf-8", errors="replace")
+        e.downstream_body = err_msg
         DatadogLogger.log(
             "ERROR",
             f"Downstream RPC call to {target_service} failed with HTTP {e.code}: {err_msg}",
@@ -539,27 +540,26 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
             }
         )
 
-        # Read body if POST
+        # Read body if present
         body_data = {}
-        if method == "POST":
-            content_length = int(self.headers.get("Content-Length", 0))
-            if content_length > 0:
-                try:
-                    body_raw = self.rfile.read(content_length).decode("utf-8", errors="replace")
-                except (BrokenPipeError, ConnectionResetError):
-                    return
-                try:
-                    body_data = json.loads(body_raw)
-                except Exception:
-                    body_data = {"raw": body_raw}
-                DatadogLogger.log(
-                    "DEBUG",
-                    f"Parsed HTTP payload: {len(body_raw)} bytes",
-                    trace_id=trace_id,
-                    span_id=server_span_id,
-                    logger_name="argus.http.body",
-                    **{"http.payload_size_bytes": len(body_raw)}
-                )
+        content_length = int(self.headers.get("Content-Length", 0))
+        if content_length > 0:
+            try:
+                body_raw = self.rfile.read(content_length).decode("utf-8", errors="replace")
+            except (BrokenPipeError, ConnectionResetError):
+                return
+            try:
+                body_data = json.loads(body_raw)
+            except Exception:
+                body_data = {"raw": body_raw}
+            DatadogLogger.log(
+                "DEBUG",
+                f"Parsed HTTP payload: {len(body_raw)} bytes",
+                trace_id=trace_id,
+                span_id=server_span_id,
+                logger_name="argus.http.body",
+                **{"http.payload_size_bytes": len(body_raw)}
+            )
 
         # Trigger error check
         trigger_error = query_params.get("trigger_error", [None])[0] or body_data.get("trigger_error")
@@ -614,8 +614,20 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
             duration_ms = round((time.time() - start_t) * 1000.0, 2)
             end_ns = int(time.time() * 1e9)
             error_kind = type(exc).__name__
+            error_msg = str(exc)
             status_code = 500
-            if "Declined" in error_kind or "Payment" in error_kind:
+            if isinstance(exc, urllib.error.HTTPError):
+                status_code = exc.code
+                downstream_body = getattr(exc, "downstream_body", "")
+                if downstream_body:
+                    try:
+                        parsed_err = json.loads(downstream_body)
+                        if isinstance(parsed_err, dict):
+                            error_kind = parsed_err.get("error") or error_kind
+                            error_msg = parsed_err.get("message") or error_msg
+                    except Exception:
+                        pass
+            elif "Declined" in error_kind or "Payment" in error_kind:
                 status_code = 402
             elif "Exhausted" in error_kind or "Inventory" in error_kind:
                 status_code = 409
@@ -625,7 +637,7 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
             # Datadog Error Log with Full Stack Trace
             DatadogLogger.log(
                 "ERROR",
-                f"Request failed with {error_kind}: {str(exc)}",
+                f"Request failed with {error_kind}: {error_msg}",
                 trace_id=trace_id,
                 span_id=server_span_id,
                 logger_name="argus.error",
@@ -633,7 +645,7 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
                     "http.status_code": status_code,
                     "duration_ms": duration_ms,
                     "error.kind": error_kind,
-                    "error.message": str(exc),
+                    "error.message": error_msg,
                     "error.stack": traceback.format_exc(),
                 }
             )
@@ -653,7 +665,7 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
                 attrs={"http.route": route, "http.method": method, "http.status_code": status_code, "error": True}
             )
 
-            err_resp = json.dumps({"error": error_kind, "message": str(exc), "trace_id": trace_id}).encode("utf-8")
+            err_resp = json.dumps({"error": error_kind, "message": error_msg, "trace_id": trace_id}).encode("utf-8")
             self._safe_send_response(
                 status_code,
                 {
@@ -734,7 +746,7 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
         # ROLE 2: AUTH (argus-svc-auth :8002)
         # -------------------------------------------------------------
         elif SERVICE_ROLE == "auth":
-            if trigger_error == "auth_expired":
+            if trigger_error in ("auth", "auth_expired"):
                 raise TokenExpiredException("Agency JWT certificate token expired at 2026-10-16T00:00:00Z")
 
             # Emulate DB user lookup
@@ -805,7 +817,7 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
         # ROLE 5: INVENTORY (argus-svc-inventory :8005)
         # -------------------------------------------------------------
         elif SERVICE_ROLE == "inventory":
-            if trigger_error == "inventory_exhausted":
+            if trigger_error in ("inventory", "inventory_exhausted"):
                 raise StockExhaustedException("Critical stock depletion: SKU-PRO-01 quantity available is 0")
 
             DatadogLogger.log("INFO", "DB Query: UPDATE warehouse_stock SET reserved = reserved + 1 WHERE sku = 'SKU-PRO-01'", trace_id=trace_id, span_id=span_id, logger_name="argus.db", **{"db.system": "postgresql", "db.table": "warehouse_stock"})
@@ -816,7 +828,7 @@ class DatadogRequestHandler(BaseHTTPRequestHandler):
         # ROLE 6: PAYMENT (argus-svc-payment :8006)
         # -------------------------------------------------------------
         elif SERVICE_ROLE == "payment":
-            if trigger_error == "payment_declined":
+            if trigger_error in ("payment", "payment_declined"):
                 raise PaymentGatewayDeclinedException("Card declined by bank: 402 Insufficient Funds on test account")
 
             # Emulate fraud check

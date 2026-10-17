@@ -30,16 +30,20 @@ fi
 
 if [ -n "${RUM_INGEST_TOKEN:-}" ]; then
   EFFECTIVE_RUM_TOKEN="${RUM_INGEST_TOKEN}"
-elif kubectl get secret argus-rum-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
-  EFFECTIVE_RUM_TOKEN="$(kubectl get secret argus-rum-secret -n "${NAMESPACE}" -o jsonpath='{.data.ingest-token}' | base64 -d)"
+  kubectl create secret generic argus-rum-secret \
+    -n "${NAMESPACE}" \
+    --from-literal=ingest-token="${EFFECTIVE_RUM_TOKEN}" \
+    --from-literal=RUM_INGEST_TOKEN="${EFFECTIVE_RUM_TOKEN}" \
+    --dry-run=client -o yaml | kubectl apply -f -
 else
-  EFFECTIVE_RUM_TOKEN="$(openssl rand -hex 32)"
+  if ! kubectl get secret argus-rum-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+    kubectl apply -f "${SCRIPT_DIR}/rum-secret.yaml" -n "${NAMESPACE}"
+  fi
+  EFFECTIVE_RUM_TOKEN="$(kubectl get secret argus-rum-secret -n "${NAMESPACE}" -o jsonpath='{.data.ingest-token}' | base64 -d)"
+  if [ -z "${EFFECTIVE_RUM_TOKEN}" ]; then
+    kubectl apply -f "${SCRIPT_DIR}/rum-secret.yaml" -n "${NAMESPACE}"
+  fi
 fi
-
-kubectl create secret generic argus-rum-secret \
-  -n "${NAMESPACE}" \
-  --from-literal=ingest-token="${EFFECTIVE_RUM_TOKEN}" \
-  --dry-run=client -o yaml | kubectl apply -f -
 
 echo "--> [1/3] Ensuring ClickHouse RUM tables (rum_sessions, rum_events)..."
 kubectl exec -i chi-argus-clickhouse-argus-cluster-0-0-0 -n "${NAMESPACE}" -c clickhouse -- \

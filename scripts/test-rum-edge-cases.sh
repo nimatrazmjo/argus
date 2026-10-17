@@ -19,6 +19,9 @@ fi
 mkdir -p "${EVIDENCE_DIR}"
 
 RUM_INGEST_TOKEN=$(kubectl get secret argus-rum-secret -n "${NAMESPACE}" -o jsonpath='{.data.RUM_INGEST_TOKEN}' 2>/dev/null | base64 -d || echo "")
+if [ -z "${RUM_INGEST_TOKEN}" ]; then
+  RUM_INGEST_TOKEN=$(kubectl get secret argus-rum-secret -n "${NAMESPACE}" -o jsonpath='{.data.ingest-token}' 2>/dev/null | base64 -d || echo "")
+fi
 CLICKHOUSE_PASSWORD=$(kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" -o jsonpath='{.data.CLICKHOUSE_PASSWORD}' 2>/dev/null | base64 -d || echo "")
 
 echo "--> [1/2] Executing RUM edge cases test suite in cluster..."
