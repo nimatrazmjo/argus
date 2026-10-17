@@ -52,7 +52,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: argus-clickhouse-secret
-                  key: password
+                  key: CLICKHOUSE_PASSWORD
             - name: RUM_INGEST_TOKEN
               valueFrom:
                 secretKeyRef:

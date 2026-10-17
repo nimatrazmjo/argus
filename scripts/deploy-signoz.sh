@@ -4,6 +4,9 @@ set -euo pipefail
 
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 MIRROR_REGISTRY="${ARGUS_IMAGE_REGISTRY:-localhost:5001}"
+if ! kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+  kubectl apply -f deploy/clickhouse/clickhouse-secret.yaml -n "${NAMESPACE}"
+fi
 if [ -z "${CLICKHOUSE_PASSWORD:-}" ]; then
   CLICKHOUSE_PASSWORD=$(kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" -o jsonpath='{.data.CLICKHOUSE_PASSWORD}' 2>/dev/null | base64 -d || echo "")
 fi

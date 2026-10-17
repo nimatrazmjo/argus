@@ -13,14 +13,19 @@ echo "================================================================="
 echo "--> [0/3] Ensuring Kubernetes Secrets (argus-clickhouse-secret, argus-rum-secret)..."
 if [ -n "${CLICKHOUSE_PASSWORD:-}" ]; then
   EFFECTIVE_CH_PASS="${CLICKHOUSE_PASSWORD}"
-elif kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
-  EFFECTIVE_CH_PASS="$(kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" -o jsonpath='{.data.password}' | base64 -d)"
-else
-  EFFECTIVE_CH_PASS="$(openssl rand -hex 24)"
   kubectl create secret generic argus-clickhouse-secret \
     -n "${NAMESPACE}" \
-    --from-literal=password="${EFFECTIVE_CH_PASS}" \
+    --from-literal=CLICKHOUSE_PASSWORD="${EFFECTIVE_CH_PASS}" \
     --dry-run=client -o yaml | kubectl apply -f -
+else
+  if ! kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" >/dev/null 2>&1; then
+    kubectl apply -f "${ROOT_DIR}/deploy/clickhouse/clickhouse-secret.yaml" -n "${NAMESPACE}"
+  fi
+  EFFECTIVE_CH_PASS="$(kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" -o jsonpath='{.data.CLICKHOUSE_PASSWORD}' | base64 -d)"
+  if [ -z "${EFFECTIVE_CH_PASS}" ]; then
+    kubectl apply -f "${ROOT_DIR}/deploy/clickhouse/clickhouse-secret.yaml" -n "${NAMESPACE}"
+    EFFECTIVE_CH_PASS="$(kubectl get secret argus-clickhouse-secret -n "${NAMESPACE}" -o jsonpath='{.data.CLICKHOUSE_PASSWORD}' | base64 -d)"
+  fi
 fi
 
 if [ -n "${RUM_INGEST_TOKEN:-}" ]; then
