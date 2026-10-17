@@ -1,0 +1,12 @@
+apiVersion: v2
+name: argus
+description: Argus observability platform — all workloads
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - observability
+  - opentelemetry
+  - clickhouse
+  - signoz
+home: https://github.com/argus-platform/argus

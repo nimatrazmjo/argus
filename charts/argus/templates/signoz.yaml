@@ -1,0 +1,367 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: signoz-storage
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: signoz
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signoz
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: signoz
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: signoz
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: signoz
+        {{- include "argus.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: signoz
+          image: {{ .Values.imageRegistry }}/argus/{{ .Values.signoz.image }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_HOST
+              value: "clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: CLICKHOUSE_PORT
+              value: "9000"
+            - name: CLICKHOUSE_HTTP_PORT
+              value: "8123"
+            - name: CLICKHOUSE_USER
+              value: "default"
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
+            - name: CLICKHOUSE_CLUSTER
+              value: "cluster"
+            - name: CLICKHOUSE_DATABASE
+              value: "signoz_metrics"
+            - name: CLICKHOUSE_TRACE_DATABASE
+              value: "signoz_traces"
+            - name: CLICKHOUSE_LOG_DATABASE
+              value: "signoz_logs"
+            - name: CLICKHOUSE_METER_DATABASE
+              value: "signoz_meter"
+            - name: CLICKHOUSE_SECURE
+              value: "false"
+            - name: SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN
+              value: "tcp://default:$(CLICKHOUSE_PASSWORD)@clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000"
+            - name: SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_CLUSTER
+              value: "cluster"
+            - name: TELEMETRY_ENABLED
+              value: "false"
+            - name: REPORT_USAGE
+              value: "false"
+            - name: SIGNOZ_TELEMETRY
+              value: "false"
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: grpc-internal
+              containerPort: 8085
+          startupProbe:
+            httpGet:
+              path: /api/v1/version
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /api/v1/version
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/v1/version
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: signoz-db
+              mountPath: /var/lib/signoz/
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: signoz-db
+          persistentVolumeClaim:
+            claimName: signoz-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: signoz
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: signoz
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: signoz
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: grpc-internal
+      port: 8085
+      targetPort: 8085
+      protocol: TCP
+---
+# SigNoz OTel collector ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: signoz-otel-collector-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: signoz-otel-collector
+    {{- include "argus.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch:
+        send_batch_size: 10000
+        timeout: 5s
+      batch/meter:
+        send_batch_size: 5000
+        timeout: 5s
+      signozspanmetrics/delta:
+        metrics_exporter: signozclickhousemetrics
+        latency_histogram_buckets: [100us, 1ms, 2ms, 6ms, 10ms, 50ms, 100ms, 250ms, 500ms, 1000ms, 2000ms, 5s, 10s]
+        dimensions_cache_size: 50000
+        dimensions:
+          - name: service.namespace
+            default: default
+          - name: deployment.environment
+            default: default
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+      signozspanmapper:
+        groups: []
+      signozllmpricing:
+        attrs:
+          model: gen_ai.request.model
+          in: gen_ai.usage.input_tokens
+          out: gen_ai.usage.output_tokens
+          cache_read: gen_ai.usage.cache_read.input_tokens
+          cache_write: gen_ai.usage.cache_creation.input_tokens
+        default_pricing:
+          rules: []
+        output_attrs:
+          in: signoz.gen_ai.usage.input_tokens.cost
+          out: signoz.gen_ai.usage.output_tokens.cost
+          cache_read: signoz.gen_ai.usage.cache_read.input_tokens.cost
+          cache_write: signoz.gen_ai.usage.cache_write.input_tokens.cost
+          total: signoz.gen_ai.usage.tokens.cost
+
+    connectors:
+      signozmeter:
+        metrics_flush_interval: 1h
+        dimensions:
+          - name: service.name
+          - name: deployment.environment
+          - name: host.name
+
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
+    exporters:
+      clickhousetraces:
+        datasource: tcp://default:${env:CLICKHOUSE_PASSWORD}@clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000/signoz_traces
+        low_cardinal_exception_grouping: false
+        use_new_schema: true
+        timeout: 45s
+      signozclickhousemetrics:
+        dsn: tcp://default:${env:CLICKHOUSE_PASSWORD}@clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000/signoz_metrics
+        timeout: 45s
+      clickhouselogsexporter:
+        dsn: tcp://default:${env:CLICKHOUSE_PASSWORD}@clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000/signoz_logs
+        timeout: 45s
+        use_new_schema: true
+      metadataexporter:
+        enabled: true
+        dsn: tcp://default:${env:CLICKHOUSE_PASSWORD}@clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000/signoz_metadata
+        timeout: 45s
+        tenant_id: default
+        cache:
+          provider: in_memory
+      signozclickhousemeter:
+        dsn: tcp://default:${env:CLICKHOUSE_PASSWORD}@clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000/signoz_meter
+        timeout: 45s
+        sending_queue:
+          enabled: false
+
+    service:
+      telemetry:
+        logs:
+          encoding: json
+      extensions: [health_check]
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [signozspanmetrics/delta, signozspanmapper, signozllmpricing, batch]
+          exporters: [clickhousetraces, metadataexporter, signozmeter]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [metadataexporter, signozclickhousemetrics, signozmeter]
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [clickhouselogsexporter, metadataexporter, signozmeter]
+        metrics/meter:
+          receivers: [signozmeter]
+          processors: [batch/meter]
+          exporters: [signozclickhousemeter]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signoz-otel-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: signoz-otel-collector
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: signoz-otel-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: signoz-otel-collector
+        {{- include "argus.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: signoz-otel-collector
+          image: {{ .Values.imageRegistry }}/argus/{{ .Values.signoz.otelCollectorImage }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--config=/etc/otel/config.yaml"
+          env:
+            - name: CLICKHOUSE_HOST
+              value: "clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local"
+            - name: CLICKHOUSE_PORT
+              value: "9000"
+            - name: CLICKHOUSE_USER
+              value: "default"
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
+            - name: CLICKHOUSE_DATABASE
+              value: "signoz_metrics"
+            - name: CLICKHOUSE_TRACE_DATABASE
+              value: "signoz_traces"
+            - name: CLICKHOUSE_LOG_DATABASE
+              value: "signoz_logs"
+            - name: CLICKHOUSE_METER_DATABASE
+              value: "signoz_meter"
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+            - name: otlp-http
+              containerPort: 4318
+            - name: health-check
+              containerPort: 13133
+          startupProbe:
+            httpGet:
+              path: /
+              port: 13133
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 13133
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otel
+          resources:
+            requests:
+              cpu: 100m
+              memory: 200Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: config
+          configMap:
+            name: signoz-otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: signoz-otel-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: signoz-otel-collector
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: signoz-otel-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP

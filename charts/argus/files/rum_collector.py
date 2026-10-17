@@ -1,0 +1,1 @@
+../../../deploy/rum/rum_collector.py

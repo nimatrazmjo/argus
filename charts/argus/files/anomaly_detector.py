@@ -1,0 +1,1 @@
+../../../deploy/aiops/anomaly_detector.py

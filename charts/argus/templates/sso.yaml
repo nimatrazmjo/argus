@@ -1,0 +1,199 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argus-idp-code
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: argus-idp
+    {{- include "argus.labels" . | nindent 4 }}
+data:
+  idp_mock.py: |
+    {{ .Files.Get "files/idp_mock.py" | nindent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argus-sso-gateway-code
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: argus-sso-gateway
+    {{- include "argus.labels" . | nindent 4 }}
+data:
+  sso_gateway.py: |
+    {{ .Files.Get "files/sso_gateway.py" | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-idp
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: argus-idp
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-idp
+      port: 8089
+      targetPort: 8089
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: argus-idp
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-idp
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: argus-idp
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-idp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-idp
+        {{- include "argus.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: idp
+          image: {{ .Values.imageRegistry }}/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "/app/idp_mock.py"]
+          env:
+            - name: PORT
+              value: "8089"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: argus-sso-secret
+                  key: jwt-secret
+            - name: OIDC_ISSUER
+              value: "http://argus-idp.{{ .Release.Namespace }}.svc.cluster.local:8089"
+            - name: OIDC_AUDIENCE
+              value: "argus-platform"
+          ports:
+            - name: http-idp
+              containerPort: 8089
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8089
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8089
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-idp-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-sso-gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: argus-sso-gateway
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-gateway
+      port: 8088
+      targetPort: 8088
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: argus-sso-gateway
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-sso-gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: argus-sso-gateway
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-sso-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-sso-gateway
+        {{- include "argus.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: sso-gateway
+          image: {{ .Values.imageRegistry }}/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "/app/sso_gateway.py"]
+          env:
+            - name: PORT
+              value: "8088"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: argus-sso-secret
+                  key: jwt-secret
+            - name: IDP_URL
+              value: "http://argus-idp.{{ .Release.Namespace }}.svc.cluster.local:8089"
+            - name: OIDC_ISSUER
+              value: "http://argus-idp.{{ .Release.Namespace }}.svc.cluster.local:8089"
+            - name: OIDC_AUDIENCE
+              value: "argus-platform"
+            - name: UPSTREAM_URL
+              value: "http://signoz.{{ .Release.Namespace }}.svc.cluster.local:8080"
+          ports:
+            - name: http-gateway
+              containerPort: 8088
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8088
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8088
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: argus-sso-gateway-code

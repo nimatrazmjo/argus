@@ -1,0 +1,223 @@
+apiVersion: "clickhouse-keeper.altinity.com/v1"
+kind: "ClickHouseKeeperInstallation"
+metadata:
+  name: "argus-keeper"
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argus.io/reconcile-trigger: "2"
+spec:
+  configuration:
+    clusters:
+      - name: "keeper-cluster"
+        layout:
+          replicasCount: 1
+        templates:
+          podTemplate: keeper-template
+          dataVolumeClaimTemplate: keeper-storage
+  templates:
+    podTemplates:
+      - name: keeper-template
+        spec:
+          containers:
+            - name: clickhouse-keeper
+              image: {{ .Values.imageRegistry }}/argus/{{ .Values.clickhouse.keeperImage }}
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 300m
+                  memory: 384Mi
+              startupProbe:
+                exec:
+                  command: ['/bin/sh', '-c', 'echo ruok | nc 127.0.0.1 2181 | grep imok']
+                initialDelaySeconds: 5
+                periodSeconds: 5
+                timeoutSeconds: 5
+                failureThreshold: 60
+              livenessProbe:
+                exec:
+                  command: ['/bin/sh', '-c', 'echo ruok | nc 127.0.0.1 2181 | grep imok']
+                initialDelaySeconds: 15
+                periodSeconds: 20
+                timeoutSeconds: 5
+                failureThreshold: 10
+              readinessProbe:
+                exec:
+                  command: ['/bin/sh', '-c', 'echo ruok | nc 127.0.0.1 2181 | grep imok']
+                initialDelaySeconds: 10
+                periodSeconds: 15
+                timeoutSeconds: 5
+                failureThreshold: 10
+    volumeClaimTemplates:
+      - name: keeper-storage
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+---
+apiVersion: "clickhouse.altinity.com/v1"
+kind: "ClickHouseInstallation"
+metadata:
+  name: "argus-clickhouse"
+  namespace: {{ .Release.Namespace }}
+spec:
+  defaults:
+    templates:
+      podTemplate: clickhouse-template
+      dataVolumeClaimTemplate: data-storage
+  configuration:
+    zookeeper:
+      nodes:
+        - host: chk-argus-keeper-keeper-cluster-0-0
+          port: 2181
+    users:
+      default/password/valueFrom:
+        secretKeyRef:
+          name: argus-clickhouse-secret
+          key: CLICKHOUSE_PASSWORD
+      default/networks/ip: "::/0"
+      default/settings/allow_experimental_json_type: "1"
+      default/settings/allow_experimental_object_type: "1"
+    profiles:
+      default/allow_experimental_json_type: "1"
+      default/allow_experimental_object_type: "1"
+    files:
+      "{users}/json.xml": |
+        <clickhouse>
+          <users>
+            <default>
+              <password from_env="CLICKHOUSE_PASSWORD" replace="1"/>
+            </default>
+          </users>
+          <profiles>
+            <default>
+              <allow_experimental_json_type>1</allow_experimental_json_type>
+              <allow_experimental_object_type>1</allow_experimental_object_type>
+            </default>
+          </profiles>
+        </clickhouse>
+      storage.xml: |
+        <clickhouse>
+          <storage_configuration>
+            <disks>
+              <default>
+                <type>local</type>
+              </default>
+              <s3_cold>
+                <type>s3</type>
+                <endpoint>http://argus-s3.{{ .Release.Namespace }}.svc.cluster.local:8333/argus-cold-storage/data/</endpoint>
+                <access_key_id>any</access_key_id>
+                <secret_access_key>any</secret_access_key>
+              </s3_cold>
+            </disks>
+            <policies>
+              <tiered_hot_cold>
+                <volumes>
+                  <hot>
+                    <disk>default</disk>
+                  </hot>
+                  <cold>
+                    <disk>s3_cold</disk>
+                    <prefer_not_to_merge>true</prefer_not_to_merge>
+                  </cold>
+                </volumes>
+                <move_factor>0.0</move_factor>
+              </tiered_hot_cold>
+            </policies>
+          </storage_configuration>
+        </clickhouse>
+      performance_tuning.xml: |
+        <clickhouse>
+          <logger>
+            <level>warning</level>
+          </logger>
+          <max_server_memory_usage_to_ram_ratio>0.85</max_server_memory_usage_to_ram_ratio>
+          <mark_cache_size>134217728</mark_cache_size>
+          <uncompressed_cache_size>67108864</uncompressed_cache_size>
+          <background_move_pool_size>1</background_move_pool_size>
+          <query_log remove="1"/>
+          <query_metric_log remove="1"/>
+          <query_views_log remove="1"/>
+          <aggregated_zookeeper_log remove="1"/>
+          <background_schedule_pool_log remove="1"/>
+          <blob_storage_log remove="1"/>
+          <asynchronous_insert_log remove="1"/>
+          <error_log remove="1"/>
+          <zookeeper_connection_log remove="1"/>
+          <trace_log remove="1"/>
+          <text_log remove="1"/>
+          <metric_log remove="1"/>
+          <asynchronous_metric_log remove="1"/>
+          <processors_profile_log remove="1"/>
+          <opentelemetry_span_log remove="1"/>
+          <part_log remove="1"/>
+        </clickhouse>
+      cluster_alias.xml: |
+        <clickhouse>
+          <remote_servers>
+            <cluster>
+              <shard>
+                <replica>
+                  <host>chi-argus-clickhouse-argus-cluster-0-0</host>
+                  <port>9000</port>
+                  <user>default</user>
+                  <password from_env="CLICKHOUSE_PASSWORD"/>
+                </replica>
+              </shard>
+            </cluster>
+          </remote_servers>
+        </clickhouse>
+    clusters:
+      - name: "argus-cluster"
+        layout:
+          shardsCount: 1
+          replicasCount: 1
+  templates:
+    podTemplates:
+      - name: clickhouse-template
+        spec:
+          containers:
+            - name: clickhouse
+              image: {{ .Values.imageRegistry }}/argus/{{ .Values.clickhouse.serverImage }}
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: argus-clickhouse-secret
+                      key: CLICKHOUSE_PASSWORD
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 512Mi
+                limits:
+                  cpu: "2"
+                  memory: 2560Mi
+              livenessProbe:
+                httpGet:
+                  path: /ping
+                  port: 8123
+                initialDelaySeconds: 120
+                periodSeconds: 10
+                timeoutSeconds: 10
+                failureThreshold: 30
+              readinessProbe:
+                httpGet:
+                  path: /ping
+                  port: 8123
+                initialDelaySeconds: 30
+                periodSeconds: 5
+                timeoutSeconds: 10
+                failureThreshold: 15
+    volumeClaimTemplates:
+      - name: data-storage
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi

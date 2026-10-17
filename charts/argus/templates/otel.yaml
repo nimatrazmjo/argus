@@ -1,0 +1,364 @@
+# OTel RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argus-collector
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argus-collector-role
+rules:
+  - apiGroups: [""]
+    resources: [pods, namespaces, nodes, "nodes/stats", "nodes/proxy", endpoints]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [replicasets, deployments, daemonsets, statefulsets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs, cronjobs]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argus-collector-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argus-collector-role
+subjects:
+  - kind: ServiceAccount
+    name: argus-collector
+    namespace: {{ .Release.Namespace }}
+---
+# OTel Auto-Instrumentation CR
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: argus-instrumentation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: argus-instrumentation
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  exporter:
+    endpoint: http://argus-gateway-collector.{{ .Release.Namespace }}.svc.cluster.local:4318
+  propagators: [tracecontext, baggage, b3]
+  sampler:
+    type: parentbased_always_on
+  env:
+    - name: OTEL_EXPORTER_OTLP_INSECURE
+      value: "true"
+    - name: OTEL_PYTHON_DISABLED_INSTRUMENTATIONS
+      value: "system_metrics"
+    - name: OTEL_BSP_SCHEDULE_DELAY
+      value: "500"
+  python:
+    image: {{ .Values.imageRegistry }}/argus/{{ .Values.otel.autoinstrumentPythonImage }}
+    resourceRequirements:
+      limits:
+        cpu: "1"
+        memory: 512Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  nodejs:
+    image: {{ .Values.imageRegistry }}/argus/{{ .Values.otel.autoinstrumentNodejsImage }}
+    resourceRequirements:
+      limits:
+        cpu: "1"
+        memory: 512Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  java:
+    image: {{ .Values.imageRegistry }}/argus/{{ .Values.otel.autoinstrumentJavaImage }}
+    resources:
+      limits:
+        cpu: "1"
+        memory: 512Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+---
+# OTel Gateway Collector (deployment mode)
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: argus-gateway
+  namespace: {{ .Release.Namespace }}
+spec:
+  mode: deployment
+  replicas: 1
+  serviceAccount: argus-collector
+  image: {{ .Values.imageRegistry }}/argus/{{ .Values.otel.collectorImage }}
+  imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env:
+    - name: GOMEMLIMIT
+      value: "420MiB"
+    - name: CLICKHOUSE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: argus-clickhouse-secret
+          key: CLICKHOUSE_PASSWORD
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      prometheus/kube-state-metrics:
+        config:
+          scrape_configs:
+            - job_name: 'kube-state-metrics'
+              scrape_interval: 30s
+              scrape_timeout: 25s
+              static_configs:
+                - targets: ['kube-state-metrics.{{ .Release.Namespace }}.svc.cluster.local:8080']
+
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 400
+        spike_limit_mib: 80
+      k8sattributes:
+        auth_type: "serviceAccount"
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
+      transform/redaction:
+        error_mode: ignore
+        trace_statements:
+          - context: span
+            statements:
+              - delete_key(attributes, "password")
+              - delete_key(attributes, "token")
+              - delete_key(attributes, "auth_token")
+              - delete_key(attributes, "secret")
+              - delete_key(attributes, "api_key")
+              - delete_key(attributes, "cjis_fbi_number")
+              - delete_key(attributes, "ssn")
+              - delete_key(attributes, "credit_card")
+              - replace_all_patterns(attributes, "value", "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED_SSN]")
+              - replace_all_patterns(attributes, "value", "\\b(?:\\d[ -]*?){13,16}\\b", "[REDACTED_PAN]")
+          - context: spanevent
+            statements:
+              - delete_key(attributes, "password")
+              - delete_key(attributes, "token")
+              - delete_key(attributes, "auth_token")
+              - delete_key(attributes, "secret")
+              - delete_key(attributes, "cjis_fbi_number")
+              - delete_key(attributes, "ssn")
+              - replace_all_patterns(attributes, "value", "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED_SSN]")
+              - replace_all_patterns(attributes, "value", "\\b(?:\\d[ -]*?){13,16}\\b", "[REDACTED_PAN]")
+        log_statements:
+          - context: log
+            statements:
+              - delete_key(attributes, "password")
+              - delete_key(attributes, "token")
+              - delete_key(attributes, "auth_token")
+              - delete_key(attributes, "secret")
+              - delete_key(attributes, "api_key")
+              - delete_key(attributes, "cjis_fbi_number")
+              - delete_key(attributes, "ssn")
+              - delete_key(attributes, "credit_card")
+              - replace_all_patterns(attributes, "value", "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED_SSN]")
+              - replace_all_patterns(attributes, "value", "\\b(?:\\d[ -]*?){13,16}\\b", "[REDACTED_PAN]")
+              - replace_pattern(body, "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED_SSN]")
+              - replace_pattern(body, "\\b(?:\\d[ -]*?){13,16}\\b", "[REDACTED_PAN]")
+              - replace_pattern(body, "(?i)(password|secret|token|auth_token|api_key|cjis_fbi_number|ssn)=[^&\\s,;]+", "$$1=[REDACTED]")
+      transform/cardinality:
+        error_mode: ignore
+        metric_statements:
+          - context: datapoint
+            statements:
+              - delete_key(attributes, "user_guid")
+              - delete_key(attributes, "random_hash")
+              - delete_key(attributes, "session_id")
+              - delete_key(attributes, "cardinality_exploding_key")
+        trace_statements:
+          - context: span
+            statements:
+              - delete_key(attributes, "user_guid")
+              - delete_key(attributes, "random_hash")
+              - delete_key(attributes, "session_id")
+              - delete_key(attributes, "cardinality_exploding_key")
+        log_statements:
+          - context: log
+            statements:
+              - delete_key(attributes, "user_guid")
+              - delete_key(attributes, "random_hash")
+              - delete_key(attributes, "session_id")
+              - delete_key(attributes, "cardinality_exploding_key")
+      filter/log_level:
+        error_mode: ignore
+        logs:
+          log_record:
+            - '((severity_number > 0 and severity_number <= 8) or severity_text == "DEBUG" or severity_text == "TRACE") and resource.attributes["service.name"] != "debug-service" and resource.attributes["service.name"] != "sample-debug-service" and resource.attributes["service.debug"] != "true" and resource.attributes["allow_debug"] != "true" and attributes["allow_debug"] != "true"'
+      batch:
+        timeout: 5s
+        send_batch_size: 2048
+
+    exporters:
+      clickhouse:
+        endpoint: "tcp://clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000"
+        database: "default"
+        username: "default"
+        password: "${env:CLICKHOUSE_PASSWORD}"
+        ttl: 72h
+        timeout: 45s
+        sending_queue:
+          enabled: true
+          num_consumers: 4
+          queue_size: 256
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 1m
+      otlp/signoz:
+        endpoint: "signoz-otel-collector.{{ .Release.Namespace }}.svc.cluster.local:4317"
+        tls:
+          insecure: true
+        timeout: 30s
+        sending_queue:
+          enabled: true
+          num_consumers: 2
+          queue_size: 128
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 30s
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, transform/redaction, transform/cardinality, batch]
+          exporters: [clickhouse, otlp/signoz]
+        metrics:
+          receivers: [otlp, prometheus/kube-state-metrics]
+          processors: [memory_limiter, k8sattributes, transform/cardinality, batch]
+          exporters: [clickhouse, otlp/signoz]
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, k8sattributes, filter/log_level, transform/redaction, transform/cardinality, batch]
+          exporters: [clickhouse, otlp/signoz]
+---
+# OTel Node Collector (daemonset mode)
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: argus-node-collector
+  namespace: {{ .Release.Namespace }}
+spec:
+  mode: daemonset
+  serviceAccount: argus-collector
+  image: {{ .Values.imageRegistry }}/argus/{{ .Values.otel.collectorImage }}
+  imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+  env:
+    - name: GOMEMLIMIT
+      value: "200MiB"
+    - name: K8S_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    - name: K8S_NODE_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.hostIP
+  volumeMounts:
+    - name: varlogpods
+      mountPath: /var/log/pods
+      readOnly: true
+    - name: varlibdockercontainers
+      mountPath: /var/lib/docker/containers
+      readOnly: true
+  volumes:
+    - name: varlogpods
+      hostPath:
+        path: /var/log/pods
+    - name: varlibdockercontainers
+      hostPath:
+        path: /var/lib/docker/containers
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      filelog:
+        include:
+          - /var/log/pods/*/*/*.log
+        exclude:
+          - /var/log/pods/{{ .Release.Namespace }}_*/*/*.log
+        start_at: end
+      kubeletstats:
+        collection_interval: 20s
+        auth_type: "serviceAccount"
+        endpoint: "https://${env:K8S_NODE_NAME}:10250"
+        insecure_skip_verify: true
+        extra_metadata_labels: [container.id]
+        metric_groups: [node, pod, container]
+
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 180
+        spike_limit_mib: 40
+      k8sattributes:
+        auth_type: "serviceAccount"
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
+      batch:
+        timeout: 5s
+        send_batch_size: 1024
+
+    exporters:
+      otlp/gateway:
+        endpoint: "argus-gateway-collector.{{ .Release.Namespace }}.svc.cluster.local:4317"
+        tls:
+          insecure: true
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [kubeletstats]
+          processors: [memory_limiter, k8sattributes, batch]
+          exporters: [otlp/gateway]
+        logs:
+          receivers: [filelog]
+          processors: [memory_limiter, k8sattributes, batch]
+          exporters: [otlp/gateway]

@@ -1,0 +1,37 @@
+imageRegistry: localhost:5001
+
+clickhouse:
+  password: argus123
+  keeperImage: clickhouse-keeper:latest
+  serverImage: clickhouse-server:25.12.5
+
+signoz:
+  image: signoz:v0.145.0
+  otelCollectorImage: signoz-otel-collector:v0.144.13
+
+secrets:
+  pagingWebhookToken: argus-paging-webhook-token-32b
+  rumIngestToken: argus-rum-ingest-token-default-32b
+  jwtSecret: argus-agency-piv-cac-shared-secret-key-32b
+  syntheticBearerToken: argus-synthetic-bearer-token-32b
+  sampleAppApiToken: argus-sample-app-api-token-32b
+
+storage:
+  s3Image: seaweedfs:latest
+  pyroscopeImage: pyroscope:latest
+
+infra:
+  kubeStateMetricsImage: kube-state-metrics:v2.14.0
+  nodeExporterImage: node-exporter:v1.8.2
+
+otel:
+  collectorImage: opentelemetry-collector-contrib:0.160.0
+  autoinstrumentPythonImage: autoinstrumentation-python:0.65b0
+  autoinstrumentNodejsImage: autoinstrumentation-nodejs:0.78.0
+  autoinstrumentJavaImage: autoinstrumentation-java:2
+
+beyla:
+  image: beyla:1.10.1
+
+sampleApp:
+  image: sample-service:1.0.0

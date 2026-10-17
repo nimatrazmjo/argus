@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argus-rum-collector-code
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: argus-rum-collector
+    {{- include "argus.labels" . | nindent 4 }}
+data:
+  rum_collector.py: |
+    {{ .Files.Get "files/rum_collector.py" | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: argus-rum-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: argus-rum-collector
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-rum
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: argus-rum-collector
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argus-rum-collector
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: argus-rum-collector
+    {{- include "argus.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argus-rum-collector
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argus-rum-collector
+        {{- include "argus.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: rum-collector
+          image: {{ .Values.imageRegistry }}/argus/python:3.12-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["python", "/app/rum_collector.py"]
+          env:
+            - name: PORT
+              value: "8082"
+            - name: CLICKHOUSE_HTTP
+              value: "http://chi-argus-clickhouse-argus-cluster-0-0.{{ .Release.Namespace }}.svc.cluster.local:8123"
+            - name: CLICKHOUSE_USER
+              value: "default"
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
+            - name: RUM_INGEST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: argus-rum-secret
+                  key: ingest-token
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: argus-sso-secret
+                  key: jwt-secret
+                  optional: true
+          ports:
+            - name: http-rum
+              containerPort: 8082
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8082
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8082
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          volumeMounts:
+            - name: rum-code
+              mountPath: /app
+      volumes:
+        - name: rum-code
+          configMap:
+            name: argus-rum-collector-code

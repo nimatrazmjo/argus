@@ -1,0 +1,68 @@
+repositories:
+  - name: open-telemetry
+    url: https://open-telemetry.github.io/opentelemetry-helm-charts
+  - name: clickhouse-operator
+    url: https://docs.altinity.com/clickhouse-operator/
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+
+releases:
+  # Phase 1: Operators (deployed in parallel; argus chart waits for all three)
+  - name: opentelemetry-operator
+    chart: open-telemetry/opentelemetry-operator
+    namespace: '{{ env "ARGUS_NAMESPACE" | default "argus-system" }}'
+    createNamespace: true
+    wait: true
+    timeout: 300
+    values:
+      - deploy/helm/values/opentelemetry-operator-values.yaml
+    set:
+      - name: manager.image.repository
+        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus/opentelemetry-operator'
+      - name: manager.collectorImage.repository
+        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus/opentelemetry-collector-k8s'
+
+  - name: altinity-clickhouse-operator
+    chart: clickhouse-operator/altinity-clickhouse-operator
+    namespace: '{{ env "ARGUS_NAMESPACE" | default "argus-system" }}'
+    createNamespace: true
+    wait: true
+    timeout: 300
+    values:
+      - deploy/helm/values/clickhouse-operator-values.yaml
+    set:
+      - name: operator.image.registry
+        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus'
+      - name: metrics.image.registry
+        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus'
+
+  - name: prometheus-operator
+    chart: prometheus-community/kube-prometheus-stack
+    namespace: '{{ env "ARGUS_NAMESPACE" | default "argus-system" }}'
+    createNamespace: true
+    wait: true
+    timeout: 300
+    values:
+      - deploy/helm/values/kube-prometheus-stack-values.yaml
+    set:
+      - name: prometheusOperator.image.registry
+        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus'
+      - name: prometheusOperator.prometheusConfigReloader.image.registry
+        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus'
+
+  # Phase 2: All Argus workloads — waits for all three operators above
+  - name: argus
+    chart: ./charts/argus
+    namespace: '{{ env "ARGUS_NAMESPACE" | default "argus-system" }}'
+    createNamespace: true
+    wait: true
+    timeout: 600
+    needs:
+      - opentelemetry-operator
+      - altinity-clickhouse-operator
+      - prometheus-operator
+    values:
+      - charts/argus/values.yaml
+    set:
+      - name: imageRegistry
+        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}'

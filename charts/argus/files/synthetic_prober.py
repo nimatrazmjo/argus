@@ -1,0 +1,1 @@
+../../../deploy/synthetics/synthetic_prober.py
