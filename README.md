@@ -24,7 +24,8 @@ It spans the full observability lifecycle: a collection spine (OTel → ClickHou
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Option A — Run a Single Service Locally](#option-a--run-a-single-service-locally-no-cluster)
-  - [Option B — Full Platform Deploy](#option-b--full-platform-deploy-kubernetes)
+  - [Option B — One-Command Deploy (Helmfile)](#option-b--one-command-deploy-helmfile)
+  - [Option C — Manual Step-by-Step Deploy](#option-c--manual-step-by-step-deploy-kubernetes)
 - [Sending Telemetry to Argus](#sending-telemetry-to-argus)
 - [Services Reference](#services-reference)
 - [Service Onboarding](#service-onboarding)
@@ -128,7 +129,7 @@ What each technology is used for, and why it was chosen:
 | **Identity** | Keycloak-style OIDC IdP + SSO gateway | Agency SSO, PIV/CAC claims, group→role RBAC, multi-tenant header injection (F016) |
 | **AIOps** | EWMA / seasonal decomposition; topological correlation; in-boundary (GovCloud Bedrock) LLM | Anomaly + forecast monitors, root-cause grouping, NL-to-SQL query and incident summaries (F019–F021) |
 | **Runtime** | Python 3.12 stdlib `http.server` | All demo microservices are dependency-free single-file servers — easy to read, run, and air-gap |
-| **Packaging / infra** | Kubernetes, Helm, Docker Registry v2 mirror | Declarative manifests; all images pulled from the local offline mirror |
+| **Packaging / infra** | Kubernetes, Helm, Helmfile, Docker Registry v2 mirror | `helmfile sync` deploys all operators + workloads in one command; `charts/argus` holds all 89 resources |
 | **Tooling** | `kubectl`, `bash`, `jq`, `curl` | Deploy and verification scripts |
 
 ---
@@ -140,12 +141,14 @@ What each technology is used for, and why it was chosen:
 | Path | Needs | Time | Good for |
 | :--- | :--- | :--- | :--- |
 | [Single service](#option-a--run-a-single-service-locally-no-cluster) | `python3` only | ~30s | Reading code, trying an API, demos |
-| [Full platform](#option-b--full-platform-deploy-kubernetes) | k8s + mirror + `kubectl`/`jq` | ~20–40m | End-to-end telemetry, realistic traffic |
+| [Helmfile (recommended)](#option-b--one-command-deploy-helmfile) | k8s + mirror + `helmfile` | ~20–40m | Full platform, one command |
+| [Manual](#option-c--manual-step-by-step-deploy-kubernetes) | k8s + mirror + `kubectl`/`jq` | ~30–50m | Granular control, partial deploys |
 
 ### Prerequisites
 
 - **Single service:** Python 3.12+ (standard library only — no `pip install`).
 - **Full platform:** Docker Desktop or Minikube with Kubernetes v1.28+; active context (`kubectl config current-context`); a local registry mirror on `localhost:5001`; `kubectl`, `jq`, `curl`, `bash` on PATH.
+- **Helmfile path (additionally):** [`helmfile`](https://helmfile.readthedocs.io/en/latest/#installation) v0.169+ and `helm` v3.14+ on PATH. Install: `brew install helmfile` (macOS/Linux) or download from [GitHub releases](https://github.com/helmfile/helmfile/releases) (Windows).
 - **Control-plane resource floor (Docker Desktop):** Allocate at least **8 GiB RAM**, **4+ vCPUs**, and SSD-backed virtual disk storage with **> 20% free disk capacity** (low disk IOPS or VM swap thrashing will starve `etcd` boltdb reads and `kube-apiserver`). Deploy scripts enforce `./scripts/check-control-plane-health.sh` before driving rollout load.
 
 ### Option A — Run a Single Service Locally (no cluster)
@@ -179,7 +182,50 @@ PORT=8082 python3 deploy/rum/rum_collector.py
 
 Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`.
 
-### Option B — Full Platform Deploy (Kubernetes)
+### Option B — One-Command Deploy (Helmfile)
+
+Helmfile sequences the three operators first, then deploys all 89 platform resources in a single `argus` chart, waiting for each phase before proceeding.
+
+**1. Mirror images & run the readiness check**
+```bash
+./deploy/mirror/setup-mirror.sh   # populate localhost:5001
+./scripts/init.sh                 # pre-flight health gate
+```
+
+**2. Add Helm repos & sync everything**
+```bash
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo add clickhouse-operator https://docs.altinity.com/clickhouse-operator/
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helmfile sync                     # deploys all 4 releases in dependency order
+```
+
+Override the image registry or namespace if needed:
+```bash
+ARGUS_IMAGE_REGISTRY=my.registry:5000 ARGUS_NAMESPACE=my-ns helmfile sync
+```
+
+Override a secret at deploy time (e.g. ClickHouse password):
+```bash
+helmfile sync --set argus.clickhouse.password=mysecret
+```
+
+**3. Access the UIs**
+```bash
+kubectl -n argus-system port-forward svc/signoz 8080:8080
+kubectl -n argus-system port-forward svc/argus-sso-gateway 8088:8088
+```
+
+**Helm chart layout** — the `argus` chart lives in `charts/argus/`:
+- All workload manifests are in `charts/argus/templates/` with `{{ .Release.Namespace }}` and `{{ .Values.imageRegistry }}` replacing every hardcoded value.
+- Python service source files are symlinked from `charts/argus/files/` to their canonical locations in `deploy/`/`demo/`, so no duplication occurs.
+- Default values in `charts/argus/values.yaml` match the air-gap defaults.
+
+---
+
+### Option C — Manual Step-by-Step Deploy (Kubernetes)
 
 **1. Check readiness & initialize the air-gapped mirror**
 ```bash
@@ -375,12 +421,23 @@ Per-feature suites live in `scripts/` as `test-<feature>.sh` (plus `-edge-cases.
 
 ```
 argus/
+├── helmfile.yaml              # One-command deploy: helmfile sync
+├── charts/
+│   └── argus/                 # Helm chart — all 89 workload resources
+│       ├── Chart.yaml
+│       ├── values.yaml        # imageRegistry, secrets, image tags
+│       ├── templates/         # 17 template files (secrets, storage, CH, SigNoz,
+│       │                      #   OTel, Beyla, Pyroscope, paging, SSO, RUM,
+│       │                      #   synthetics, AIOps, correlation, LLM, sample-app,
+│       │                      #   alerting, demo mesh)
+│       └── files/             # Symlinks → deploy/*/​*.py + demo/service_template.py
 ├── deploy/                    # The platform — declarative Kubernetes manifests
 │   ├── aiops/                 # Anomaly & forecast detector (F019)
 │   ├── alerting/              # Declarative alert rules & dedup (F011)
 │   ├── clickhouse/            # ClickHouse HA, Keeper & OTel schema DDL
 │   ├── correlation/           # Topological alert correlation engine (F020)
 │   ├── ebpf/                  # Grafana Beyla DaemonSet, ConfigMap & RBAC
+│   ├── helm/values/           # Operator Helm values (OTel, Altinity, Prometheus)
 │   ├── infra-metrics/         # node-exporter + kube-state-metrics (F009)
 │   ├── llm/                   # NL-query + incident-summary copilot (F021)
 │   ├── mirror/                # Air-gapped registry catalog & sync scripts
