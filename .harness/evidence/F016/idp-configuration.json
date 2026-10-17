@@ -13,8 +13,7 @@
     "public"
   ],
   "id_token_signing_alg_values_supported": [
-    "HS256",
-    "RS256"
+    "HS256"
   ],
   "scopes_supported": [
     "openid",
@@ -29,6 +28,10 @@
   "claims_supported": [
     "sub",
     "iss",
+    "aud",
+    "nbf",
+    "exp",
+    "iat",
     "email",
     "name",
     "preferred_username",

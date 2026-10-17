@@ -5,6 +5,7 @@
     "tenantId": "default",
     "claims": {
       "iss": "http://argus-idp.argus-system.svc.cluster.local:8089",
+      "aud": "argus-platform",
       "sub": "alice.admin",
       "email": "alice.admin@dhs.gov",
       "name": "Alice Vance (SOC Admin)",
@@ -23,9 +24,10 @@
         "piv",
         "mfa"
       ],
-      "iat": 1792123454,
-      "exp": 1792127054,
-      "jti": "e5ee1540ca2c2154b6f7a9379e0d9a86"
+      "iat": 1792267923,
+      "nbf": 1792267923,
+      "exp": 1792271523,
+      "jti": "11de68240e5a3137480b67f62d76560f"
     },
     "permissions": {
       "canReadTelemetry": true,
@@ -39,6 +41,7 @@
     "tenantId": "tenant_alpha",
     "claims": {
       "iss": "http://argus-idp.argus-system.svc.cluster.local:8089",
+      "aud": "argus-platform",
       "sub": "bob.operator",
       "email": "bob.operator@dhs.gov",
       "name": "Bob Miller (SOC Operator)",
@@ -57,9 +60,10 @@
         "piv",
         "mfa"
       ],
-      "iat": 1792123454,
-      "exp": 1792127054,
-      "jti": "dd8ed233d9697174722f1248beb8cfbe"
+      "iat": 1792267924,
+      "nbf": 1792267924,
+      "exp": 1792271524,
+      "jti": "7ebe5d468d63e12c5ee15e652b72875b"
     },
     "permissions": {
       "canReadTelemetry": true,
@@ -73,6 +77,7 @@
     "tenantId": "tenant_beta",
     "claims": {
       "iss": "http://argus-idp.argus-system.svc.cluster.local:8089",
+      "aud": "argus-platform",
       "sub": "carol.viewer",
       "email": "carol.viewer@dhs.gov",
       "name": "Carol Danvers (Analyst Viewer)",
@@ -91,9 +96,10 @@
         "piv",
         "mfa"
       ],
-      "iat": 1792123454,
-      "exp": 1792127054,
-      "jti": "43507c0073a613c91b9787da5aa8e67c"
+      "iat": 1792267924,
+      "nbf": 1792267924,
+      "exp": 1792271524,
+      "jti": "ceeda2aa7ebdd81eef10ec084f427e44"
     },
     "permissions": {
       "canReadTelemetry": true,
@@ -101,5 +107,5 @@
       "canAdministerPlatform": false
     }
   },
-  "timestamp": "2026-10-16T04:04:14Z"
+  "timestamp": "2026-10-17T20:12:04Z"
 }

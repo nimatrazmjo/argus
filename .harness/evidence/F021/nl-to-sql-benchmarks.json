@@ -1,15 +1,15 @@
 {
-  "timestamp": 1792123622.1916032,
+  "timestamp": 1792267993.5807252,
   "total_queries_tested": 5,
   "translation_accuracy_pct": 100.0,
-  "average_translation_latency_ms": 26.27,
+  "average_translation_latency_ms": 14.13,
   "boundary_tested": "US_GOVCLOUD_BEDROCK_AIRGAP",
   "results": [
     {
       "id": "Q1_SLOW_ENDPOINTS",
       "query": "Show me the top 5 slowest endpoints by p95 latency in the last hour",
       "status": "PASS",
-      "latency_ms": 79.46,
+      "latency_ms": 32.05,
       "generated_sql": "SELECT ServiceName, SpanName, round(quantile(0.95)(Duration) / 1000000.0, 2) AS p95_latency_ms FROM default.otel_traces WHERE Timestamp >= now() - INTERVAL 1 HOUR GROUP BY ServiceName, SpanName ORDER BY p95_latency_ms DESC LIMIT 5",
       "domain": "traces"
     },
@@ -17,7 +17,7 @@
       "id": "Q2_ERROR_RATE",
       "query": "What is the error rate for sample-service in the last 15 minutes?",
       "status": "PASS",
-      "latency_ms": 9.41,
+      "latency_ms": 21.83,
       "generated_sql": "SELECT ServiceName, countIf(StatusCode = 'STATUS_CODE_ERROR') AS error_count, count() AS total_spans, round(countIf(StatusCode = 'STATUS_CODE_ERROR') * 100.0 / count(), 2) AS error_rate_pct FROM default.otel_traces WHERE ServiceName = 'argus-sample-service' AND Timestamp >= now() - INTERVAL 15 MINUTE GROUP BY ServiceName",
       "domain": "traces"
     },
@@ -25,7 +25,7 @@
       "id": "Q3_CRITICAL_LOGS",
       "query": "List all critical logs mentioning connection timeout",
       "status": "PASS",
-      "latency_ms": 12.23,
+      "latency_ms": 5.64,
       "generated_sql": "SELECT Timestamp, ServiceName, SeverityText, Body FROM default.otel_logs WHERE SeverityText IN ('ERROR', 'FATAL') AND Body ILIKE '%timeout%' ORDER BY Timestamp DESC LIMIT 20",
       "domain": "logs"
     },
@@ -33,7 +33,7 @@
       "id": "Q4_CPU_UTILIZATION",
       "query": "What is the average CPU utilization per node in the cluster?",
       "status": "PASS",
-      "latency_ms": 9.69,
+      "latency_ms": 5.99,
       "generated_sql": "SELECT MetricName, ResourceAttributes['host.name'] AS node, round(avg(Value), 2) AS avg_value FROM default.otel_metrics_gauge WHERE MetricName ILIKE '%cpu%' GROUP BY MetricName, node ORDER BY avg_value DESC LIMIT 10",
       "domain": "metrics"
     },
@@ -41,7 +41,7 @@
       "id": "Q5_RUM_ERRORS",
       "query": "How many user sessions experienced page errors in RUM?",
       "status": "PASS",
-      "latency_ms": 20.58,
+      "latency_ms": 5.13,
       "generated_sql": "SELECT count(DISTINCT session_id) AS error_sessions FROM default.rum_events WHERE event_type = 'error'",
       "domain": "rum"
     }

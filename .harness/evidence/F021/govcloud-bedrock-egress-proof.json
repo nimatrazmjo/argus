@@ -13,31 +13,31 @@
   "audit_entries_count": 5,
   "audit_log": [
     {
-      "timestamp": 1792123622.076021,
+      "timestamp": 1792267993.5382025,
       "destination": "https://bedrock-runtime.us-gov-west-1.amazonaws.com",
       "allowed": true,
       "reason": "In-boundary GovCloud Bedrock invocation"
     },
     {
-      "timestamp": 1792123622.1473958,
+      "timestamp": 1792267993.5538867,
       "destination": "https://bedrock-runtime.us-gov-west-1.amazonaws.com",
       "allowed": true,
       "reason": "In-boundary GovCloud Bedrock invocation"
     },
     {
-      "timestamp": 1792123622.1588936,
+      "timestamp": 1792267993.568478,
       "destination": "https://bedrock-runtime.us-gov-west-1.amazonaws.com",
       "allowed": true,
       "reason": "In-boundary GovCloud Bedrock invocation"
     },
     {
-      "timestamp": 1792123622.1674964,
+      "timestamp": 1792267993.5744345,
       "destination": "https://bedrock-runtime.us-gov-west-1.amazonaws.com",
       "allowed": true,
       "reason": "In-boundary GovCloud Bedrock invocation"
     },
     {
-      "timestamp": 1792123622.1787288,
+      "timestamp": 1792267993.5795856,
       "destination": "https://bedrock-runtime.us-gov-west-1.amazonaws.com",
       "allowed": true,
       "reason": "In-boundary GovCloud Bedrock invocation"

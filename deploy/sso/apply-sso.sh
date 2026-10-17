@@ -5,6 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
+# shellcheck source=../../scripts/lib/rollout.sh
+source "${ROOT_DIR}/scripts/lib/rollout.sh"
 
 echo "================================================================="
 echo "       ARGUS AGENCY SSO & RBAC GATEWAY ROLLOUT (F016)            "
@@ -37,9 +39,13 @@ kubectl create configmap argus-sso-gateway-code \
 echo "--> [2/3] Applying SSO workloads (argus-idp and argus-sso-gateway)..."
 kubectl apply -f "${SCRIPT_DIR}/sso-workloads.yaml" -n "${NAMESPACE}"
 
+# Roll pods when source changes; the Python processes only read it at startup (#10).
+roll_on_code_change "${NAMESPACE}" argus-idp "${SCRIPT_DIR}/idp_mock.py"
+roll_on_code_change "${NAMESPACE}" argus-sso-gateway "${SCRIPT_DIR}/sso_gateway.py"
+
 echo "--> [3/3] Awaiting rollout readiness for SSO components..."
-kubectl rollout status deployment/argus-idp -n "${NAMESPACE}" --timeout=60s
-kubectl rollout status deployment/argus-sso-gateway -n "${NAMESPACE}" --timeout=60s
+kubectl rollout status deployment/argus-idp -n "${NAMESPACE}" --timeout=90s
+kubectl rollout status deployment/argus-sso-gateway -n "${NAMESPACE}" --timeout=90s
 
 echo "STATUS: PASS — Agency IdP and SSO/RBAC Gateway deployed & ready."
 echo "================================================================="

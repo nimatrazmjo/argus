@@ -17,11 +17,11 @@
   },
   "rbac_enforcement": {
     "status": "PASS",
-    "detail": "Unauthenticated denied 401; Viewer restricted from raw logs 403; Admin granted 200."
+    "detail": "Unauthenticated/forged/backdoor denied 401; Viewer restricted from raw logs 403; Admin granted 200."
   },
   "multi_tenant_scoping": {
     "status": "PASS",
-    "detail": "Tenant-scoped user token automatically injected WHERE ResourceAttributes['tenant_id'] = 'tenant_alpha'."
+    "detail": "Tenant-scoped user token automatically injected WHERE ResourceAttributes['tenant_id'] = 'tenant_alpha' and rejected malformed tenant_id."
   },
   "commercial_egress_firewall": {
     "status": "PASS",

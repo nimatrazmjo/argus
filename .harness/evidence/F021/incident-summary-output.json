@@ -1,7 +1,7 @@
 {
   "incident_id": "INC-CORR-20261015-001",
   "title": "[DHS SRE POST-MORTEM] Cascading Outage Root-Caused to chi-argus-clickhouse (ClickHouseConnectionPoolExhausted)",
-  "executive_summary": "On 2026-10-16 at 04:07:02 UTC, a major cascading degradation was detected across 4 microservices in the Argus environment. The Argus Topological AIOps Engine successfully grouped 4 alert notifications into a single correlated incident, preventing on-call alert fatigue and isolating chi-argus-clickhouse as the foundational root cause with 99.0% confidence.",
+  "executive_summary": "On 2026-10-17 at 20:13:13 UTC, a major cascading degradation was detected across 4 microservices in the Argus environment. The Argus Topological AIOps Engine successfully grouped 4 alert notifications into a single correlated incident, preventing on-call alert fatigue and isolating chi-argus-clickhouse as the foundational root cause with 99.0% confidence.",
   "root_cause_analysis": "Root Cause Analysis indicates the cascade originated at chi-argus-clickhouse due to 'ClickHouseConnectionPoolExhausted'. This failure exhausted upstream connection capacity and induced downstream query latency. Topological graph traversal verified that chi-argus-clickhouse occupies depth 0 in the failure subgraph, confirming it is the upstream origin rather than a downstream symptom.",
   "blast_radius_assessment": {
     "root_service": "chi-argus-clickhouse",
@@ -27,6 +27,6 @@
   "confidence_score": 0.99,
   "generated_by": "Argus-GovCloud-Bedrock-LLM-Layer",
   "boundary_compliance": "FEDRAMP_HIGH_AIRGAP_US_GOV_WEST_1",
-  "generated_at": 1792123622.2069373,
-  "generation_latency_ms": 0.12
+  "generated_at": 1792267993.6000009,
+  "generation_latency_ms": 1.17
 }

@@ -12,7 +12,7 @@
 --> [Edge Case 5/6] Testing Orthogonal Latency SLI Violation without HTTP Errors...
     PASS: Latency degradation measured independently (Availability SLI: 100.0%, Latency SLI: 50.0%).
 --> [Edge Case 6/6] Testing In-Memory Alert Webhook Reception & Instant Recovery Reset...
-    PASS: Webhook alert received and retrievable via /api/alerts (2 alerts stored).
+    PASS: Webhook alert received and retrievable via /api/alerts (6 alerts stored).
     PASS: Final reset restored clean state (0 requests, status NO_TRAFFIC).
 =================================================================
    ALL 6 SLO EDGE CASES VERIFIED 100% GREEN!                     

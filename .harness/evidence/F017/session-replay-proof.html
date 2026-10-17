@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Argus RUM Session Replay — sess-e2e-5560e5c2</title>
-    <style>
+    <title>Argus RUM Session Replay — sess-e2e-72111aae</title>
+    <style nonce="2d03da32867c6a96042634daa6fa7136">
         :root {
             --bg-primary: #0f172a;
             --bg-secondary: #1e293b;
@@ -197,11 +197,12 @@
             <span class="badge badge-masked">PII Redacted</span>
         </div>
         <div class="meta-group">
-            <div>Session: <strong>sess-e2e-5560e5c2</strong></div>
-            <div>User: <strong>customer-alice-5560e5c2</strong></div>
+            <div>Session: <strong>sess-e2e-72111aae</strong></div>
+            <div>User: <strong>customer-alice-72111aae</strong></div>
+            <div>Page: <strong>/checkout</strong></div>
             <div>Duration: <strong>0.0s</strong></div>
             <div>Events: <strong>6</strong></div>
-            <div class="meta-trace">Trace: <a href="/api/v1/traces/035b9f9bb25b9c64202c9b991041fed2"><strong>035b9f9bb25b...</strong></a></div>
+            <div class="meta-trace">Trace: <a href="/api/v1/traces/0e79a83d974be0abaaeb4e30f6c84dd6"><strong>0e79a83d974b...</strong></a></div>
         </div>
     </header>
 
@@ -213,7 +214,7 @@
                     <p style="color: #64748b; font-size: 0.9rem;">Interactive snapshot of client-rendered DOM with masked form fields.</p>
                     <hr style="margin: 16px 0; border: none; border-top: 1px solid #e2e8f0;">
                     <div id="reconstructedDom">
-                        <!-- Populated by events -->
+                        <!-- Populated safely via DOM APIs -->
                     </div>
                 </div>
             </div>
@@ -240,13 +241,13 @@
                 <span style="font-size: 0.75rem; color: var(--accent-rose);">0 errors</span>
             </div>
             <div class="events-list" id="eventsList">
-                <!-- Dynamically populated -->
+                <!-- Dynamically populated via textContent -->
             </div>
         </div>
     </main>
 
-    <script>
-        const events = [{"eventId": "evt-snap-5560e5c2", "timestamp": "2026-10-16T04:03:53.000Z", "type": "dom_snapshot", "targetSelector": "document", "payload": {"snapshot": {"title": "Argus Store \u2014 Checkout", "bodyHtml": "<div class='checkout'><h1>Secure Checkout</h1><form><input id='name'/><input id='email'/><input id='password'/><input id='creditCard'/><input id='notes'/><button id='submitBtn'>Buy</button></form></div>"}}}, {"eventId": "evt-name-5560e5c2", "timestamp": "2026-10-16T04:03:53.200Z", "type": "input", "targetTag": "input", "targetId": "name", "targetSelector": "#name", "maskedValue": "Alice User", "payload": {"isMasked": false, "length": 10}}, {"eventId": "evt-pwd-5560e5c2", "timestamp": "2026-10-16T04:03:54.400Z", "type": "input", "targetTag": "input", "targetId": "password", "targetSelector": "#password", "maskedValue": "***", "payload": {"isMasked": true, "length": 29, "raw_leak_attempt": "password=[REDACTED]"}}, {"eventId": "evt-cc-5560e5c2", "timestamp": "2026-10-16T04:03:54.600Z", "type": "input", "targetTag": "input", "targetId": "creditCard", "targetSelector": "#creditCard", "maskedValue": "***", "payload": {"isMasked": true, "length": 19, "raw_leak_attempt": "card=[REDACTED]"}}, {"eventId": "evt-notes-5560e5c2", "timestamp": "2026-10-16T04:03:54.800Z", "type": "input", "targetTag": "input", "targetId": "notes", "targetSelector": "#notes", "maskedValue": "Deliver to security dock 4", "payload": {"isMasked": false, "notes": "Deliver to security dock 4"}}, {"eventId": "evt-click-5560e5c2", "timestamp": "2026-10-16T04:03:54.800Z", "type": "click", "targetTag": "button", "targetId": "submitBtn", "targetSelector": "#submitBtn", "payload": {"text": "Complete Purchase"}}];
+    <script nonce="2d03da32867c6a96042634daa6fa7136">
+        const events = [{"eventId": "evt-snap-72111aae", "timestamp": "2026-10-17T20:11:31.000Z", "type": "dom_snapshot", "targetSelector": "document", "payload": {"snapshot": {"title": "Argus Store \u2014 Checkout", "bodyHtml": "\u003cdiv class='checkout'\u003e\u003ch1\u003eSecure Checkout\u003c/h1\u003e\u003cform\u003e\u003cinput id='name'/\u003e\u003cinput id='email'/\u003e\u003cinput id='password'/\u003e\u003cinput id='creditCard'/\u003e\u003cinput id='notes'/\u003e\u003cbutton id='submitBtn'\u003eBuy\u003c/button\u003e\u003c/form\u003e\u003c/div\u003e"}}}, {"eventId": "evt-name-72111aae", "timestamp": "2026-10-17T20:11:31.200Z", "type": "input", "targetTag": "input", "targetId": "name", "targetSelector": "#name", "maskedValue": "Alice User", "payload": {"isMasked": false, "length": 10}}, {"eventId": "evt-pwd-72111aae", "timestamp": "2026-10-17T20:11:31.400Z", "type": "input", "targetTag": "input", "targetId": "password", "targetSelector": "#password", "maskedValue": "***", "payload": {"isMasked": true, "length": 29, "raw_leak_attempt": "password=[REDACTED]"}}, {"eventId": "evt-cc-72111aae", "timestamp": "2026-10-17T20:11:31.600Z", "type": "input", "targetTag": "input", "targetId": "creditCard", "targetSelector": "#creditCard", "maskedValue": "***", "payload": {"isMasked": true, "length": 19, "raw_leak_attempt": "card=[REDACTED]"}}, {"eventId": "evt-notes-72111aae", "timestamp": "2026-10-17T20:11:31.800Z", "type": "input", "targetTag": "input", "targetId": "notes", "targetSelector": "#notes", "maskedValue": "Deliver to security dock 4", "payload": {"isMasked": false, "notes": "Deliver to security dock 4"}}, {"eventId": "evt-click-72111aae", "timestamp": "2026-10-17T20:11:31.800Z", "type": "click", "targetTag": "button", "targetId": "submitBtn", "targetSelector": "#submitBtn", "payload": {"text": "Complete Purchase"}}];
         let currentIndex = 0;
         let isPlaying = false;
         let timer = null;
@@ -257,20 +258,91 @@
         const timeDisplay = document.getElementById('timeDisplay');
         const playBtn = document.getElementById('playBtn');
 
+        const SAFE_TAGS = new Set(['DIV', 'SPAN', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'FORM', 'LABEL', 'INPUT', 'BUTTON', 'HR', 'UL', 'OL', 'LI', 'STRONG', 'EM', 'CODE']);
+        const SAFE_ATTRS = new Set(['id', 'class', 'type', 'name', 'value', 'placeholder', 'alt', 'data-index', 'data-masked']);
+
+        function sanitizeDomTree(htmlString) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(String(htmlString || ''), 'text/html');
+            const fragment = document.createDocumentFragment();
+
+            function cloneSafeNode(node) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    return document.createTextNode(node.textContent || '');
+                }
+                if (node.nodeType !== Node.ELEMENT_NODE) {
+                    return null;
+                }
+                const tagName = node.tagName.toUpperCase();
+                if (!SAFE_TAGS.has(tagName)) {
+                    return null;
+                }
+                const el = document.createElement(tagName.toLowerCase());
+                for (const attr of Array.from(node.attributes)) {
+                    const name = attr.name.toLowerCase();
+                    if (SAFE_ATTRS.has(name)) {
+                        el.setAttribute(name, attr.value);
+                    }
+                }
+                for (const child of Array.from(node.childNodes)) {
+                    const safeChild = cloneSafeNode(child);
+                    if (safeChild) {
+                        el.appendChild(safeChild);
+                    }
+                }
+                return el;
+            }
+
+            if (doc.body) {
+                for (const child of Array.from(doc.body.childNodes)) {
+                    const safeChild = cloneSafeNode(child);
+                    if (safeChild) {
+                        fragment.appendChild(safeChild);
+                    }
+                }
+            }
+            return fragment;
+        }
+
         function renderEventsList() {
-            list.innerHTML = '';
+            list.replaceChildren();
             events.forEach((ev, i) => {
                 const card = document.createElement('div');
                 card.className = 'event-card' + (i === currentIndex ? ' active' : '');
-                const isMasked = ev.maskedValue || (ev.payload && ev.payload.isMasked);
-                card.innerHTML = `
-                    <div class="event-header">
-                        <span class="event-type ${ev.type}">${ev.type}</span>
-                        <span style="color: var(--text-secondary);">${ev.timestamp.split('T')[1].substr(0, 8)}</span>
-                    </div>
-                    <div>Target: <code>${ev.targetSelector || ev.targetTag || 'body'}</code></div>
-                    ${isMasked ? '<div class="event-masked">🛡️ PII Masked (***)</div>' : ''}
-                `;
+                const isMasked = Boolean(ev.maskedValue || (ev.payload && ev.payload.isMasked));
+
+                const header = document.createElement('div');
+                header.className = 'event-header';
+
+                const typeSpan = document.createElement('span');
+                const safeType = String(ev.type || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '');
+                typeSpan.className = 'event-type ' + safeType;
+                typeSpan.textContent = String(ev.type || 'unknown');
+
+                const timeSpan = document.createElement('span');
+                timeSpan.style.color = 'var(--text-secondary)';
+                const tsParts = String(ev.timestamp || '').split('T');
+                timeSpan.textContent = tsParts.length > 1 ? tsParts[1].substr(0, 8) : String(ev.timestamp || '');
+
+                header.appendChild(typeSpan);
+                header.appendChild(timeSpan);
+
+                const targetDiv = document.createElement('div');
+                targetDiv.appendChild(document.createTextNode('Target: '));
+                const targetCode = document.createElement('code');
+                targetCode.textContent = String(ev.targetSelector || ev.targetTag || 'body');
+                targetDiv.appendChild(targetCode);
+
+                card.appendChild(header);
+                card.appendChild(targetDiv);
+
+                if (isMasked) {
+                    const maskedBadge = document.createElement('div');
+                    maskedBadge.className = 'event-masked';
+                    maskedBadge.textContent = '🛡️ PII Masked (***)';
+                    card.appendChild(maskedBadge);
+                }
+
                 card.onclick = () => jumpTo(i);
                 list.appendChild(card);
             });
@@ -278,18 +350,30 @@
 
         function applyEvent(ev) {
             if (ev.type === 'dom_snapshot' && ev.payload && ev.payload.snapshot) {
-                screen.innerHTML = ev.payload.snapshot.bodyHtml || '<p style="color:#64748b;">[Blank DOM Snapshot]</p>';
+                const rawHtml = ev.payload.snapshot.bodyHtml;
+                if (rawHtml) {
+                    screen.replaceChildren(sanitizeDomTree(rawHtml));
+                } else {
+                    const emptyP = document.createElement('p');
+                    emptyP.style.color = '#64748b';
+                    emptyP.textContent = '[Blank DOM Snapshot]';
+                    screen.replaceChildren(emptyP);
+                }
             } else if (ev.type === 'input') {
-                const target = screen.querySelector(ev.targetSelector);
-                if (target) {
-                    target.value = ev.maskedValue || '***';
-                }
+                try {
+                    const target = screen.querySelector(ev.targetSelector);
+                    if (target) {
+                        target.value = ev.maskedValue || '***';
+                    }
+                } catch (e) {}
             } else if (ev.type === 'click') {
-                const target = screen.querySelector(ev.targetSelector);
-                if (target) {
-                    target.style.outline = '2px solid #06b6d4';
-                    setTimeout(() => target.style.outline = '', 400);
-                }
+                try {
+                    const target = screen.querySelector(ev.targetSelector);
+                    if (target) {
+                        target.style.outline = '2px solid #06b6d4';
+                        setTimeout(() => target.style.outline = '', 400);
+                    }
+                } catch (e) {}
             }
         }
 
@@ -306,7 +390,7 @@
         function updateUI() {
             const pct = events.length > 0 ? (currentIndex / events.length) * 100 : 0;
             fill.style.width = pct + '%';
-            timeDisplay.innerText = currentIndex + ' / ' + events.length + ' events';
+            timeDisplay.textContent = currentIndex + ' / ' + events.length + ' events';
             document.querySelectorAll('.event-card').forEach((c, idx) => {
                 c.classList.toggle('active', idx === currentIndex - 1);
             });
@@ -314,7 +398,7 @@
 
         function play() {
             isPlaying = true;
-            playBtn.innerText = 'Pause ❚❚';
+            playBtn.textContent = 'Pause ❚❚';
             timer = setInterval(() => {
                 if (currentIndex >= events.length) {
                     pause();
@@ -326,14 +410,14 @@
 
         function pause() {
             isPlaying = false;
-            playBtn.innerText = 'Play ▶';
+            playBtn.textContent = 'Play ▶';
             if (timer) clearInterval(timer);
         }
 
         function jumpTo(idx) {
             pause();
             currentIndex = 0;
-            screen.innerHTML = '';
+            screen.replaceChildren();
             for (let i = 0; i <= idx && i < events.length; i++) {
                 applyEvent(events[i]);
             }

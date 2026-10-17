@@ -1,5 +1,5 @@
 {
   "user": "tenant_beta",
-  "query_output": "trace-beta-2bf0c63f\ttenant_beta",
+  "query_output": "trace-beta-45333cb0\ttenant_beta",
   "leak_check": "PASS"
 }

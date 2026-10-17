@@ -5,6 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
+# shellcheck source=../../scripts/lib/rollout.sh
+source "${ROOT_DIR}/scripts/lib/rollout.sh"
 
 echo "================================================================="
 echo "       ARGUS REAL USER MONITORING (RUM) & REPLAY ROLLOUT (F017)   "
@@ -57,8 +59,11 @@ kubectl create configmap argus-rum-collector-code \
 
 kubectl apply -f "${SCRIPT_DIR}/rum-collector.yaml" -n "${NAMESPACE}"
 
+# Roll pods when the collector source changes; the Python process only reads it at startup (#10).
+roll_on_code_change "${NAMESPACE}" argus-rum-collector "${SCRIPT_DIR}/rum_collector.py"
+
 echo "--> [3/3] Awaiting rollout readiness for argus-rum-collector..."
-kubectl rollout status deployment/argus-rum-collector -n "${NAMESPACE}" --timeout=60s
+kubectl rollout status deployment/argus-rum-collector -n "${NAMESPACE}" --timeout=90s
 
 echo "STATUS: PASS — Real User Monitoring (RUM) Collector deployed & ready."
 echo "================================================================="

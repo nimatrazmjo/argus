@@ -3,7 +3,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
+# shellcheck source=../../scripts/lib/rollout.sh
+source "${ROOT_DIR}/scripts/lib/rollout.sh"
 
 echo "--> [1/2] Creating / updating Secrets & ConfigMaps for Paging Gateway and Mock ServiceNow..."
 if [ -n "${PAGING_WEBHOOK_TOKEN:-}" ]; then
@@ -24,8 +27,12 @@ kubectl create configmap argus-paging-gateway-code -n "${NAMESPACE}" \
 echo "--> [2/2] Applying Paging Gateway & Mock Deployments and Services..."
 kubectl apply -f "${SCRIPT_DIR}/paging-workloads.yaml" >/dev/null
 
+# Roll pods when source changes; the Python processes only read it at startup (#10).
+roll_on_code_change "${NAMESPACE}" argus-servicenow-mock "${SCRIPT_DIR}/servicenow_mock.py"
+roll_on_code_change "${NAMESPACE}" argus-paging-gateway "${SCRIPT_DIR}/paging_gateway.py"
+
 echo "--> Awaiting readiness of paging workloads..."
-kubectl rollout status deployment/argus-servicenow-mock -n "${NAMESPACE}" --timeout=60s >/dev/null
-kubectl rollout status deployment/argus-paging-gateway -n "${NAMESPACE}" --timeout=60s >/dev/null
+kubectl rollout status deployment/argus-servicenow-mock -n "${NAMESPACE}" --timeout=90s >/dev/null
+kubectl rollout status deployment/argus-paging-gateway -n "${NAMESPACE}" --timeout=90s >/dev/null
 
 echo "STATUS: PASS — Paging Gateway and ServiceNow Mock are ready in '${NAMESPACE}'."

@@ -1,5 +1,5 @@
 {
-  "timestamp": 1792123503.9589772,
+  "timestamp": 1792267785.4641845,
   "test_suite": "run_anomaly_e2e.py",
   "status": "PASS",
   "transcript": [
@@ -10,7 +10,7 @@
         "status": "ok",
         "service": "argus-anomaly-detector",
         "version": "1.0.0",
-        "timestamp": 1792123498.874291,
+        "timestamp": 1792267784.284582,
         "active_monitors": 4
       }
     },
@@ -19,7 +19,7 @@
       "result": {
         "metric": "e2e_service_latency",
         "value": 48.0,
-        "timestamp": 1792124038.930087,
+        "timestamp": 1792268324.2980452,
         "mean": 49.4903,
         "std": 2.4745,
         "upper_bound": 56.9138,
@@ -36,7 +36,7 @@
       "result": {
         "metric": "e2e_service_latency",
         "value": 319.7495,
-        "timestamp": 1792123499.15467,
+        "timestamp": 1792267784.3729281,
         "mean": 49.1922,
         "std": 2.4596,
         "upper_bound": 56.5711,
@@ -53,7 +53,7 @@
       "result": {
         "metric": "e2e_service_latency",
         "value": 49.0,
-        "timestamp": 1792124338.930087,
+        "timestamp": 1792268624.2980452,
         "mean": 49.0787,
         "std": 2.4539,
         "upper_bound": 56.4405,

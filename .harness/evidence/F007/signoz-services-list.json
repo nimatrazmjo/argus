@@ -1,1 +1,1 @@
-["argus-auto-service","argus-sample-service","argus-edge-test","argus-pipeline-test","argus-redaction-test","cardinality-test-service"]
+["argus-auto-service","argus-sample-service","argus-svc-auth","argus-svc-billing","argus-svc-catalog","argus-svc-gateway","argus-svc-inventory","argus-svc-notification","argus-svc-order","argus-svc-payment","argus-svc-recommendation","argus-svc-shipping","argus-pipeline-test","argus-redaction-test","cardinality-test-service","argus-edge-test"]
