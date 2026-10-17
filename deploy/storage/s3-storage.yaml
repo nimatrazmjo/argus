@@ -50,6 +50,7 @@ spec:
         app.kubernetes.io/name: argus-s3
         app.kubernetes.io/part-of: argus
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: s3-server
           image: localhost:5001/argus/seaweedfs:latest
@@ -60,9 +61,20 @@ spec:
             - "-dir=/data"
             - "-ip=localhost"
             - "-ip.bind=0.0.0.0"
+            - "-master.volumeSizeLimitMB=100"
+            - "-master.telemetry=false"
+            - "-volume.max=100"
+            - "-volume.minFreeSpacePercent=1"
           ports:
             - containerPort: 8333
               name: s3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
           volumeMounts:
             - name: s3-data
               mountPath: /data
@@ -70,8 +82,8 @@ spec:
             httpGet:
               path: /
               port: 8333
-            initialDelaySeconds: 2
-            periodSeconds: 5
+            initialDelaySeconds: 5
+            periodSeconds: 15
             timeoutSeconds: 5
       volumes:
         - name: s3-data

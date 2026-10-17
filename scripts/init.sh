@@ -25,14 +25,20 @@ else
   echo "      WARN: Not inside a git repository."
 fi
 
-# 2. Check cluster access
-echo "[2/9] Validating Kubernetes cluster connectivity..."
+# 2. Check cluster access & control-plane etcd health floor
+echo "[2/9] Validating Kubernetes cluster connectivity & control-plane health floor..."
 if ! kubectl cluster-info >/dev/null 2>&1; then
   echo "      ERROR: Cannot connect to Kubernetes cluster." >&2
   FAILED=1
 else
   SERVER_VERSION=$(kubectl version -o json 2>/dev/null | jq -r '.serverVersion.gitVersion' 2>/dev/null || kubectl version --short 2>/dev/null || echo "connected")
   echo "      Cluster control plane reachable (server version: ${SERVER_VERSION})"
+  if [ -x "scripts/check-control-plane-health.sh" ]; then
+    if ! ./scripts/check-control-plane-health.sh; then
+      echo "      ERROR: Control-plane etcd apply latency / health gate failed." >&2
+      FAILED=1
+    fi
+  fi
 fi
 
 # 3. Check internal mirror registry

@@ -8,7 +8,16 @@ spec:
   serviceAccount: argus-collector
   image: localhost:5001/argus/opentelemetry-collector-contrib:0.160.0
   imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
   env:
+    - name: GOMEMLIMIT
+      value: "200MiB"
     - name: K8S_NODE_NAME
       valueFrom:
         fieldRef:
@@ -65,8 +74,8 @@ spec:
     processors:
       memory_limiter:
         check_interval: 1s
-        limit_percentage: 75
-        spike_limit_percentage: 20
+        limit_mib: 192
+        spike_limit_mib: 48
       batch:
         timeout: 1s
         send_batch_size: 1024

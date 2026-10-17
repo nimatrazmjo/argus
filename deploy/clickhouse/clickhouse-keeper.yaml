@@ -22,6 +22,13 @@ spec:
             - name: clickhouse-keeper
               image: localhost:5001/argus/clickhouse-keeper:latest
               imagePullPolicy: IfNotPresent
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 300m
+                  memory: 384Mi
               startupProbe:
                 exec:
                   command: ['/bin/sh', '-c', 'echo ruok | nc 127.0.0.1 2181 | grep imok']

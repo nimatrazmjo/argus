@@ -146,6 +146,7 @@ What each technology is used for, and why it was chosen:
 
 - **Single service:** Python 3.12+ (standard library only — no `pip install`).
 - **Full platform:** Docker Desktop or Minikube with Kubernetes v1.28+; active context (`kubectl config current-context`); a local registry mirror on `localhost:5001`; `kubectl`, `jq`, `curl`, `bash` on PATH.
+- **Control-plane resource floor (Docker Desktop):** Allocate at least **8 GiB RAM**, **4+ vCPUs**, and SSD-backed virtual disk storage with **> 20% free disk capacity** (low disk IOPS or VM swap thrashing will starve `etcd` boltdb reads and `kube-apiserver`). Deploy scripts enforce `./scripts/check-control-plane-health.sh` before driving rollout load.
 
 ### Option A — Run a Single Service Locally (no cluster)
 
@@ -469,6 +470,7 @@ The full dependency matrix and parallel-execution track topology live in [`.harn
 
 ## Troubleshooting
 
+- **Control-plane / `etcd` disk I/O latency** — If `kubectl` times out (`TLS handshake timeout` / `context deadline exceeded`) or `etcd` logs `apply request took too long`, run `./scripts/maintain-etcd.sh` to compact old revisions and defragment the boltdb file (works via `docker exec` even when `kube-apiserver` is degraded). Periodic compaction/defrag is scheduled declaratively via [`deploy/control-plane/etcd-maintenance.yaml`](deploy/control-plane/etcd-maintenance.yaml), and [`scripts/check-control-plane-health.sh`](scripts/check-control-plane-health.sh) gates deployments on `/readyz` and `etcd` apply latency.
 - **ClickHouse Keeper startup timing** — on Docker Desktop, Keeper replays uncompacted Raft changelogs at startup. The pod uses a `startupProbe` with a 300s window (`failureThreshold: 60, periodSeconds: 5`) to avoid premature liveness kills during WAL replay.
 - **eBPF kernel compatibility** — Beyla needs Linux kernel 5.8+ with BPF support. Pods need `privileged: true` (or `CAP_BPF`, `CAP_PERFMON`, `CAP_NET_ADMIN`) and a `/sys/kernel/debug` mount.
 - **Collector gateway ingest** — gateway listens on `4317` (gRPC) and `4318` (HTTP); workloads route to `http://argus-gateway-collector.argus-system.svc.cluster.local:4318`.

@@ -26,6 +26,10 @@ kubectl_retry() {
   done
 }
 
+if [ -x "${SCRIPT_DIR}/../scripts/check-control-plane-health.sh" ]; then
+  "${SCRIPT_DIR}/../scripts/check-control-plane-health.sh"
+fi
+
 echo "--> [1/3] Syncing microservices code into ConfigMap argus-services-code..."
 kubectl create configmap argus-services-code \
   --from-file=service_template.py="${SCRIPT_DIR}/service_template.py" \

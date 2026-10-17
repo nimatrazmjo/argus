@@ -9,7 +9,16 @@ spec:
   serviceAccount: argus-collector
   image: localhost:5001/argus/opentelemetry-collector-contrib:0.160.0
   imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 384Mi
   env:
+    - name: GOMEMLIMIT
+      value: "320MiB"
     - name: CLICKHOUSE_PASSWORD
       valueFrom:
         secretKeyRef:
@@ -35,8 +44,8 @@ spec:
     processors:
       memory_limiter:
         check_interval: 1s
-        limit_percentage: 75
-        spike_limit_percentage: 20
+        limit_mib: 280
+        spike_limit_mib: 64
       k8sattributes:
         auth_type: "serviceAccount"
         passthrough: false

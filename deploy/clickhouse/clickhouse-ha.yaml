@@ -27,6 +27,11 @@ spec:
     files:
       "{users}/json.xml": |
         <clickhouse>
+          <users>
+            <default>
+              <password from_env="CLICKHOUSE_PASSWORD" replace="1"/>
+            </default>
+          </users>
           <profiles>
             <default>
               <allow_experimental_json_type>1</allow_experimental_json_type>
@@ -58,10 +63,36 @@ spec:
                     <disk>s3_cold</disk>
                   </cold>
                 </volumes>
-                <move_factor>0.2</move_factor>
+                <move_factor>0.01</move_factor>
               </tiered_hot_cold>
             </policies>
           </storage_configuration>
+        </clickhouse>
+      performance_tuning.xml: |
+        <clickhouse>
+          <logger>
+            <level>warning</level>
+          </logger>
+          <max_server_memory_usage_to_ram_ratio>0.85</max_server_memory_usage_to_ram_ratio>
+          <mark_cache_size>134217728</mark_cache_size>
+          <uncompressed_cache_size>67108864</uncompressed_cache_size>
+          <background_move_pool_size>1</background_move_pool_size>
+          <query_log remove="1"/>
+          <query_metric_log remove="1"/>
+          <query_views_log remove="1"/>
+          <aggregated_zookeeper_log remove="1"/>
+          <background_schedule_pool_log remove="1"/>
+          <blob_storage_log remove="1"/>
+          <asynchronous_insert_log remove="1"/>
+          <error_log remove="1"/>
+          <zookeeper_connection_log remove="1"/>
+          <trace_log remove="1"/>
+          <text_log remove="1"/>
+          <metric_log remove="1"/>
+          <asynchronous_metric_log remove="1"/>
+          <processors_profile_log remove="1"/>
+          <opentelemetry_span_log remove="1"/>
+          <part_log remove="1"/>
         </clickhouse>
       cluster_alias.xml: |
         <clickhouse>
@@ -99,11 +130,11 @@ spec:
                       key: CLICKHOUSE_PASSWORD
               resources:
                 requests:
-                  cpu: 500m
-                  memory: 1Gi
+                  cpu: 250m
+                  memory: 512Mi
                 limits:
-                  cpu: "6"
-                  memory: 5120Mi
+                  cpu: "2"
+                  memory: 2560Mi
               livenessProbe:
                 httpGet:
                   path: /ping
