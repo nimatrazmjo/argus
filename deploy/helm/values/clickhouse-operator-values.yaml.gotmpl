@@ -1,0 +1,19 @@
+# deploy/helm/values/clickhouse-operator-values.yaml
+# Declarative configuration for Altinity ClickHouse Operator with internal mirror images
+
+operator:
+  image:
+    registry: {{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus
+    repository: "clickhouse-operator"
+    tag: "0.27.4"
+
+metrics:
+  enabled: true
+  image:
+    registry: {{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus
+    repository: "metrics-exporter"
+    tag: "0.27.4"
+
+# Use native Helm 3 CRD management; disable hook container to avoid unmirrored utility pods
+crdHook:
+  enabled: false

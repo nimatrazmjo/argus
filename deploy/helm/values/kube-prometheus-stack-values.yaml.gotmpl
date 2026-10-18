@@ -1,0 +1,49 @@
+# deploy/helm/values/kube-prometheus-stack-values.yaml
+# Declarative configuration for Prometheus Operator using internal mirror images
+# Minimal ATO footprint: deploys the Prometheus Operator controller and CRDs.
+
+prometheusOperator:
+  enabled: true
+  tls:
+    enabled: false
+  image:
+    registry: {{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus
+    repository: "prometheus-operator"
+    tag: "v0.94.1"
+  prometheusConfigReloader:
+    image:
+      registry: {{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus
+      repository: "prometheus-config-reloader"
+      tag: "v0.94.1"
+  admissionWebhooks:
+    enabled: false
+
+# Disable non-operator components for Phase 01 operator baseline (minimal ATO surface)
+alertmanager:
+  enabled: false
+grafana:
+  enabled: false
+prometheus:
+  enabled: false
+nodeExporter:
+  enabled: false
+kubeStateMetrics:
+  enabled: false
+defaultRules:
+  create: false
+kubeApiServer:
+  enabled: false
+kubelet:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+coreDns:
+  enabled: false
+kubeDns:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false

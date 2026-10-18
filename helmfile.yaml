@@ -10,45 +10,33 @@ releases:
   # Phase 1: Operators (deployed in parallel; argus chart waits for all three)
   - name: opentelemetry-operator
     chart: open-telemetry/opentelemetry-operator
+    version: "0.126.0"
     namespace: '{{ env "ARGUS_NAMESPACE" | default "argus-system" }}'
     createNamespace: true
     wait: true
     timeout: 300
     values:
-      - deploy/helm/values/opentelemetry-operator-values.yaml
-    set:
-      - name: manager.image.repository
-        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus/opentelemetry-operator'
-      - name: manager.collectorImage.repository
-        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus/opentelemetry-collector-k8s'
+      - deploy/helm/values/opentelemetry-operator-values.yaml.gotmpl
 
   - name: altinity-clickhouse-operator
     chart: clickhouse-operator/altinity-clickhouse-operator
+    version: "0.27.4"
     namespace: '{{ env "ARGUS_NAMESPACE" | default "argus-system" }}'
     createNamespace: true
     wait: true
     timeout: 300
     values:
-      - deploy/helm/values/clickhouse-operator-values.yaml
-    set:
-      - name: operator.image.registry
-        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus'
-      - name: metrics.image.registry
-        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus'
+      - deploy/helm/values/clickhouse-operator-values.yaml.gotmpl
 
   - name: prometheus-operator
     chart: prometheus-community/kube-prometheus-stack
+    version: "92.3.0"
     namespace: '{{ env "ARGUS_NAMESPACE" | default "argus-system" }}'
     createNamespace: true
     wait: true
     timeout: 300
     values:
-      - deploy/helm/values/kube-prometheus-stack-values.yaml
-    set:
-      - name: prometheusOperator.image.registry
-        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus'
-      - name: prometheusOperator.prometheusConfigReloader.image.registry
-        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus'
+      - deploy/helm/values/kube-prometheus-stack-values.yaml.gotmpl
 
   # Phase 2: All Argus workloads — waits for all three operators above
   - name: argus
@@ -63,6 +51,4 @@ releases:
       - prometheus-operator
     values:
       - charts/argus/values.yaml
-    set:
-      - name: imageRegistry
-        value: '{{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}'
+      - charts/argus/registry-override.yaml.gotmpl
