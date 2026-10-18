@@ -18,10 +18,10 @@ secrets:
 
 storage:
   s3Image: seaweedfs:latest
-  pyroscopeImage: pyroscope:latest
+  pyroscopeImage: pyroscope:1.7.1
 
 infra:
-  kubeStateMetricsImage: kube-state-metrics:v2.14.0
+  kubeStateMetricsImage: kube-state-metrics:v2.13.0
   nodeExporterImage: node-exporter:v1.8.2
 
 otel:
@@ -31,7 +31,7 @@ otel:
   autoinstrumentJavaImage: autoinstrumentation-java:2
 
 beyla:
-  image: beyla:1.10.1
+  image: beyla:2.2.4
 
 sampleApp:
   image: sample-service:1.0.0

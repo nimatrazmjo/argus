@@ -190,7 +190,6 @@ spec:
             - name: root
               mountPath: /host/root
               readOnly: true
-              mountPropagation: HostToContainer
       tolerations:
         - operator: Exists
       volumes:
