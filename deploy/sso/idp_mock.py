@@ -65,6 +65,16 @@ USERS_DB = {
         "piv_card_id": "PIV-110294-DHS",
         "acr": "nist-800-63-3-aal3"
     },
+    "center.ops@dhs.gov": {
+        "password": os.environ.get("IDP_CENTER_PASSWORD", "center_pass"),
+        "name": "Center Ops (SOC Center)",
+        "preferred_username": "center.ops",
+        "groups": ["dhs-soc-center", "dhs-all-staff"],
+        "roles": ["Operator"],
+        "tenant_id": "tenant_center",
+        "piv_card_id": "PIV-773301-DHS",
+        "acr": "nist-800-63-3-aal3"
+    },
     "mallory.unassigned@dhs.gov": {
         "password": os.environ.get("IDP_UNASSIGNED_PASSWORD", "unassigned_pass"),
         "name": "Mallory Unassigned (Contractor)",
