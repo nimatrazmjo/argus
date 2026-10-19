@@ -1,3 +1,4 @@
+{{- $demoNs := .Values.demoNamespace | default "demo" }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -63,7 +64,7 @@ data:
         - kubernetes:
             namespace: "kube-node-lease"
         - kubernetes:
-            namespace: "{{ .Values.demoNamespace | default "demo" }}"
+            namespace: {{ $demoNs }}
     otel_traces_export:
       endpoint: "http://argus-gateway-collector.{{ .Release.Namespace }}.svc.cluster.local:4318"
       protocol: "http/protobuf"
@@ -96,8 +97,6 @@ spec:
     spec:
       serviceAccountName: argus-beyla
       hostPID: true
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
       terminationGracePeriodSeconds: 10
       containers:
         - name: beyla
@@ -117,7 +116,7 @@ spec:
             privileged: true
             readOnlyRootFilesystem: false
             capabilities:
-              add: [BPF, PERFMON, NET_ADMIN, NET_RAW, SYS_PTRACE, SYS_RESOURCE, DAC_READ_SEARCH, SYS_ADMIN]
+              add: [BPF, PERFMON, SYS_PTRACE, SYS_RESOURCE, DAC_READ_SEARCH, SYS_ADMIN]
           resources:
             requests:
               cpu: 25m

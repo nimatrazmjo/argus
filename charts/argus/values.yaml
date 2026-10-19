@@ -22,7 +22,7 @@ storage:
   pyroscopeImage: pyroscope:1.7.1
 
 infra:
-  kubeStateMetricsImage: kube-state-metrics:v2.13.0
+  kubeStateMetricsImage: kube-state-metrics:v2.14.0
   nodeExporterImage: node-exporter:v1.8.2
 
 otel:
