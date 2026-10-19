@@ -24,8 +24,11 @@ It spans the full observability lifecycle: a collection spine (OTel → ClickHou
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Option A — Run a Single Service Locally](#option-a--run-a-single-service-locally-no-cluster)
-  - [Option B — One-Command Deploy (Helmfile)](#option-b--one-command-deploy-helmfile)
-  - [Option C — Manual Step-by-Step Deploy](#option-c--manual-step-by-step-deploy-kubernetes)
+  - [Option B — One-Command Deploy (deploy.sh / deploy.ps1)](#option-b--one-command-deploy-deploysh--deployps1)
+  - [Option C — Helmfile Direct](#option-c--helmfile-direct)
+  - [Option D — Manual Step-by-Step Deploy](#option-d--manual-step-by-step-deploy-kubernetes)
+- [What Gets Installed](#what-gets-installed)
+- [Accessing the Platform](#accessing-the-platform)
 - [Sending Telemetry to Argus](#sending-telemetry-to-argus)
 - [Services Reference](#services-reference)
 - [Service Onboarding](#service-onboarding)
@@ -141,8 +144,9 @@ What each technology is used for, and why it was chosen:
 | Path | Needs | Time | Good for |
 | :--- | :--- | :--- | :--- |
 | [Single service](#option-a--run-a-single-service-locally-no-cluster) | `python3` only | ~30s | Reading code, trying an API, demos |
-| [Helmfile (recommended)](#option-b--one-command-deploy-helmfile) | k8s + mirror + `helmfile` | ~20–40m | Full platform, one command |
-| [Manual](#option-c--manual-step-by-step-deploy-kubernetes) | k8s + mirror + `kubectl`/`jq` | ~30–50m | Granular control, partial deploys |
+| [deploy.sh / deploy.ps1 (recommended)](#option-b--one-command-deploy-deploysh--deployps1) | k8s + mirror + `helmfile` | ~20–40m | Full platform, single script, cross-platform |
+| [Helmfile direct](#option-c--helmfile-direct) | k8s + mirror + `helmfile` | ~20–40m | Full platform without wrapper script |
+| [Manual](#option-d--manual-step-by-step-deploy-kubernetes) | k8s + mirror + `kubectl`/`jq` | ~30–50m | Granular control, partial deploys |
 
 ### Prerequisites
 
@@ -182,50 +186,97 @@ PORT=8082 python3 deploy/rum/rum_collector.py
 
 Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`.
 
-### Option B — One-Command Deploy (Helmfile)
+### Option B — One-Command Deploy (deploy.sh / deploy.ps1)
 
-Helmfile sequences the three operators first, then deploys all 89 platform resources in a single `argus` chart, waiting for each phase before proceeding.
+`deploy.sh` (Mac/Linux) and `deploy.ps1` (Windows/PowerShell) are the recommended entry point. They run all four deploy phases in the correct order, with flags to skip phases you've already completed.
 
-**1. Mirror images & run the readiness check**
+**Mac / Linux**
 ```bash
-./deploy/mirror/setup-mirror.sh   # populate localhost:5001
-./scripts/init.sh                 # pre-flight health gate
+./deploy.sh
 ```
 
-**2. Add Helm repos & sync everything**
+**Windows (PowerShell)**
+```powershell
+.\deploy.ps1
+```
+
+#### What the script does (in order)
+
+| Phase | What runs | Can skip |
+| :--- | :--- | :--- |
+| 1 — Mirror | `deploy/mirror/setup-mirror.sh` — starts the local Docker registry and pulls all images into `localhost:5001` | `--skip-mirror` / `-SkipMirror` |
+| 2 — Helmfile | `helmfile apply` — deploys all 3 operators then the full `argus` Helm chart | — |
+| 3 — Control plane | `kubectl apply -f deploy/control-plane/etcd-maintenance.yaml` — etcd compaction CronJob (not in the Helm chart) | — |
+| 4a — Tenancy | `deploy/tenancy/apply-tenancy.sh` — ClickHouse RLS policies, tenant accounts, row quotas | `--skip-tenancy` / `-SkipTenancy` |
+| 4b — SLO | `deploy/slo/apply-slo.sh` — pushes declarative SLO alert rules into SigNoz Ruler | `--skip-slo` / `-SkipSlo` |
+
+#### All flags
+
+**Bash**
 ```bash
+./deploy.sh [--skip-mirror] [--skip-tenancy] [--skip-slo] [--namespace <ns>]
+```
+
+**PowerShell**
+```powershell
+.\deploy.ps1 [-SkipMirror] [-SkipTenancy] [-SkipSlo] [-Namespace <ns>]
+```
+
+| Flag | Default | Purpose |
+| :--- | :--- | :--- |
+| `--skip-mirror` / `-SkipMirror` | off | Skip image mirror setup — use when the registry at `localhost:5001` is already populated (saves ~10–20 min on subsequent deploys) |
+| `--skip-tenancy` / `-SkipTenancy` | off | Skip ClickHouse RLS and tenant policy apply — use when re-deploying without changing tenancy config |
+| `--skip-slo` / `-SkipSlo` | off | Skip SLO alert-rule sync — use when SLO definitions haven't changed |
+| `--namespace` / `-Namespace` | `argus-system` | Deploy into a different namespace (also respects `$ARGUS_NAMESPACE` env var) |
+
+#### Common invocations
+
+```bash
+# First-ever deploy — runs everything
+./deploy.sh
+
+# Re-deploy after a code change (mirror already populated)
+./deploy.sh --skip-mirror
+
+# Re-deploy, skip all post-config (fastest helmfile-only re-apply)
+./deploy.sh --skip-mirror --skip-tenancy --skip-slo
+
+# Deploy to a custom namespace
+./deploy.sh --namespace staging
+
+# PowerShell — first deploy
+.\deploy.ps1
+
+# PowerShell — skip mirror on re-deploy
+.\deploy.ps1 -SkipMirror -SkipTenancy -SkipSlo
+```
+
+> **Note (Windows):** `deploy.ps1` calls `bash` for the sub-scripts (`setup-mirror.sh`, `apply-tenancy.sh`, `apply-slo.sh`). WSL or Git Bash must be on `PATH`.
+
+---
+
+### Option C — Helmfile Direct
+
+Runs only the Helm releases (phases 2 of the deploy script) without the mirror setup or post-deploy config. Useful if you manage the mirror and post-config separately.
+
+```bash
+# Add chart repos (first time only)
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm repo add clickhouse-operator https://docs.altinity.com/clickhouse-operator/
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
-helmfile sync                     # deploys all 4 releases in dependency order
+helmfile apply
 ```
 
-Override the image registry or namespace if needed:
+Override namespace or registry:
 ```bash
-ARGUS_IMAGE_REGISTRY=my.registry:5000 ARGUS_NAMESPACE=my-ns helmfile sync
+ARGUS_NAMESPACE=my-ns ARGUS_IMAGE_REGISTRY=my.registry:5000 helmfile apply
 ```
-
-Override a secret at deploy time (e.g. ClickHouse password):
-```bash
-helmfile sync --set argus.clickhouse.password=mysecret
-```
-
-**3. Access the UIs**
-```bash
-kubectl -n argus-system port-forward svc/signoz 8080:8080
-kubectl -n argus-system port-forward svc/argus-sso-gateway 8088:8088
-```
-
-**Helm chart layout** — the `argus` chart lives in `charts/argus/`:
-- All workload manifests are in `charts/argus/templates/` with `{{ .Release.Namespace }}` and `{{ .Values.imageRegistry }}` replacing every hardcoded value.
-- Python service source files are symlinked from `charts/argus/files/` to their canonical locations in `deploy/`/`demo/`, so no duplication occurs.
-- Default values in `charts/argus/values.yaml` match the air-gap defaults.
 
 ---
 
-### Option C — Manual Step-by-Step Deploy (Kubernetes)
+### Option D — Manual Step-by-Step Deploy (Kubernetes)
 
 **1. Check readiness & initialize the air-gapped mirror**
 ```bash
@@ -264,6 +315,121 @@ kubectl -n argus-system port-forward svc/argus-sso-gateway 8088:8088 # then open
 
 At this point Argus is running but has **nothing to observe yet** — point a
 workload at it (see [Sending Telemetry to Argus](#sending-telemetry-to-argus)).
+
+---
+
+## What Gets Installed
+
+Every component deployed by `helmfile apply` (phase 2 of `deploy.sh`), grouped by purpose.
+
+### Phase 1 — Operators (deployed in parallel, argus chart waits for all three)
+
+| Component | Namespace | Purpose |
+| :--- | :--- | :--- |
+| **opentelemetry-operator** | `argus-system` | Kubernetes operator that watches `OpenTelemetryCollector` and `Instrumentation` CRDs. Manages the collector DaemonSet and gateway, and injects auto-instrumentation agents into annotated pods via a mutating admission webhook. |
+| **altinity-clickhouse-operator** | `argus-system` | Kubernetes operator for `ClickHouseInstallation` and `ClickHouseKeeperInstallation` CRDs. Manages the HA ClickHouse cluster lifecycle, rolling upgrades, and schema migrations. |
+| **prometheus-operator** (kube-prometheus-stack) | `argus-system` | Deploys Prometheus, Alertmanager, and the `PrometheusRule` / `ServiceMonitor` / `PodMonitor` CRDs. Argus uses it for infra metrics scraping and alert routing. |
+
+### Phase 2 — Argus Chart (all workloads)
+
+#### Telemetry Spine
+
+| Component | Purpose |
+| :--- | :--- |
+| **argus-node-collector** (OTel DaemonSet) | Runs on every node. Receives OTLP traces/metrics/logs from auto-instrumented pods and forwards them to the gateway. |
+| **argus-gateway-collector** (OTel Gateway) | Central collection choke-point. Enriches spans with Kubernetes metadata, redacts PII/CJIS identifiers in-memory, applies backpressure, then fans out to ClickHouse and SigNoz. |
+| **argus-clickhouse** (ClickHouse HA) | 2-node replicated columnar store. Stores all traces, logs, and metrics in an append-optimized schema. Hot tier on local PV; cold tier migrates to MinIO. |
+| **argus-keeper** (ClickHouse Keeper) | 3-node Raft consensus cluster that coordinates ClickHouse replication. Replaces ZooKeeper. |
+| **signoz** | APM UI and query engine. Reads directly from ClickHouse. Provides trace explorer, dashboards, log viewer, and alert management. Exposed at `http://argus.local` via the Traefik ingress. |
+| **argus-s3** (MinIO / SeaweedFS) | S3-compatible object storage for ClickHouse cold-tier partitions. |
+
+#### Instrumentation & Collection
+
+| Component | Purpose |
+| :--- | :--- |
+| **argus-beyla** (eBPF DaemonSet) | Attaches eBPF probes to Linux socket syscalls. Emits RED metrics and L7 traces for any workload — no code changes needed. Safety net for compiled, COTS, or un-annotated services. |
+| **argus-node-collector** DaemonSet | Per-node OTLP receiver — collects from SDK-instrumented pods and forwards to the gateway. |
+| **node-exporter** (DaemonSet) | Exposes host-level Prometheus metrics: CPU, memory, disk, network. |
+| **kube-state-metrics** | Exposes Kubernetes object state as Prometheus metrics: pod status, deployment replicas, resource limits/requests. |
+| **OTel Instrumentation CRD** | Cluster-wide auto-instrumentation config injected into Python, Java, and Node.js pods via a single annotation (`instrumentation.opentelemetry.io/inject-python: "true"`). |
+| **argus-pyroscope** | Continuous CPU and memory profiling. Flame graphs accessible in SigNoz. |
+
+#### Identity & Access
+
+| Component | Purpose |
+| :--- | :--- |
+| **argus-sso-gateway** | Reverse proxy and auth enforcer. Validates JWT/OIDC tokens (PIV/CAC claims), maps agency groups to roles (Admin/Operator/Viewer), injects `X-Scope-TenantID` and `X-Forwarded-Role` headers, and proxies authenticated requests to SigNoz. Login portal at `/sso/login`. |
+| **argus-idp** | Mock OIDC identity provider for dev/demo. Issues HS256 JWTs with agency group claims. Swap `IDP_URL` in the SSO gateway to point at real Okta or another OIDC provider in production. |
+
+#### Operations
+
+| Component | Purpose |
+| :--- | :--- |
+| **Prometheus alert rules** | Declarative firing-state alert rules managed as `PrometheusRule` CRDs. Includes deduplication and state-change suppression. |
+| **argus-paging-gateway** | Receives Alertmanager webhooks, deduplicates, applies exponential-backoff retry, and opens/closes ServiceNow incidents. |
+| **argus-servicenow-mock** | Stand-in for the ServiceNow Incident Table API. Used in dev/demo so paging tests don't hit a real ITSM system. |
+| **argus-synthetic-prober** | Scheduled canary prober. Runs HTTP/API probes on a cron schedule and exposes results as Prometheus metrics for SLO burn-rate calculations. |
+| **argus-rum-collector** | Receives Real User Monitoring events from browsers. Applies client- and server-side PII masking. Provides a session replay player at `/v1/rum/player/<session_id>`. |
+
+#### Governance
+
+| Component | Purpose |
+| :--- | :--- |
+| **Multi-tenancy (post-deploy)** | ClickHouse row-level security (RLS) policies, per-tenant user accounts, and query quotas applied by `deploy/tenancy/apply-tenancy.sh`. Each tenant sees only their own telemetry. |
+| **SLO rules (post-deploy)** | Declarative SLO definitions (`deploy/slo/slo-rules.json`) pushed into SigNoz Ruler via `deploy/slo/apply-slo.sh`. Tracks error budgets and multi-window burn rates. |
+| **etcd maintenance CronJob** | Runs every 15 minutes to compact and defragment the etcd boltdb. Prevents control-plane I/O latency from accumulating on long-running clusters. |
+
+#### AIOps
+
+| Component | Purpose |
+| :--- | :--- |
+| **argus-anomaly-detector** | EWMA and seasonal-decomposition (STL) monitors. Detects anomalies and generates forecast alerts without fixed thresholds. |
+| **argus-correlation-engine** | Groups topologically related alerts by service graph proximity. Surfaces a probable root cause instead of a flood of individual firing alerts. |
+| **argus-aiops-llm** | In-boundary NL-to-SQL copilot. Translates plain-language questions into ClickHouse queries and produces executive incident summaries. Backed by AWS GovCloud Bedrock. |
+
+#### Ingress
+
+| Component | Purpose |
+| :--- | :--- |
+| **argus Ingress** (Traefik) | Single entry point at `http://argus.local`. Routes all traffic to `argus-sso-gateway`, which enforces auth before proxying to SigNoz. Add `<node-ip>  argus.local` to `/etc/hosts` to resolve. |
+
+---
+
+## Accessing the Platform
+
+After a successful deploy the platform is reachable at:
+
+| URL | What you see |
+| :--- | :--- |
+| `http://argus.local` | Login via SSO gateway → SigNoz APM dashboards |
+| `http://argus.local/sso/login` | Direct login portal (username/password → JWT) |
+| `http://argus.local/sso/me` | Token introspection (shows your role and tenant) |
+
+**Set up DNS (one-time):**
+```bash
+# Get your cluster node IP
+kubectl get nodes -o wide
+
+# Add to /etc/hosts (Mac/Linux)
+echo "<node-ip>  argus.local" | sudo tee -a /etc/hosts
+
+# Add to C:\Windows\System32\drivers\etc\hosts (Windows, run as Administrator)
+# <node-ip>  argus.local
+```
+
+**Default dev credentials** (mock IdP only — change before any real use):
+
+| Username | Password | Role |
+| :--- | :--- | :--- |
+| `alice.admin@dhs.gov` | `admin_pass` | Admin |
+| `bob.operator@dhs.gov` | `operator_pass` | Operator |
+| `carol.viewer@dhs.gov` | `viewer_pass` | Viewer |
+
+> If you are not using the ingress (e.g. local port-forward), reach the SSO gateway directly:
+> ```bash
+> kubectl -n argus-system port-forward svc/argus-sso-gateway 8088:8088
+> # open http://localhost:8088/sso/login
+> ```
 
 ---
 
@@ -421,15 +587,17 @@ Per-feature suites live in `scripts/` as `test-<feature>.sh` (plus `-edge-cases.
 
 ```
 argus/
-├── helmfile.yaml              # One-command deploy: helmfile sync
+├── deploy.sh                  # Full deploy script — Mac/Linux (recommended entry point)
+├── deploy.ps1                 # Full deploy script — Windows/PowerShell
+├── helmfile.yaml              # Helm release definitions (used by deploy.sh phase 2)
 ├── charts/
-│   └── argus/                 # Helm chart — all 89 workload resources
+│   └── argus/                 # Helm chart — all platform workload resources
 │       ├── Chart.yaml
-│       ├── values.yaml        # imageRegistry, secrets, image tags
-│       ├── templates/         # 17 template files (secrets, storage, CH, SigNoz,
+│       ├── values.yaml        # imageRegistry, secrets, image tags, ingress config
+│       ├── templates/         # 18 template files (secrets, storage, CH, SigNoz,
 │       │                      #   OTel, Beyla, Pyroscope, paging, SSO, RUM,
 │       │                      #   synthetics, AIOps, correlation, LLM, sample-app,
-│       │                      #   alerting, demo mesh)
+│       │                      #   alerting, demo mesh, ingress)
 │       └── files/             # Symlinks → deploy/*/​*.py + demo/service_template.py
 ├── deploy/                    # The platform — declarative Kubernetes manifests
 │   ├── aiops/                 # Anomaly & forecast detector (F019)

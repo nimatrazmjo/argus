@@ -36,3 +36,8 @@ beyla:
 
 sampleApp:
   image: sample-service:1.0.0
+
+ingress:
+  enabled: true
+  className: traefik
+  host: argus.local
