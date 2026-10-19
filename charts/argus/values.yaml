@@ -1,4 +1,5 @@
 imageRegistry: localhost:5001
+demoNamespace: demo
 
 clickhouse:
   password: argus123

@@ -1,8 +1,15 @@
+{{- $demoNs := .Values.demoNamespace | default "demo" }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $demoNs }}
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: argus-services-code
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ $demoNs }}
   labels:
     {{- include "argus.labels" . | nindent 4 }}
 data:
@@ -12,7 +19,7 @@ data:
 # ==============================================================================
 # 10 MICROSERVICES — Datadog-emulation workloads
 # ==============================================================================
-{{- $ns := .Release.Namespace }}
+{{- $ns := $demoNs }}
 {{- $reg := .Values.imageRegistry }}
 {{- $services := list
   (dict "name" "argus-svc-gateway"        "role" "gateway"        "port" "8001")
@@ -90,7 +97,7 @@ spec:
             - name: DATACENTER
               value: "us-gov-west-1"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://argus-gateway-collector.{{ $ns }}:4318"
+              value: "http://argus-gateway-collector.{{ $.Release.Namespace }}.svc.cluster.local:4318"
             - name: POD_NAME
               valueFrom:
                 fieldRef:
