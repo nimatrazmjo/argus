@@ -20,6 +20,7 @@ It spans the full observability lifecycle: a collection spine (OTel → ClickHou
 
 - [Features](#features)
 - [Architecture](#architecture)
+  - [Multi-Cluster Topology (DEV / STAGING / PROD)](#multi-cluster-topology-dev--staging--prod)
 - [Technology Stack](#technology-stack)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
@@ -108,6 +109,24 @@ It spans the full observability lifecycle: a collection spine (OTel → ClickHou
 3. **High-availability storage** — ClickHouse HA (`argus-cluster`, 2 replicas) with automated cold tiering to S3/MinIO (`hot_to_cold`) and ClickHouse Keeper Raft consensus.
 4. **Dual-layer onboarding** — zero-code auto-instrumentation via a single annotation, plus a Grafana Beyla eBPF safety net for un-annotated/third-party workloads.
 5. **Air-gap strictness** — 100% of images and charts resolve from the local offline mirror (`localhost:5001/argus/*`).
+
+---
+
+### Multi-Cluster Topology (DEV / STAGING / PROD)
+
+Argus runs as a **hub-and-spoke** system. One hub — ClickHouse HA, SigNoz, and the ops / governance / AIOps layer — lives in the shared-services (non-prod) resource group. Every workload cluster (`DHS-DEV`, `DHS-STAGING`, `DHS-PROD`) runs only a lightweight **agent bundle** and **pushes** its telemetry out to the hub. The hub never connects back into the clusters, holds no cluster credentials, and opens no inbound path to them.
+
+![Argus multi-cluster data flow](docs/diagrams/argus-multicluster-dataflow.svg)
+
+**How a spoke feeds the hub**
+
+1. In each cluster, app pods (auto-instrumented), the node-collector DaemonSet (kubelet / node / pod metrics + pod logs), and Beyla (eBPF L7 traces for un-instrumented workloads) all emit to that cluster's **local spoke gateway**.
+2. The spoke gateway enriches with local Kubernetes metadata (`k8sattributes`), redacts PII/CJIS **before anything leaves the cluster**, stamps `deployment.environment` / `k8s.cluster.name` / `tenant_id`, then pushes a single OTLP stream to the hub over a peered VNet (internal load balancer, TLS + per-spoke token).
+3. The hub's ingest gateway re-redacts (defense in depth) and writes to ClickHouse + SigNoz. All three environments share one backend, separated only by `tenant_id` row policies — an engineer sees only their environment's data through the SSO group → tenant mapping.
+
+The one exception to push-only is the opt-in Azure Monitor receiver, which *pulls* platform metrics from the Azure management API with a Monitoring Reader service principal. It breaks the air-gap and is off by default.
+
+> Phased rollout and per-phase tests: [`docs/multi-cluster-onboarding-plan.md`](docs/multi-cluster-onboarding-plan.md).
 
 ---
 
