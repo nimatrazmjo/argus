@@ -28,6 +28,7 @@ storage) and Blob Storage (cold storage). Follow sections in order.
 19. [Multi-environment (DEV / STAGING / PROD)](#19-multi-environment-dev--staging--prod)
 20. [Production hardening checklist](#20-production-hardening-checklist)
 21. [Troubleshooting](#21-troubleshooting)
+22. [Implementation checklist (repo changes, phased)](#22-implementation-checklist-repo-changes-phased)
 
 ---
 
@@ -62,6 +63,51 @@ Day counts are defaults — set yours in section 4 / 15.
 **Do not store telemetry in:** pod ephemeral disk (lost on reschedule), Azure
 Files/NFS (too slow, bad locking for ClickHouse), or Blob as the *only* tier
 (too slow for recent data).
+
+### Span coverage & sampling
+
+Current behavior (repo defaults):
+- **Head sampling:** `deploy/otel/instrumentation.yaml` uses `parentbased_always_on` → 100% of spans from auto-instrumented apps (Python, Node.js, Java). No tail sampling in the gateway.
+- **Traces pipeline** (`deploy/otel/gateway.yaml`): `memory_limiter → k8sattributes → transform/redaction → transform/cardinality → batch`. Nothing drops spans.
+- **Logs:** `filter/log_level` drops DEBUG/TRACE unless the service sets `allow_debug`.
+- **Non-instrumented languages:** covered only by Beyla (eBPF), HTTP/gRPC spans, less detail.
+
+Where spans can still be lost:
+
+| Cause | Mitigation |
+|---|---|
+| Gateway `memory_limiter` (400 MiB) refuses data in bursts | Raise limits / replicas; add `sending_queue` + `retry_on_failure` on exporter |
+| ClickHouse down or hot disk full | Alert on disk > 70%, persistent queue (`file_storage`) on gateway |
+| Context not propagated (no `traceparent`) | Orphan/fragmented traces; fix in the service or use Beyla |
+| `transform/cardinality` trims attributes | Spans kept, attributes reduced; review rules |
+| TTL retention | Spans deleted after TTL (§1) |
+
+Storage impact: 100% span retention is the largest driver of hot-disk size (§4).
+At high volume, add **tail sampling** in the gateway (needs a loadbalancing
+exporter or a single gateway replica so all spans of a trace hit one pod):
+
+```yaml
+processors:
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 50000
+    policies:
+      - name: errors
+        type: status_code
+        status_code: { status_codes: [ERROR] }
+      - name: slow
+        type: latency
+        latency: { threshold_ms: 1000 }
+      - name: baseline
+        type: probabilistic
+        probabilistic: { sampling_percentage: 10 }
+# traces pipeline: [memory_limiter, k8sattributes, tail_sampling, transform/redaction, transform/cardinality, batch]
+```
+
+Keeps 100% of errors and slow traces plus 10% of the rest. Span-derived RED
+metrics must be computed **before** sampling (the SigNoz collector's
+`signozspanmetrics` runs after the gateway, so sampled-out spans would skew
+them — compute metrics in the gateway with the `spanmetrics` connector first).
 
 ---
 
@@ -731,3 +777,64 @@ on the hot disk). Back up separately:
 | `ImagePullBackOff` | Image not imported to ACR (section 7), or `--attach-acr` not done |
 | Helm upgrade fails on StatefulSet | `volumeClaimTemplates` immutable — expand PVC directly instead |
 | Cluster lost cold data after delete | Expected if Blob container wiped; ClickHouse metadata is on hot disk — restore from section 18 |
+
+---
+
+## 22. Implementation checklist (repo changes, phased)
+
+Repo changes the guide above assumes but that are **not done yet**. Do in order;
+each phase is independently mergeable.
+
+### Phase 1 — Azure storage in chart (hot + cold)
+
+- [ ] Add `charts/argus/values-azure.yaml` (registry, `azure.*`, `clickhouse.hotStorage`, `clickhouse.keeperStorage`) (§11.4)
+- [ ] Add `deploy/azure/storageclass-premium.yaml` (`argus-premium`, `Premium_ZRS`, `Retain`, expandable) (§9)
+- [ ] `charts/argus/templates/clickhouse.yaml`: set `storageClassName` + sizes from values for `data-storage` and `keeper-storage` (§11.3)
+- [ ] `charts/argus/templates/clickhouse.yaml`: replace `s3_cold` disk with `azure_cold` (`azure_blob_storage`, workload identity); keep policy name `tiered_hot_cold` (§11.2)
+- [ ] Mirror same changes in `deploy/clickhouse/clickhouse-ha.yaml` (non-Helm path)
+- [ ] Add `charts/argus/templates/clickhouse-sa.yaml` (SA `clickhouse`, `azure.workload.identity/client-id`) + pod label/`serviceAccountName` in podTemplate (§11.1)
+- [ ] Add `storage.s3Enabled` flag; wrap `templates/storage.yaml` (SeaweedFS) in `if` so Azure disables it
+- [ ] Add `values-azure.yaml` to `argus` release in `helmfile.yaml`
+- [ ] Keep SeaweedFS as default for air-gapped/local (no regression on kind/k3d)
+- [ ] `helm template` with both values sets renders clean; `helm lint` passes
+
+### Phase 2 — Retention & secrets
+
+- [ ] Parametrize TTL days in `deploy/clickhouse/retention-policies.sql` / `otel-schema.sql` (hot days, total days per signal)
+- [ ] Align TTLs with §1 table (logs/traces/raw metrics 7d hot → 30d drop; 1m 30/90; 1h 90/365)
+- [ ] Move chart default secrets out of `values.yaml` (`clickhouse.password`, `secrets.*`) to required/`--set` or external secret
+- [ ] Add Key Vault → k8s secret path (CSI Secrets Store driver or documented script)
+- [ ] Replace `default/networks/ip: "::/0"` ClickHouse user exposure with in-cluster CIDR only
+- [ ] Span coverage: decide 100% retention vs tail sampling (keep errors + slow + 10% baseline) in `deploy/otel/gateway.yaml`; add `spanmetrics` connector before sampling; add exporter `sending_queue`/`retry_on_failure` (see "Span coverage & sampling" in §1)
+
+### Phase 3 — Automation
+
+- [ ] `scripts/azure-bootstrap.sh`: RG, AKS, ACR, KV, storage, UAMI, role assignment, federated credential (§3–§10)
+- [ ] `deploy.sh --azure` flag: apply StorageClass, use `values-azure.yaml`, skip SeaweedFS + mirror to localhost
+- [ ] `scripts/verify-storage.sh`: checks `system.disks`, `system.storage_policies`, parts per disk, Blob objects after forced move (§15.1, §17)
+- [ ] Image build/push (`az acr build`) for in-repo images in `deploy/mirror` flow
+
+### Phase 4 — Backup & ops
+
+- [ ] ClickHouse `BACKUP ... TO AzureBlobStorage` CronJob + separate container/account (§18)
+- [ ] AKS Backup (disk snapshots) enabled via script/Terraform
+- [ ] Alerts: hot disk > 70%, failed TTL moves, Blob 403s (add to `deploy/alerting/prometheus-rules.yaml`)
+- [ ] Restore drill documented in `docs/runbooks/` (new `clickhouse-restore.md`)
+
+### Phase 5 — Multi-env & hardening
+
+- [ ] `values-azure-dev/staging/prod.yaml` split (sizes, accounts, registry) (§19)
+- [ ] Internal LB annotation + Traefik/cert-manager ingress values (§16)
+- [ ] NetworkPolicy for `argus-system`
+- [ ] Pin `latest` tags (`clickhouse-keeper`, `seaweedfs`) in `values.yaml` + `images.txt`
+- [ ] IaC (Bicep/Terraform) replacing CLI steps, optional
+- [ ] ADR: `docs/decisions/ADR-0017-azure-storage-tiering.md` (hot Managed Disk + cold native Blob, why not S3 API / Files)
+
+### Open questions
+
+- Daily ingest (GB/day) → hot PVC size?
+- 100% spans or tail sampling?
+- Retention per signal (confirm §1 defaults)?
+- Zonal AKS node pools (ZRS vs LRS disks)?
+- One central ClickHouse or per-env?
+- IaC tool: CLI scripts, Bicep or Terraform?
