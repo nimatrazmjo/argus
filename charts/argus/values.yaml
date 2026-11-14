@@ -41,6 +41,10 @@ beyla:
 sampleApp:
   image: argus/sample-service:1.0.0
 
+storefront:
+  enabled: true
+  host: shop.argus.local
+
 ingress:
   enabled: true
   className: traefik
