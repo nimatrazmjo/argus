@@ -5,6 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RULES_FILE="${SCRIPT_DIR}/slo-rules.json"
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
+DEMO_NAMESPACE="${ARGUS_DEMO_NAMESPACE:-demo}"  # sample service lives here, not in $NAMESPACE
 ADMIN_EMAIL="${SIGNOZ_ADMIN_EMAIL:-admin@argus.internal}"
 ADMIN_PASSWORD="${SIGNOZ_ADMIN_PASSWORD:-ArgusAdminPassword123!}"
 
@@ -24,7 +25,7 @@ echo "    Found ${RULE_COUNT} SLO rule definitions in ${RULES_FILE}"
 echo "--> [2/2] Synchronizing SLO rules to SigNoz Ruler engine via cluster..."
 RULES_B64=$(base64 < "${RULES_FILE}" | tr -d '\n')
 
-kubectl exec </dev/null -n "${NAMESPACE}" deployment/argus-sample-service -- python -c "
+kubectl exec </dev/null -n "${DEMO_NAMESPACE}" deployment/argus-sample-service -- python -c "
 import urllib.request, urllib.error, urllib.parse, json, sys, base64
 
 ADMIN_EMAIL = '${ADMIN_EMAIL}'

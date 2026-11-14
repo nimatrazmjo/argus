@@ -1,0 +1,86 @@
+{{- /* Job spec is immutable: name carries a hash of the image so an image bump creates a new Job.
+     Deliberately NOT a helm hook: with --wait, post-install hooks run after workloads are
+     Ready, but signoz-otel-collector can't become Ready until this migration has run. */ -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: signoz-schema-migrator-{{ .Values.signoz.otelCollectorImage | sha256sum | trunc 8 }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: signoz-schema-migrator
+    app.kubernetes.io/part-of: argus
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: signoz-schema-migrator
+        app.kubernetes.io/part-of: argus
+    spec:
+      restartPolicy: OnFailure
+      initContainers:
+        - name: ready
+          image: {{ include "argus.image" (list $ .Values.signoz.otelCollectorImage) }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
+          args:
+            - "migrate"
+            - "ready"
+            - "--clickhouse-dsn=tcp://default:$(CLICKHOUSE_PASSWORD)@clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000"
+            - "--clickhouse-cluster=cluster"
+            - "--clickhouse-replication=true"
+        - name: bootstrap
+          image: {{ include "argus.image" (list $ .Values.signoz.otelCollectorImage) }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
+          args:
+            - "migrate"
+            - "bootstrap"
+            - "--clickhouse-dsn=tcp://default:$(CLICKHOUSE_PASSWORD)@clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000"
+            - "--clickhouse-cluster=cluster"
+            - "--clickhouse-replication=true"
+        - name: sync
+          image: {{ include "argus.image" (list $ .Values.signoz.otelCollectorImage) }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
+          args:
+            - "migrate"
+            - "sync"
+            - "up"
+            - "--clickhouse-dsn=tcp://default:$(CLICKHOUSE_PASSWORD)@clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000"
+            - "--clickhouse-cluster=cluster"
+            - "--clickhouse-replication=true"
+            - "--timeout=5m"
+      containers:
+        - name: async
+          image: {{ include "argus.image" (list $ .Values.signoz.otelCollectorImage) }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: argus-clickhouse-secret
+                  key: CLICKHOUSE_PASSWORD
+          args:
+            - "migrate"
+            - "async"
+            - "up"
+            - "--clickhouse-dsn=tcp://default:$(CLICKHOUSE_PASSWORD)@clickhouse-argus-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000"
+            - "--clickhouse-cluster=cluster"
+            - "--clickhouse-replication=true"
+            - "--timeout=5m"
