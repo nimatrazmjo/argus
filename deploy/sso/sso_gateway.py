@@ -307,7 +307,9 @@ class SSOGatewayHandler(BaseHTTPRequestHandler):
                     role = token_data.get("roles", ["Viewer"])[0]
                     self.log_audit(username, role, token_data.get("tenant_id", "default"), "POST", "/sso/login", 200, "LOGIN_SUCCESS")
 
-                    cookie_val = f"argus_session_token={access_token}; Path=/; HttpOnly; Secure; SameSite=Strict"
+                    # Secure only over https; browsers drop Secure cookies on plain http (local dev)
+                    secure = "; Secure" if self.headers.get("X-Forwarded-Proto", "http") == "https" else ""
+                    cookie_val = f"argus_session_token={access_token}; Path=/; HttpOnly{secure}; SameSite=Strict"
                     accept = self.headers.get("Accept", "")
                     if "text/html" in accept:
                         # Redirect to dashboard with Set-Cookie
