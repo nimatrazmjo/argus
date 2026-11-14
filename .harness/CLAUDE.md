@@ -40,7 +40,7 @@ These are the exact commands `init`, the loops, and the Checker run. Keep this t
 
 | Action | Command |
 |---|---|
-| Install / Mirror | `./deploy/mirror/setup-mirror.sh && ./scripts/deploy-operators.sh` |
+| Install | `./scripts/deploy-operators.sh` |
 | Lint | `helm lint deploy/helm/values/* 2>/dev/null || true` |
 | Test (full suite) | `./scripts/verify.sh` |
 | Edge cases | `./scripts/test-edge-cases.sh` |

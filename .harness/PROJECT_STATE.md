@@ -54,11 +54,11 @@ The orchestrator dispatches independent subagents across the Wave 4 tracks:
 2. **Track B (Incident Correlation)**: Feature F020 (Root-cause grouping & alert topology correlation).
 
 ## Open blockers
-See `BLOCKERS.md`. None. Cluster, internal registry mirror, ClickHouse HA, SigNoz APM, Pyroscope profiling, Alerting engine, Paging Gateway, RUM Replay Engine, and Agency SSO Gateway are fully operational.
+See `BLOCKERS.md`. None. Cluster, ClickHouse HA, SigNoz APM, Pyroscope profiling, Alerting engine, Paging Gateway, RUM Replay Engine, and Agency SSO Gateway are fully operational.
 
 ## Notes for agents
 - Archetype is **DevOps/IaC (archetype B)**.
-- Strict air-gap enforcement: 100% of container images must resolve from `localhost:5001/argus/*`.
+- Images pulled from upstream at pinned tags (`deploy/images.txt`); local registry mirror removed (DEC-019).
 - Multi-agent orchestration protocol defined in `.harness/PARALLEL_EXECUTION_GRAPH.md`.
 - Concurrency rules: features within the active wave on separate tracks run in parallel; features with dependencies wait at synchronization gates.
 - Every completed feature must fulfill its definition of done: phase criteria met, test scripts added to `scripts/verify.sh`, edge cases verified, evidence captured under `.harness/evidence/<FID>/`.

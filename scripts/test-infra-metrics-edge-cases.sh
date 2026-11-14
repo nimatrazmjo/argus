@@ -8,16 +8,6 @@ echo "================================================================="
 echo "   F009: INFRASTRUCTURE METRICS EDGE-CASES & RESILIENCE BATTERY  "
 echo "================================================================="
 
-# Stage 1: Air-Gap Isolation Audit
-echo "--> Stage 1: Air-gap network isolation audit for metric collectors..."
-NON_AIRGAP=$(kubectl get pods -n "${NAMESPACE}" -l 'app.kubernetes.io/name in (node-exporter, kube-state-metrics)' -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[*].image}{"\n"}{end}' | grep -v 'localhost:5001' || true)
-if [[ -z "${NON_AIRGAP}" ]]; then
-  echo "  [PASS] 100% of infra-metrics workloads strictly reference localhost:5001/argus/*"
-else
-  echo "  [FAIL] Detected non-airgapped image pull: ${NON_AIRGAP}"
-  exit 1
-fi
-
 # Stage 2: Scrape Target Temporary Failure & Auto-Recovery
 echo "--> Stage 2: Scrape target outage and collector auto-recovery..."
 echo "  Temporarily scaling kube-state-metrics to 0 replicas to simulate cluster outage..."

@@ -39,7 +39,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: aiops-llm
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/aiops_llm_service.py"]
           env:

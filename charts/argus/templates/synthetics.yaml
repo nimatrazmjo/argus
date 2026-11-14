@@ -37,7 +37,7 @@ spec:
     spec:
       containers:
         - name: prober
-          image: {{ .Values.imageRegistry }}/argus/python:3.12-alpine
+          image: {{ include "argus.image" (list $ "python:3.12-alpine") }}
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/synthetic_prober.py"]
           env:

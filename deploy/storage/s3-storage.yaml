@@ -53,7 +53,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: s3-server
-          image: localhost:5001/argus/seaweedfs:latest
+          image: chrislusf/seaweedfs:latest
           imagePullPolicy: IfNotPresent
           args:
             - "server"

@@ -36,7 +36,7 @@ spec:
     spec:
       containers:
         - name: signoz
-          image: {{ .Values.imageRegistry }}/argus/{{ .Values.signoz.image }}
+          image: {{ include "argus.image" (list $ .Values.signoz.image) }}
           imagePullPolicy: IfNotPresent
           env:
             - name: CLICKHOUSE_HOST
@@ -276,7 +276,7 @@ spec:
     spec:
       containers:
         - name: signoz-otel-collector
-          image: {{ .Values.imageRegistry }}/argus/{{ .Values.signoz.otelCollectorImage }}
+          image: {{ include "argus.image" (list $ .Values.signoz.otelCollectorImage) }}
           imagePullPolicy: IfNotPresent
           args:
             - "--config=/etc/otel/config.yaml"

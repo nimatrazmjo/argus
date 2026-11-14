@@ -30,7 +30,7 @@ Already edge-side in `charts/argus/templates/otel.yaml`: the spoke gateway does 
 
 - Confirm hub ingest will be exposed on an Azure internal LB (`service.beta.kubernetes.io/azure-load-balancer-internal: "true"`).
 - VNet-peer the hub VNet to the DEV VNet. NSG on the hub ingest subnet admits only the DEV node subnet on 4317/4318.
-- Each spoke can resolve its own image registry/ACR (`ARGUS_IMAGE_REGISTRY`).
+- Each spoke pulls upstream images (or its own ACR via `ARGUS_IMAGE_REGISTRY`).
 
 **Small test** — from a throwaway pod in the DEV cluster, confirm L4 reachability to the (planned) hub ILB IP:
 ```bash

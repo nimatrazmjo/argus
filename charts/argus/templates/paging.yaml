@@ -43,7 +43,7 @@ spec:
     spec:
       containers:
         - name: mock
-          image: {{ .Values.imageRegistry }}/argus/python:3.12-alpine
+          image: {{ include "argus.image" (list $ "python:3.12-alpine") }}
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/servicenow_mock.py"]
           env:
@@ -117,7 +117,7 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: {{ .Values.imageRegistry }}/argus/python:3.12-alpine
+          image: {{ include "argus.image" (list $ "python:3.12-alpine") }}
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/paging_gateway.py"]
           env:

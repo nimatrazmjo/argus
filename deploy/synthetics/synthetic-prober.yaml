@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: prober
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/synthetic_prober.py"]
           env:

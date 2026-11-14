@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: signoz
-          image: localhost:5001/argus/signoz:v0.145.0
+          image: signoz/signoz:v0.145.0
           imagePullPolicy: IfNotPresent
           env:
             - name: CLICKHOUSE_HOST

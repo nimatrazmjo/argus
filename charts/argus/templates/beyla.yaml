@@ -100,7 +100,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: beyla
-          image: {{ .Values.imageRegistry }}/argus/{{ .Values.beyla.image }}
+          image: {{ include "argus.image" (list $ .Values.beyla.image) }}
           imagePullPolicy: IfNotPresent
           env:
             - name: BEYLA_CONFIG_PATH

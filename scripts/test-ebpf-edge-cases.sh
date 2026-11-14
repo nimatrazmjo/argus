@@ -25,7 +25,7 @@ spec:
   restartPolicy: Never
   containers:
     - name: beyla-unprivileged
-      image: localhost:5001/argus/beyla:2.2.4
+      image: grafana/beyla:2.2.4
       securityContext:
         runAsNonRoot: true
         runAsUser: 65534
@@ -54,7 +54,7 @@ echo "--> [3/5] Edge Case: Dynamic attachment to newly scheduled pods..."
 INITIAL_RESTARTS=$(kubectl get pod -n "${NAMESPACE}" "${BEYLA_POD}" -o jsonpath='{.status.containerStatuses[0].restartCount}')
 
 # Spawn temporary workload
-kubectl create deployment test-ephemeral-ebpf-app --image=localhost:5001/argus/python:3.12-alpine -n "${NAMESPACE}" -- sleep 3600 >/dev/null
+kubectl create deployment test-ephemeral-ebpf-app --image=python:3.12-alpine -n "${NAMESPACE}" -- sleep 3600 >/dev/null
 kubectl rollout status deployment/test-ephemeral-ebpf-app -n "${NAMESPACE}" --timeout=90s >/dev/null
 
 # Clean up temporary workload

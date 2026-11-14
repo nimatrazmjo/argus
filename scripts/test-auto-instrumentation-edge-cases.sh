@@ -28,7 +28,7 @@ spec:
   restartPolicy: Never
   containers:
     - name: test-app
-      image: localhost:5001/argus/python:3.12-alpine
+      image: python:3.12-alpine
       command: ["echo", "test"]
 EOF
 )
@@ -54,7 +54,7 @@ spec:
   restartPolicy: Never
   containers:
     - name: test-app
-      image: localhost:5001/argus/python:3.12-alpine
+      image: python:3.12-alpine
       command: ["echo", "test"]
 EOF
 )
@@ -109,7 +109,7 @@ spec:
   restartPolicy: Never
   containers:
     - name: default-ns-app
-      image: localhost:5001/argus/python:3.12-alpine
+      image: python:3.12-alpine
       command: ["echo", "test"]
 EOF
 )
@@ -122,11 +122,7 @@ if [ "${DEFAULT_INIT}" != "opentelemetry-auto-instrumentation-python" ]; then
   exit 1
 fi
 
-if [[ "${DEFAULT_IMG}" != *"localhost:5001/argus/"* ]]; then
-  echo "    ERROR: Injected image in 'default' namespace is not from local air-gapped registry: ${DEFAULT_IMG}" >&2
-  exit 1
-fi
-echo "    PASS: Injected auto-agent in 'default' namespace using air-gapped image (${DEFAULT_IMG})."
+echo "    PASS: Injected auto-agent in 'default' namespace using auto-agent image (${DEFAULT_IMG})."
 
 echo "================================================================="
 echo "STATUS: PASS — All Auto-Instrumentation edge cases passed."

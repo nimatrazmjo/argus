@@ -45,7 +45,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: gateway
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "/app/service_template.py"]
           ports:
@@ -153,7 +153,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: auth
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "/app/service_template.py"]
           ports:
@@ -261,7 +261,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: catalog
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "/app/service_template.py"]
           ports:
@@ -369,7 +369,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: order
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "/app/service_template.py"]
           ports:
@@ -477,7 +477,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: inventory
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "/app/service_template.py"]
           ports:
@@ -585,7 +585,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: payment
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "/app/service_template.py"]
           ports:
@@ -693,7 +693,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: billing
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "/app/service_template.py"]
           ports:
@@ -801,7 +801,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: shipping
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "/app/service_template.py"]
           ports:
@@ -909,7 +909,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: notification
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "/app/service_template.py"]
           ports:
@@ -1017,7 +1017,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: recommendation
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "/app/service_template.py"]
           ports:

@@ -1,4 +1,4 @@
-FROM localhost:5001/argus/python:3.12-alpine
+FROM python:3.12-alpine
 
 WORKDIR /app
 COPY server.py /app/server.py

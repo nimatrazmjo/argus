@@ -83,7 +83,7 @@ spec:
       serviceAccountName: kube-state-metrics
       containers:
         - name: kube-state-metrics
-          image: {{ .Values.imageRegistry }}/argus/{{ .Values.infra.kubeStateMetricsImage }}
+          image: {{ include "argus.image" (list $ .Values.infra.kubeStateMetricsImage) }}
           imagePullPolicy: IfNotPresent
           args: [--port=8080, --telemetry-port=8081]
           ports:
@@ -158,7 +158,7 @@ spec:
       hostPID: true
       containers:
         - name: node-exporter
-          image: {{ .Values.imageRegistry }}/argus/{{ .Values.infra.nodeExporterImage }}
+          image: {{ include "argus.image" (list $ .Values.infra.nodeExporterImage) }}
           imagePullPolicy: IfNotPresent
           args:
             - --path.procfs=/host/proc

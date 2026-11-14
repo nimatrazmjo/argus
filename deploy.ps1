@@ -1,6 +1,5 @@
 # deploy.ps1 — Full Argus platform deploy
 param(
-    [switch]$SkipMirror,
     [switch]$SkipTenancy,
     [switch]$SkipSlo,
     [string]$Namespace = $env:ARGUS_NAMESPACE ?? "argus-system"
@@ -14,15 +13,10 @@ function Fail([string]$msg) { Write-Error "ERROR: $msg"; exit 1 }
 if (-not (Get-Command kubectl   -ErrorAction SilentlyContinue)) { Fail "kubectl not found" }
 if (-not (Get-Command helmfile  -ErrorAction SilentlyContinue)) { Fail "helmfile not found" }
 
-# Step 1 — Mirror
-if ($SkipMirror) {
-    Step "[1/4] Skipping mirror setup (--SkipMirror)"
-} else {
-    Step "[1/4] Setting up image mirror..."
-    $env:ARGUS_NAMESPACE = $Namespace
-    bash deploy/mirror/setup-mirror.sh
-    if ($LASTEXITCODE -ne 0) { Fail "Mirror setup failed" }
-}
+# Step 1 — Build in-repo sample image (local Docker; Docker Desktop k8s shares the image store)
+Step "[1/4] Building sample service image..."
+docker build -t argus/sample-service:1.0.0 deploy/sample-app/app
+if ($LASTEXITCODE -ne 0) { Fail "sample image build failed" }
 
 # Step 2 — Helmfile (operators + all argus workloads)
 Step "[2/4] Deploying via helmfile (operators -> argus chart)..."

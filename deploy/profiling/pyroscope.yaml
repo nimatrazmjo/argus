@@ -62,7 +62,7 @@ spec:
         fsGroup: 10001
       initContainers:
         - name: init-permissions
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["sh", "-c", "mkdir -p /data && chown -R 10001:10001 /data && chmod -R 775 /data"]
           volumeMounts:
@@ -70,7 +70,7 @@ spec:
               mountPath: /data
       containers:
         - name: pyroscope
-          image: localhost:5001/argus/pyroscope:1.7.1
+          image: grafana/pyroscope:1.7.1
           imagePullPolicy: IfNotPresent
           args:
             - "-target=all"

@@ -50,7 +50,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: rum-collector
-          image: {{ .Values.imageRegistry }}/argus/python:3.12-alpine
+          image: {{ include "argus.image" (list $ "python:3.12-alpine") }}
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/rum_collector.py"]
           env:

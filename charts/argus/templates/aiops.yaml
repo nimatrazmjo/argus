@@ -50,7 +50,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: anomaly-detector
-          image: {{ .Values.imageRegistry }}/argus/python:3.12-alpine
+          image: {{ include "argus.image" (list $ "python:3.12-alpine") }}
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/anomaly_detector.py"]
           env:

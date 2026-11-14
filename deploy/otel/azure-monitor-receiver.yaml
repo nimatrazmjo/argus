@@ -48,7 +48,7 @@ spec:
   mode: deployment
   replicas: 1
   serviceAccount: argus-collector            # reuses existing SA; needs no extra k8s RBAC
-  image: localhost:5001/argus/opentelemetry-collector-contrib:0.160.0
+  image: otel/opentelemetry-collector-contrib:0.160.0
   imagePullPolicy: IfNotPresent
   env:
     - name: AZURE_CLIENT_SECRET

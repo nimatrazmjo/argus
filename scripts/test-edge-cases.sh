@@ -33,13 +33,6 @@ assert_success() {
 
 echo "=== [test-edge-cases] Running Edge Case Battery for F001 ==="
 
-# 1. Edge Case: Mirror Unreachable Detection
-assert_failure "deploy-operators.sh fails fast when mirror is unreachable" \
-  env ARGUS_IMAGE_REGISTRY="127.0.0.1:59999" ./scripts/deploy-operators.sh
-
-assert_failure "init.sh detects unreachable mirror" \
-  env ARGUS_IMAGE_REGISTRY="127.0.0.1:59999" ./scripts/init.sh
-
 # 2. Edge Case: Missing CRD Check Functionality
 # Test that missing CRD check function identifies missing definitions
 assert_failure "init.sh detects non-existent namespace" \

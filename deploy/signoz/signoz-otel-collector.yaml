@@ -135,7 +135,7 @@ spec:
     spec:
       containers:
         - name: signoz-otel-collector
-          image: localhost:5001/argus/signoz-otel-collector:v0.144.13
+          image: signoz/signoz-otel-collector:v0.144.13
           imagePullPolicy: IfNotPresent
           args:
             - "--config=/etc/otel/config.yaml"

@@ -1,13 +1,14 @@
 # deploy/helm/values/opentelemetry-operator-values.yaml
-# Declarative configuration for OpenTelemetry Operator with internal mirror images
+# Declarative configuration for OpenTelemetry Operator with upstream images
 
+{{- $reg := env "ARGUS_IMAGE_REGISTRY" }}
 manager:
   image:
-    repository: {{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus/opentelemetry-operator
+    repository: {{ if $reg }}{{ $reg }}/argus/opentelemetry-operator{{ else }}ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator{{ end }}
     tag: "0.160.0"
     imagePullPolicy: IfNotPresent
   collectorImage:
-    repository: {{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus/opentelemetry-collector-k8s
+    repository: {{ if $reg }}{{ $reg }}/argus/opentelemetry-collector-k8s{{ else }}ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-k8s{{ end }}
     tag: "0.160.0"
 
 admissionWebhooks:

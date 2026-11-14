@@ -38,7 +38,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: rum-collector
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/rum_collector.py"]
           env:

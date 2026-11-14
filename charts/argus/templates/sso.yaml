@@ -62,7 +62,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: idp
-          image: {{ .Values.imageRegistry }}/argus/python:3.12-alpine
+          image: {{ include "argus.image" (list $ "python:3.12-alpine") }}
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/idp_mock.py"]
           env:
@@ -148,7 +148,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: sso-gateway
-          image: {{ .Values.imageRegistry }}/argus/python:3.12-alpine
+          image: {{ include "argus.image" (list $ "python:3.12-alpine") }}
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/sso_gateway.py"]
           env:

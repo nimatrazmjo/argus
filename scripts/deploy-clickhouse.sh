@@ -3,23 +3,18 @@
 set -euo pipefail
 
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
-MIRROR_REGISTRY="${ARGUS_IMAGE_REGISTRY:-localhost:5001}"
 
 echo "================================================================="
 echo "      ARGUS CLICKHOUSE HA & TIERED STORAGE DEPLOYMENT            "
 echo "================================================================="
 
-# 1. Validate mirror registry & control-plane health gate
-echo "--> [1/4] Verifying air-gap mirror registry and control-plane health..."
+# 1. Control-plane health gate
+echo "--> [1/4] Verifying control-plane health..."
 if [ -x "scripts/check-control-plane-health.sh" ]; then
   ./scripts/check-control-plane-health.sh
 fi
 if [ -f "deploy/control-plane/etcd-maintenance.yaml" ]; then
   kubectl apply -f deploy/control-plane/etcd-maintenance.yaml >/dev/null 2>&1 || true
-fi
-if ! curl -s -f "http://${MIRROR_REGISTRY}/v2/" >/dev/null 2>&1; then
-  echo "    ERROR: Mirror registry at ${MIRROR_REGISTRY} is unreachable." >&2
-  exit 1
 fi
 
 # 2. Deploy S3 cold storage (SeaweedFS)

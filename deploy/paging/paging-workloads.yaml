@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: mock
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/servicenow_mock.py"]
           env:
@@ -93,7 +93,7 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/paging_gateway.py"]
           env:

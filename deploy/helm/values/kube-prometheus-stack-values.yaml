@@ -1,5 +1,5 @@
 # deploy/helm/values/kube-prometheus-stack-values.yaml
-# Declarative configuration for Prometheus Operator using internal mirror images
+# Declarative configuration for Prometheus Operator using upstream images
 # Minimal ATO footprint: deploys the Prometheus Operator controller and CRDs.
 
 prometheusOperator:
@@ -7,13 +7,13 @@ prometheusOperator:
   tls:
     enabled: false
   image:
-    registry: "localhost:5001/argus"
-    repository: "prometheus-operator"
+    registry: quay.io
+    repository: "prometheus-operator/prometheus-operator"
     tag: "v0.94.1"
   prometheusConfigReloader:
     image:
-      registry: "localhost:5001/argus"
-      repository: "prometheus-config-reloader"
+      registry: quay.io
+      repository: "prometheus-operator/prometheus-config-reloader"
       tag: "v0.94.1"
   admissionWebhooks:
     enabled: false

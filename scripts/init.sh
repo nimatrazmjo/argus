@@ -3,7 +3,6 @@
 set -euo pipefail
 
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
-MIRROR_REGISTRY="${ARGUS_IMAGE_REGISTRY:-localhost:5001}"
 FAILED=0
 
 echo "================================================================="
@@ -11,7 +10,7 @@ echo "        ARGUS PLATFORM BASELINE READINESS (init.sh)              "
 echo "================================================================="
 
 # 1. Check Git working tree
-echo "[1/9] Inspecting git repository state..."
+echo "[1/7] Inspecting git repository state..."
 if [ -d .git ]; then
   CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
   DIRTY_COUNT=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
@@ -26,7 +25,7 @@ else
 fi
 
 # 2. Check cluster access & control-plane etcd health floor
-echo "[2/9] Validating Kubernetes cluster connectivity & control-plane health floor..."
+echo "[2/7] Validating Kubernetes cluster connectivity & control-plane health floor..."
 if ! kubectl cluster-info >/dev/null 2>&1; then
   echo "      ERROR: Cannot connect to Kubernetes cluster." >&2
   FAILED=1
@@ -41,18 +40,8 @@ else
   fi
 fi
 
-# 3. Check internal mirror registry
-echo "[3/9] Validating air-gapped image mirror (http://${MIRROR_REGISTRY}/v2/)..."
-if ! curl -s -f "http://${MIRROR_REGISTRY}/v2/" >/dev/null 2>&1; then
-  echo "      ERROR: Mirror registry at http://${MIRROR_REGISTRY}/v2/ is unreachable." >&2
-  FAILED=1
-else
-  CATALOG_COUNT=$(curl -s "http://${MIRROR_REGISTRY}/v2/_catalog" | jq -r '.repositories | length' 2>/dev/null || echo "ready")
-  echo "      Mirror registry healthy (repositories in catalog: ${CATALOG_COUNT})"
-fi
-
 # 4. Check required CRDs
-echo "[4/9] Validating required Custom Resource Definitions (CRDs)..."
+echo "[3/7] Validating required Custom Resource Definitions (CRDs)..."
 REQUIRED_CRDS=(
   "opentelemetrycollectors.opentelemetry.io"
   "instrumentations.opentelemetry.io"
@@ -81,7 +70,7 @@ else
 fi
 
 # 5. Check operator Deployments in namespace
-echo "[5/9] Validating operator rollout status in namespace '${NAMESPACE}'..."
+echo "[4/7] Validating operator rollout status in namespace '${NAMESPACE}'..."
 if ! kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
   echo "      ERROR: Namespace '${NAMESPACE}' does not exist." >&2
   FAILED=1
@@ -119,7 +108,7 @@ else
 fi
 
 # 6. Check ClickHouse & Keeper component readiness (if deployed)
-echo "[6/9] Validating ClickHouse HA and Keeper readiness (if deployed)..."
+echo "[5/7] Validating ClickHouse HA and Keeper readiness (if deployed)..."
 if kubectl get chi argus-clickhouse -n "${NAMESPACE}" >/dev/null 2>&1; then
   CHI_STATUS=$(kubectl get chi argus-clickhouse -n "${NAMESPACE}" -o jsonpath='{.status.status}' 2>/dev/null || echo "Unknown")
   if [ "${CHI_STATUS}" == "Completed" ]; then
@@ -157,7 +146,7 @@ if kubectl get chk argus-keeper -n "${NAMESPACE}" >/dev/null 2>&1; then
 fi
 
 # 7. Check OpenTelemetry Collector pipeline readiness (if deployed)
-echo "[7/9] Validating OpenTelemetry Collector pipeline readiness (if deployed)..."
+echo "[6/7] Validating OpenTelemetry Collector pipeline readiness (if deployed)..."
 if kubectl get opentelemetrycollector argus-gateway -n "${NAMESPACE}" >/dev/null 2>&1; then
   GW_AVAILABLE=$(kubectl get deploy argus-gateway-collector -n "${NAMESPACE}" -o jsonpath='{.status.availableReplicas}' 2>/dev/null || echo "0")
   if [ "${GW_AVAILABLE:-0}" -ge 1 ]; then
@@ -197,34 +186,8 @@ if kubectl get deploy argus-sample-service -n "${NAMESPACE}" >/dev/null 2>&1; th
   fi
 fi
 
-# 8. Audit pod image origins (Air-gap / Mirror compliance)
-echo "[8/9] Auditing image origins (air-gap compliance)..."
-UNMIRRORED_IMAGES=0
-if kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
-  POD_IMAGES=$(kubectl get pods -n "${NAMESPACE}" -o jsonpath='{range .items[*].spec.containers[*]}{.image}{"\n"}{end}' 2>/dev/null || true)
-  if [ -n "$POD_IMAGES" ]; then
-    while IFS= read -r img; do
-      [ -z "$img" ] && continue
-      if [[ "$img" != *"${MIRROR_REGISTRY}"* ]]; then
-        echo "      ERROR: Unmirrored image detected: $img" >&2
-        UNMIRRORED_IMAGES=$((UNMIRRORED_IMAGES + 1))
-      else
-        echo "      Verified mirrored image: $img"
-      fi
-    done <<< "$POD_IMAGES"
-    if [ "$UNMIRRORED_IMAGES" -gt 0 ]; then
-      echo "      ERROR: Found ${UNMIRRORED_IMAGES} unmirrored container image(s)!" >&2
-      FAILED=1
-    else
-      echo "      100% of running container images resolved from internal mirror."
-    fi
-  else
-    echo "      WARN: No pods currently running in '${NAMESPACE}'."
-  fi
-fi
-
 # 9. Check architecture boundaries & Roadmap hygiene
-echo "[9/9] Checking architecture boundaries and roadmap consistency..."
+echo "[7/7] Checking architecture boundaries and roadmap consistency..."
 if [ -f "scripts/check-architecture.sh" ]; then
   ./scripts/check-architecture.sh
 fi

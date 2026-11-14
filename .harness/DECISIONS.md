@@ -29,3 +29,4 @@ DEC-017 (2026-10-15): Topological Alert Correlation & Probable Root-Cause Groupi
 DEC-018 (2026-10-15): Natural Language Telemetry Query (NL-to-SQL) & Incident Summarization Engine implemented via In-Boundary GovCloud Bedrock / Air-Gapped LLM Adapter (Feature F021). — ClickHouse AST validation, read-only SELECT enforcement, hallucinated schema rejection, prompt-injection sanitization, and F016 RBAC integration running on port 9098 (`argus-aiops-llm`) to satisfy final platform moat and ATO readiness. [ADR-0016]
 
 
+DEC-019 (2026-11-13): Local registry mirror (argus-mirror-registry, localhost:5001) removed. — Images pull from upstream at pinned tags (`deploy/images.txt`); in-repo images built locally for Docker Desktop. Supersedes DEC-001.

@@ -17,7 +17,7 @@ Argus provides automatic, zero-code distributed tracing and metrics for containe
 |                                                             |
 |  +-------------------------------------------------------+  |
 |  | Init Container (Injected by Webhook)                  |  |
-|  | localhost:5001/argus/autoinstrumentation-<lang>       |  |
+|  | ghcr.io/.../autoinstrumentation-<lang>               |  |
 |  | -> Copies OTel agent bundle into emptyDir volume      |  |
 |  +-------------------------------------------------------+  |
 |                                                             |
@@ -49,9 +49,9 @@ To onboard any new or existing service, add a **single annotation** to the Pod t
 
 | Runtime | Pod Annotation | Injected Mirror Image |
 | :--- | :--- | :--- |
-| **Python** (Flask, FastAPI, Django, Tornado, WSGI, ASGI) | `instrumentation.opentelemetry.io/inject-python: "true"` | `localhost:5001/argus/autoinstrumentation-python:0.65b0` |
-| **Node.js** (Express, Fastify, NestJS, HTTP) | `instrumentation.opentelemetry.io/inject-nodejs: "true"` | `localhost:5001/argus/autoinstrumentation-nodejs:0.78.0` |
-| **Java** (Spring Boot, Quarkus, Micronaut, Tomcat) | `instrumentation.opentelemetry.io/inject-java: "true"` | `localhost:5001/argus/autoinstrumentation-java:2` |
+| **Python** (Flask, FastAPI, Django, Tornado, WSGI, ASGI) | `instrumentation.opentelemetry.io/inject-python: "true"` | `ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.65b0` |
+| **Node.js** (Express, Fastify, NestJS, HTTP) | `instrumentation.opentelemetry.io/inject-nodejs: "true"` | `ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0` |
+| **Java** (Spring Boot, Quarkus, Micronaut, Tomcat) | `instrumentation.opentelemetry.io/inject-java: "true"` | `ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2` |
 
 > **Note**: If your application is in a namespace that uses the central platform instrumentation, you can specify either `"true"` or `"argus-system/argus-instrumentation"`.
 
@@ -84,7 +84,7 @@ spec:
     spec:
       containers:
         - name: payment-service
-          image: localhost:5001/argus/payment-service:1.0.0
+          image: argus/payment-service:1.0.0
           ports:
             - containerPort: 8080
           resources:

@@ -15,19 +15,14 @@ echo "================================================================="
 echo "       ARGUS eBPF SAFETY NET FUNCTIONAL & E2E VERIFICATION       "
 echo "================================================================="
 
-# 1. Verify Beyla DaemonSet rollout & air-gap image source
-echo "--> [1/7] Validating Beyla DaemonSet and air-gapped image origin..."
+# 1. Verify Beyla DaemonSet rollout 
+echo "--> [1/7] Validating Beyla DaemonSet..."
 kubectl rollout status daemonset/argus-beyla -n "${NAMESPACE}" --timeout=90s
 
 BEYLA_POD=$(kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=argus-beyla -o jsonpath='{.items[0].metadata.name}')
 BEYLA_IMG=$(kubectl get pod -n "${NAMESPACE}" "${BEYLA_POD}" -o jsonpath='{.spec.containers[0].image}')
 echo "    Running Beyla pod: ${BEYLA_POD}"
 echo "    Beyla container image: ${BEYLA_IMG}"
-
-if [[ "${BEYLA_IMG}" != *"localhost:5001/argus/"* ]]; then
-  echo "    ERROR: Beyla image must originate from the air-gapped mirror." >&2
-  exit 1
-fi
 
 # 2. Deploy a 100% un-annotated, raw HTTP microservice
 echo "--> [2/7] Deploying clean un-annotated service (zero OTel SDK, zero annotations)..."
@@ -55,7 +50,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
         - name: raw-web
-          image: localhost:5001/argus/auto-service:1.0.0
+          image: argus/auto-service:1.0.0
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT

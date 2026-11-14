@@ -1,19 +1,19 @@
 # deploy/helm/values/clickhouse-operator-values.yaml
-# Declarative configuration for Altinity ClickHouse Operator with internal mirror images
+# Declarative configuration for Altinity ClickHouse Operator with upstream images
 
 operator:
   image:
-    registry: "localhost:5001/argus"
-    repository: "clickhouse-operator"
+    registry: docker.io
+    repository: "altinity/clickhouse-operator"
     tag: "0.27.4"
 
 metrics:
   enabled: true
   image:
-    registry: "localhost:5001/argus"
-    repository: "metrics-exporter"
+    registry: docker.io
+    repository: "altinity/metrics-exporter"
     tag: "0.27.4"
 
-# Use native Helm 3 CRD management; disable hook container to avoid unmirrored utility pods
+# Use native Helm 3 CRD management; disable hook container to avoid extra utility pods
 crdHook:
   enabled: false

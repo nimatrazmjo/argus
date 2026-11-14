@@ -27,25 +27,6 @@ query_clickhouse() {
   kubectl exec --request-timeout=5s -n "${NAMESPACE}" "${CH_POD}" -c clickhouse -- clickhouse-client --password="${CLICKHOUSE_PASSWORD}" --query="${sql}" 2>/dev/null || echo "0"
 }
 
-# Test 1: Air-gapped container image compliance
-echo "--> Test 1: Verifying air-gap image provenance for infra-metrics..."
-NODE_EXP_IMAGE=$(kubectl get ds node-exporter -n "${NAMESPACE}" -o jsonpath='{.spec.template.spec.containers[0].image}')
-KSM_IMAGE=$(kubectl get deploy kube-state-metrics -n "${NAMESPACE}" -o jsonpath='{.spec.template.spec.containers[0].image}')
-
-if [[ "${NODE_EXP_IMAGE}" =~ ^localhost:5001/argus/node-exporter: ]]; then
-  echo "  [PASS] node-exporter image: ${NODE_EXP_IMAGE} (local mirror verified)"
-else
-  echo "  [FAIL] node-exporter image does not resolve from localhost:5001/argus/: ${NODE_EXP_IMAGE}"
-  exit 1
-fi
-
-if [[ "${KSM_IMAGE}" =~ ^localhost:5001/argus/kube-state-metrics: ]]; then
-  echo "  [PASS] kube-state-metrics image: ${KSM_IMAGE} (local mirror verified)"
-else
-  echo "  [FAIL] kube-state-metrics image does not resolve from localhost:5001/argus/: ${KSM_IMAGE}"
-  exit 1
-fi
-
 # Test 2: Pod Health and Readiness
 echo "--> Test 2: Verifying pod readiness for node-exporter and kube-state-metrics..."
 echo "  Waiting for node-exporter DaemonSet to be ready..."

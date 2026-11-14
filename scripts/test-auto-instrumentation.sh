@@ -29,11 +29,6 @@ PY_IMG=$(echo "${CR_SPEC}" | jq -r '.spec.python.image // empty')
 echo "    Instrumentation endpoint: ${ENDPOINT}"
 echo "    Python auto-agent image:  ${PY_IMG}"
 
-if [[ "${PY_IMG}" != *"localhost:5001/argus/"* ]]; then
-  echo "    ERROR: Python auto-agent image must resolve from local air-gapped mirror (localhost:5001/argus/*)." >&2
-  exit 1
-fi
-
 # 2. Deploy Zero-Code Sample Application
 echo "--> [2/7] Ensuring zero-code sample application is deployed..."
 kubectl apply -f deploy/sample-app/auto-instrumented-service.yaml

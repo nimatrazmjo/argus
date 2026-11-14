@@ -22,7 +22,6 @@ data:
 # 10 MICROSERVICES — Datadog-emulation workloads
 # ==============================================================================
 {{- $ns := $demoNs }}
-{{- $reg := .Values.imageRegistry }}
 {{- $services := list
   (dict "name" "argus-svc-gateway"        "role" "gateway"        "port" "8001")
   (dict "name" "argus-svc-auth"           "role" "auth"           "port" "8002")
@@ -79,7 +78,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: {{ .role }}
-          image: {{ $reg }}/argus/python:3.12-alpine
+          image: {{ include "argus.image" (list $ "python:3.12-alpine") }}
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "/app/service_template.py"]
           ports:

@@ -110,7 +110,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: beyla
-          image: localhost:5001/argus/beyla:2.2.4
+          image: grafana/beyla:2.2.4
           imagePullPolicy: IfNotPresent
           env:
             - name: BEYLA_CONFIG_PATH

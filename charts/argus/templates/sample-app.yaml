@@ -24,7 +24,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
         - name: sample-service
-          image: {{ .Values.imageRegistry }}/argus/{{ .Values.sampleApp.image }}
+          image: {{ include "argus.image" (list $ .Values.sampleApp.image) }}
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

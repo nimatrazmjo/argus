@@ -20,7 +20,7 @@ spec:
         spec:
           containers:
             - name: clickhouse-keeper
-              image: localhost:5001/argus/clickhouse-keeper:latest
+              image: clickhouse/clickhouse-keeper:latest
               imagePullPolicy: IfNotPresent
               resources:
                 requests:

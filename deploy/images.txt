@@ -1,4 +1,4 @@
-# Argus Baseline Images (Latest Verified Releases)
+# Argus pinned upstream images (inventory for ACR import / offline pre-pull)
 # OpenTelemetry Operator
 ghcr.io/open-telemetry/opentelemetry-operator/opentelemetry-operator:0.160.0
 ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-k8s:0.160.0
@@ -16,12 +16,12 @@ ghcr.io/jkroepke/kube-webhook-certgen:1.8.9
 
 # ClickHouse Server & S3 Cold Storage
 clickhouse/clickhouse-server:25.12.5
+clickhouse/clickhouse-keeper:latest
 chrislusf/seaweedfs:latest
 
 # Base Images & Sample Microservices
 python:3.12-alpine
-localhost:5001/argus/sample-service:1.0.0
-localhost:5001/argus/auto-service:1.0.0
+# In-repo images (argus/sample-service, argus/auto-service) are built from deploy/sample-app, not listed here
 
 # SigNoz APM, Traces, Logs & Dashboards
 signoz/signoz:v0.145.0
@@ -37,7 +37,7 @@ grafana/beyla:2.2.4
 
 # Infrastructure Metrics (Feature F009)
 quay.io/prometheus/node-exporter:v1.8.2
-registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.13.0
+registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.14.0
 
 # Continuous Profiling (Feature F010)
 grafana/pyroscope:1.7.1

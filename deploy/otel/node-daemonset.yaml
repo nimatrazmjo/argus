@@ -6,7 +6,7 @@ metadata:
 spec:
   mode: daemonset
   serviceAccount: argus-collector
-  image: localhost:5001/argus/opentelemetry-collector-contrib:0.160.0
+  image: otel/opentelemetry-collector-contrib:0.160.0
   imagePullPolicy: IfNotPresent
   resources:
     requests:

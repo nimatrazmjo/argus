@@ -13,7 +13,7 @@ storage) and Blob Storage (cold storage). Follow sections in order.
 4. [Capacity sizing](#4-capacity-sizing)
 5. [AKS cluster](#5-aks-cluster)
 6. [Azure Container Registry (ACR)](#6-azure-container-registry-acr)
-7. [Mirror images into ACR](#7-mirror-images-into-acr)
+7. [Import images into ACR (optional)](#7-mirror-images-into-acr)
 8. [Key Vault — secrets](#8-key-vault--secrets)
 9. [Hot tier — Azure Managed Disk StorageClass](#9-hot-tier--azure-managed-disk-storageclass)
 10. [Cold tier — Azure Blob Storage + Workload Identity](#10-cold-tier--azure-blob-storage--workload-identity)
@@ -223,9 +223,9 @@ echo "$ACR_LOGIN_SERVER"      # e.g. argusacrprod.azurecr.io
 
 ---
 
-## 7. Mirror images into ACR
+## 7. Import images into ACR (optional)
 
-Argus runs from a fixed image list (`deploy/mirror/images.txt`). Import all of it:
+Charts pull upstream images by default. Import into ACR only if the cluster has no public egress (or to avoid Docker Hub rate limits), then set `ARGUS_IMAGE_REGISTRY="$ACR_LOGIN_SERVER"` (helmfile) or `imageRegistry: $ACR_LOGIN_SERVER` (chart values) and images resolve to `$ACR_LOGIN_SERVER/argus/<name:tag>`. Pinned list: `deploy/images.txt`. Raw `deploy/*.yaml` manifests (non-Helm path) are not templated.
 
 ```bash
 while IFS= read -r line; do
@@ -234,7 +234,7 @@ while IFS= read -r line; do
   dest=$(echo "$line" | sed 's|.*/||')
   echo "Importing $line -> $ACR_LOGIN_SERVER/argus/$dest"
   az acr import -n "$ACR_NAME" --source "$line" --image "argus/$dest" --force
-done < deploy/mirror/images.txt
+done < deploy/images.txt
 ```
 
 `az acr import` pulls server-side; no local Docker needed. Images built in-repo
@@ -489,7 +489,7 @@ expand the PVC in place (section 9).
 Create `charts/argus/values-azure.yaml`:
 
 ```yaml
-imageRegistry: argusacrprod.azurecr.io      # your $ACR_LOGIN_SERVER
+imageRegistry: argusacrprod.azurecr.io      # your $ACR_LOGIN_SERVER (empty = upstream)
 
 azure:
   storageAccount: argusstoreprod            # $STORAGE_ACCOUNT
@@ -810,9 +810,9 @@ each phase is independently mergeable.
 ### Phase 3 — Automation
 
 - [ ] `scripts/azure-bootstrap.sh`: RG, AKS, ACR, KV, storage, UAMI, role assignment, federated credential (§3–§10)
-- [ ] `deploy.sh --azure` flag: apply StorageClass, use `values-azure.yaml`, skip SeaweedFS + mirror to localhost
+- [ ] `deploy.sh --azure` flag: apply StorageClass, use `values-azure.yaml`, skip SeaweedFS
 - [ ] `scripts/verify-storage.sh`: checks `system.disks`, `system.storage_policies`, parts per disk, Blob objects after forced move (§15.1, §17)
-- [ ] Image build/push (`az acr build`) for in-repo images in `deploy/mirror` flow
+- [ ] Image build/push (`az acr build`) for in-repo images (`deploy/sample-app`)
 
 ### Phase 4 — Backup & ops
 

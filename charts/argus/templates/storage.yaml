@@ -53,7 +53,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: s3-server
-          image: {{ .Values.imageRegistry }}/argus/{{ .Values.storage.s3Image }}
+          image: {{ include "argus.image" (list $ .Values.storage.s3Image) }}
           imagePullPolicy: IfNotPresent
           args:
             - "server"

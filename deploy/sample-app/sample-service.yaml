@@ -22,7 +22,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
         - name: sample-service
-          image: localhost:5001/argus/sample-service:1.0.0
+          image: argus/sample-service:1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

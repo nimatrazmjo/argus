@@ -51,7 +51,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: aiops-llm
-          image: {{ .Values.imageRegistry }}/argus/python:3.12-alpine
+          image: {{ include "argus.image" (list $ "python:3.12-alpine") }}
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/aiops_llm_service.py"]
           env:

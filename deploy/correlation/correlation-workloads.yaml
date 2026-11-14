@@ -38,7 +38,7 @@ spec:
       terminationGracePeriodSeconds: 2
       containers:
         - name: correlation-engine
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/correlation_engine.py"]
           env:

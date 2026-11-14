@@ -38,7 +38,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: idp
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/idp_mock.py"]
           env:
@@ -124,7 +124,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: sso-gateway
-          image: localhost:5001/argus/python:3.12-alpine
+          image: python:3.12-alpine
           imagePullPolicy: IfNotPresent
           command: ["python", "/app/sso_gateway.py"]
           env:

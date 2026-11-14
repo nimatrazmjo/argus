@@ -3,14 +3,12 @@
 set -euo pipefail
 
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
-SKIP_MIRROR=false
 SKIP_TENANCY=false
 SKIP_SLO=false
 
 usage() {
-  echo "Usage: $0 [--skip-mirror] [--skip-tenancy] [--skip-slo] [--namespace <ns>]"
+  echo "Usage: $0 [--skip-tenancy] [--skip-slo] [--namespace <ns>]"
   echo
-  echo "  --skip-mirror    Skip image mirror setup (use when mirror is already populated)"
   echo "  --skip-tenancy   Skip ClickHouse RLS / tenant policy apply"
   echo "  --skip-slo       Skip SLO alert rules sync"
   echo "  --namespace      Target namespace (default: argus-system)"
@@ -19,7 +17,6 @@ usage() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --skip-mirror)   SKIP_MIRROR=true ;;
     --skip-tenancy)  SKIP_TENANCY=true ;;
     --skip-slo)      SKIP_SLO=true ;;
     --namespace)     NAMESPACE="$2"; shift ;;
@@ -35,13 +32,10 @@ fail() { echo "ERROR: $*" >&2; exit 1; }
 command -v kubectl   >/dev/null 2>&1 || fail "kubectl not found"
 command -v helmfile  >/dev/null 2>&1 || fail "helmfile not found"
 
-# Step 1 — Mirror
-if [ "$SKIP_MIRROR" = true ]; then
-  step "[1/4] Skipping mirror setup (--skip-mirror)"
-else
-  step "[1/4] Setting up image mirror..."
-  bash deploy/mirror/setup-mirror.sh
-fi
+# Step 1 — Build in-repo sample image (local Docker; Docker Desktop k8s shares the image store)
+step "[1/4] Building sample service image..."
+command -v docker >/dev/null 2>&1 || fail "docker not found"
+docker build -t argus/sample-service:1.0.0 deploy/sample-app/app
 
 # Step 2 — Helmfile (operators + all argus workloads)
 step "[2/4] Deploying via helmfile (operators → argus chart)..."

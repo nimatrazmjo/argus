@@ -17,7 +17,7 @@ spec:
       restartPolicy: OnFailure
       initContainers:
         - name: ready
-          image: localhost:5001/argus/signoz-otel-collector:v0.144.13
+          image: signoz/signoz-otel-collector:v0.144.13
           imagePullPolicy: IfNotPresent
           env:
             - name: CLICKHOUSE_PASSWORD
@@ -32,7 +32,7 @@ spec:
             - "--clickhouse-cluster=cluster"
             - "--clickhouse-replication=true"
         - name: bootstrap
-          image: localhost:5001/argus/signoz-otel-collector:v0.144.13
+          image: signoz/signoz-otel-collector:v0.144.13
           imagePullPolicy: IfNotPresent
           env:
             - name: CLICKHOUSE_PASSWORD
@@ -47,7 +47,7 @@ spec:
             - "--clickhouse-cluster=cluster"
             - "--clickhouse-replication=true"
         - name: sync
-          image: localhost:5001/argus/signoz-otel-collector:v0.144.13
+          image: signoz/signoz-otel-collector:v0.144.13
           imagePullPolicy: IfNotPresent
           env:
             - name: CLICKHOUSE_PASSWORD
@@ -65,7 +65,7 @@ spec:
             - "--timeout=5m"
       containers:
         - name: async
-          image: localhost:5001/argus/signoz-otel-collector:v0.144.13
+          image: signoz/signoz-otel-collector:v0.144.13
           imagePullPolicy: IfNotPresent
           env:
             - name: CLICKHOUSE_PASSWORD

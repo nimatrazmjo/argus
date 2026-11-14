@@ -121,7 +121,7 @@ spec:
         spec:
           containers:
             - name: clickhouse
-              image: localhost:5001/argus/clickhouse-server:25.12.5
+              image: clickhouse/clickhouse-server:25.12.5
               imagePullPolicy: IfNotPresent
               env:
                 - name: CLICKHOUSE_PASSWORD

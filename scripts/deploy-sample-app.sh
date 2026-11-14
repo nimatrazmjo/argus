@@ -3,31 +3,18 @@
 set -euo pipefail
 
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
-MIRROR_REGISTRY="${ARGUS_IMAGE_REGISTRY:-localhost:5001}"
-IMAGE_TAG="${ARGUS_SAMPLE_IMAGE:-${MIRROR_REGISTRY}/argus/sample-service:1.0.0}"
+IMAGE_TAG="${ARGUS_SAMPLE_IMAGE:-argus/sample-service:1.0.0}"
 
 echo "================================================================="
 echo "       ARGUS SAMPLE INSTRUMENTED SERVICE DEPLOYMENT              "
 echo "================================================================="
 
-# 1. Verify mirror registry
-echo "--> [1/4] Verifying air-gap mirror registry..."
-if ! curl -s -f "http://${MIRROR_REGISTRY}/v2/" >/dev/null 2>&1; then
-  echo "    ERROR: Mirror registry at ${MIRROR_REGISTRY} is unreachable." >&2
-  exit 1
-fi
+# 1-2. Build sample service image locally (Docker Desktop k8s shares the image store)
+echo "--> [1/3] Building sample service image ${IMAGE_TAG}..."
+docker build -t "${IMAGE_TAG}" deploy/sample-app/app
 
-# 2. Check or build sample service image
-echo "--> [2/4] Verifying sample service container image in mirror..."
-if ! curl -s -f "http://${MIRROR_REGISTRY}/v2/argus/sample-service/manifests/1.0.0" >/dev/null 2>&1; then
-  echo "    Image not found in mirror. Building and pushing..."
-  docker build -t "${IMAGE_TAG}" deploy/sample-app/app
-  docker push "${IMAGE_TAG}"
-fi
-echo "    Verified image ${IMAGE_TAG} in local mirror."
-
-# 3. Apply Kubernetes Secret, Deployment & Service
-echo "--> [3/4] Applying Kubernetes Secret, Deployment and Service..."
+# 2. Apply Kubernetes Secret, Deployment & Service
+echo "--> [2/3] Applying Kubernetes Secret, Deployment and Service..."
 if [ -n "${SAMPLE_APP_API_TOKEN:-}" ]; then
   kubectl create secret generic argus-sample-app-secret -n "${NAMESPACE}" \
     --from-literal=SAMPLE_APP_API_TOKEN="${SAMPLE_APP_API_TOKEN}" \
@@ -37,8 +24,8 @@ elif ! kubectl get secret argus-sample-app-secret -n "${NAMESPACE}" >/dev/null 2
 fi
 kubectl apply -f deploy/sample-app/sample-service.yaml
 
-# 4. Wait for Rollout Readiness
-echo "--> [4/4] Awaiting sample service rollout readiness..."
+# 3. Wait for Rollout Readiness
+echo "--> [3/3] Awaiting sample service rollout readiness..."
 kubectl rollout status deployment/argus-sample-service -n "${NAMESPACE}" --timeout=90s
 
 # Verify healthz probe

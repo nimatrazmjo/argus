@@ -27,21 +27,13 @@ exec_sample_app() {
   kubectl exec --request-timeout=5s -n "${NAMESPACE}" deploy/argus-sample-service -- python3 -c "${py_code}" 2>/dev/null || echo "FAIL"
 }
 
-# Test 1: Air-gapped container image compliance
-echo "--> Test 1: Verifying air-gap image provenance for Pyroscope..."
-PYROSCOPE_IMAGE=$(kubectl get deploy pyroscope -n "${NAMESPACE}" -o jsonpath='{.spec.template.spec.containers[0].image}')
+# Test 1: Pinned image inventory
+echo "--> Test 1: Verifying pinned Pyroscope image inventory..."
 
-if [[ "${PYROSCOPE_IMAGE}" =~ ^localhost:5001/argus/pyroscope: ]]; then
-  echo "  [PASS] Pyroscope image: ${PYROSCOPE_IMAGE} (local mirror verified)"
+if grep -q "grafana/pyroscope:1.7.1" "${ROOT_DIR}/deploy/images.txt"; then
+  echo "  [PASS] deploy/images.txt indexes upstream grafana/pyroscope:1.7.1"
 else
-  echo "  [FAIL] Pyroscope image does not resolve from localhost:5001/argus/: ${PYROSCOPE_IMAGE}"
-  exit 1
-fi
-
-if grep -q "grafana/pyroscope:1.7.1" "${ROOT_DIR}/deploy/mirror/images.txt"; then
-  echo "  [PASS] deploy/mirror/images.txt indexes upstream grafana/pyroscope:1.7.1"
-else
-  echo "  [FAIL] deploy/mirror/images.txt missing grafana/pyroscope:1.7.1 entry"
+  echo "  [FAIL] deploy/images.txt missing grafana/pyroscope:1.7.1 entry"
   exit 1
 fi
 

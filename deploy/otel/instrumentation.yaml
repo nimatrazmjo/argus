@@ -23,7 +23,7 @@ spec:
     - name: OTEL_BSP_SCHEDULE_DELAY
       value: "500"
   python:
-    image: localhost:5001/argus/autoinstrumentation-python:0.65b0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.65b0
     resourceRequirements:
       limits:
         cpu: "1"
@@ -32,7 +32,7 @@ spec:
         cpu: 50m
         memory: 64Mi
   nodejs:
-    image: localhost:5001/argus/autoinstrumentation-nodejs:0.78.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
     resourceRequirements:
       limits:
         cpu: "1"
@@ -41,7 +41,7 @@ spec:
         cpu: 50m
         memory: 64Mi
   java:
-    image: localhost:5001/argus/autoinstrumentation-java:2
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2
     resources:
       limits:
         cpu: "1"
@@ -75,7 +75,7 @@ spec:
     - name: OTEL_BSP_SCHEDULE_DELAY
       value: "500"
   python:
-    image: localhost:5001/argus/autoinstrumentation-python:0.65b0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.65b0
     resourceRequirements:
       limits:
         cpu: "1"
@@ -84,7 +84,7 @@ spec:
         cpu: 50m
         memory: 64Mi
   nodejs:
-    image: localhost:5001/argus/autoinstrumentation-nodejs:0.78.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
     resourceRequirements:
       limits:
         cpu: "1"
@@ -93,7 +93,7 @@ spec:
         cpu: 50m
         memory: 64Mi
   java:
-    image: localhost:5001/argus/autoinstrumentation-java:2
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2
     resources:
       limits:
         cpu: "1"

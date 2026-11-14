@@ -1,19 +1,20 @@
 # deploy/helm/values/clickhouse-operator-values.yaml
-# Declarative configuration for Altinity ClickHouse Operator with internal mirror images
+# Declarative configuration for Altinity ClickHouse Operator with upstream images
 
+{{- $reg := env "ARGUS_IMAGE_REGISTRY" }}
 operator:
   image:
-    registry: {{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus
-    repository: "clickhouse-operator"
+    registry: {{ if $reg }}{{ $reg }}/argus{{ else }}docker.io{{ end }}
+    repository: {{ if $reg }}"clickhouse-operator"{{ else }}"altinity/clickhouse-operator"{{ end }}
     tag: "0.27.4"
 
 metrics:
   enabled: true
   image:
-    registry: {{ env "ARGUS_IMAGE_REGISTRY" | default "localhost:5001" }}/argus
-    repository: "metrics-exporter"
+    registry: {{ if $reg }}{{ $reg }}/argus{{ else }}docker.io{{ end }}
+    repository: {{ if $reg }}"metrics-exporter"{{ else }}"altinity/metrics-exporter"{{ end }}
     tag: "0.27.4"
 
-# Use native Helm 3 CRD management; disable hook container to avoid unmirrored utility pods
+# Use native Helm 3 CRD management; disable hook container to avoid extra utility pods
 crdHook:
   enabled: false

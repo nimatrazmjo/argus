@@ -4,7 +4,7 @@
 > *Telemetry Spine: OpenTelemetry Collector → ClickHouse HA → SigNoz APM*
 
 [![Status](https://img.shields.io/badge/Progress-21%20%2F%2021%20Features%20Complete-brightgreen.svg)](#roadmap)
-[![Compliance](https://img.shields.io/badge/Air--Gap-100%25%20Offline%20Mirror-blue.svg)](#air-gap--mirror-management)
+[![Compliance](https://img.shields.io/badge/Telemetry-Zero%20SaaS%20Egress-blue.svg)](#image-inventory)
 [![Security](https://img.shields.io/badge/Ingest-CJIS%20%2F%20PII%20Redacted-orange.svg)](#ingest-security--cjispii-redaction)
 [![Verification](https://img.shields.io/badge/Regression-E2E%20%2B%20Edge%20Suites-brightgreen.svg)](#testing--verification)
 
@@ -38,7 +38,7 @@ It spans the full observability lifecycle: a collection spine (OTel → ClickHou
 - [Platform Details](#platform-details)
   - [Ingest Security & CJIS/PII Redaction](#ingest-security--cjispii-redaction)
   - [High Availability & Storage Tiering](#high-availability--storage-tiering)
-  - [Air-Gap & Mirror Management](#air-gap--mirror-management)
+  - [Image Inventory](#image-inventory)
 - [Roadmap](#roadmap)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
@@ -53,7 +53,7 @@ It spans the full observability lifecycle: a collection spine (OTel → ClickHou
 - **Operations** — declarative alerting with dedup, SLO/error-budget tracking, ServiceNow paging, synthetic canary probes, and RUM with session replay.
 - **Governance** — tiered retention/downsampling, multi-tenancy with row-level isolation, and agency SSO/RBAC with PIV/CAC claims.
 - **AIOps** — EWMA/seasonal anomaly + forecast monitors, topological alert correlation, and an in-boundary NL-to-SQL + incident-summary copilot.
-- **Air-gapped by design** — 100% offline image mirror, in-memory PII/CJIS redaction at ingest, zero external egress.
+- **Air-gapped by design** — in-memory PII/CJIS redaction at ingest, zero SaaS telemetry egress.
 - **Dependency-free demo services** — every microservice is a single-file Python 3.12 stdlib server you can run on its own.
 
 ---
@@ -108,7 +108,7 @@ It spans the full observability lifecycle: a collection spine (OTel → ClickHou
 2. **Deterministic redaction** — PII and CJIS identifiers (SSNs, cards, FBI numbers, tokens, passwords) are scrubbed in-memory via regex transform processors before reaching storage.
 3. **High-availability storage** — ClickHouse HA (`argus-cluster`, 2 replicas) with automated cold tiering to S3/MinIO (`hot_to_cold`) and ClickHouse Keeper Raft consensus.
 4. **Dual-layer onboarding** — zero-code auto-instrumentation via a single annotation, plus a Grafana Beyla eBPF safety net for un-annotated/third-party workloads.
-5. **Air-gap strictness** — 100% of images and charts resolve from the local offline mirror (`localhost:5001/argus/*`).
+5. **Pinned images** — every image is pinned to an explicit tag; inventory in `deploy/images.txt`.
 
 ---
 
@@ -151,7 +151,7 @@ What each technology is used for, and why it was chosen:
 | **Identity** | Keycloak-style OIDC IdP + SSO gateway | Agency SSO, PIV/CAC claims, group→role RBAC, multi-tenant header injection (F016) |
 | **AIOps** | EWMA / seasonal decomposition; topological correlation; in-boundary (GovCloud Bedrock) LLM | Anomaly + forecast monitors, root-cause grouping, NL-to-SQL query and incident summaries (F019–F021) |
 | **Runtime** | Python 3.12 stdlib `http.server` | All demo microservices are dependency-free single-file servers — easy to read, run, and air-gap |
-| **Packaging / infra** | Kubernetes, Helm, Helmfile, Docker Registry v2 mirror | `helmfile sync` deploys all operators + workloads in one command; `charts/argus` holds all 89 resources |
+| **Packaging / infra** | Kubernetes, Helm, Helmfile | `helmfile sync` deploys all operators + workloads in one command; `charts/argus` holds all 89 resources |
 | **Tooling** | `kubectl`, `bash`, `jq`, `curl` | Deploy and verification scripts |
 
 ---
@@ -163,14 +163,14 @@ What each technology is used for, and why it was chosen:
 | Path | Needs | Time | Good for |
 | :--- | :--- | :--- | :--- |
 | [Single service](#option-a--run-a-single-service-locally-no-cluster) | `python3` only | ~30s | Reading code, trying an API, demos |
-| [deploy.sh / deploy.ps1 (recommended)](#option-b--one-command-deploy-deploysh--deployps1) | k8s + mirror + `helmfile` | ~20–40m | Full platform, single script, cross-platform |
-| [Helmfile direct](#option-c--helmfile-direct) | k8s + mirror + `helmfile` | ~20–40m | Full platform without wrapper script |
-| [Manual](#option-d--manual-step-by-step-deploy-kubernetes) | k8s + mirror + `kubectl`/`jq` | ~30–50m | Granular control, partial deploys |
+| [deploy.sh / deploy.ps1 (recommended)](#option-b--one-command-deploy-deploysh--deployps1) | k8s + `helmfile` | ~20–40m | Full platform, single script, cross-platform |
+| [Helmfile direct](#option-c--helmfile-direct) | k8s + `helmfile` | ~20–40m | Full platform without wrapper script |
+| [Manual](#option-d--manual-step-by-step-deploy-kubernetes) | k8s + `kubectl`/`jq` | ~30–50m | Granular control, partial deploys |
 
 ### Prerequisites
 
 - **Single service:** Python 3.12+ (standard library only — no `pip install`).
-- **Full platform:** Docker Desktop or Minikube with Kubernetes v1.28+; active context (`kubectl config current-context`); a local registry mirror on `localhost:5001`; `kubectl`, `jq`, `curl`, `bash` on PATH.
+- **Full platform:** Docker Desktop or Minikube with Kubernetes v1.28+; active context (`kubectl config current-context`); Docker (builds the sample image); `kubectl`, `jq`, `curl`, `bash` on PATH.
 - **Helmfile path (additionally):** [`helmfile`](https://helmfile.readthedocs.io/en/latest/#installation) v0.169+ and `helm` v3.14+ on PATH. Install: `brew install helmfile` (macOS/Linux) or download from [GitHub releases](https://github.com/helmfile/helmfile/releases) (Windows).
 - **Control-plane resource floor (Docker Desktop):** Allocate at least **8 GiB RAM**, **4+ vCPUs**, and SSD-backed virtual disk storage with **> 20% free disk capacity** (low disk IOPS or VM swap thrashing will starve `etcd` boltdb reads and `kube-apiserver`). Deploy scripts enforce `./scripts/check-control-plane-health.sh` before driving rollout load.
 
@@ -223,7 +223,7 @@ Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`
 
 | Phase | What runs | Can skip |
 | :--- | :--- | :--- |
-| 1 — Mirror | `deploy/mirror/setup-mirror.sh` — starts the local Docker registry and pulls all images into `localhost:5001` | `--skip-mirror` / `-SkipMirror` |
+| 1 — Build | `docker build` of the in-repo sample service image (`argus/sample-service:1.0.0`) | — |
 | 2 — Helmfile | `helmfile apply` — deploys all 3 operators then the full `argus` Helm chart | — |
 | 3 — Control plane | `kubectl apply -f deploy/control-plane/etcd-maintenance.yaml` — etcd compaction CronJob (not in the Helm chart) | — |
 | 4a — Tenancy | `deploy/tenancy/apply-tenancy.sh` — ClickHouse RLS policies, tenant accounts, row quotas | `--skip-tenancy` / `-SkipTenancy` |
@@ -233,17 +233,16 @@ Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`
 
 **Bash**
 ```bash
-./deploy.sh [--skip-mirror] [--skip-tenancy] [--skip-slo] [--namespace <ns>]
+./deploy.sh [--skip-tenancy] [--skip-slo] [--namespace <ns>]
 ```
 
 **PowerShell**
 ```powershell
-.\deploy.ps1 [-SkipMirror] [-SkipTenancy] [-SkipSlo] [-Namespace <ns>]
+.\deploy.ps1 [-SkipTenancy] [-SkipSlo] [-Namespace <ns>]
 ```
 
 | Flag | Default | Purpose |
 | :--- | :--- | :--- |
-| `--skip-mirror` / `-SkipMirror` | off | Skip image mirror setup — use when the registry at `localhost:5001` is already populated (saves ~10–20 min on subsequent deploys) |
 | `--skip-tenancy` / `-SkipTenancy` | off | Skip ClickHouse RLS and tenant policy apply — use when re-deploying without changing tenancy config |
 | `--skip-slo` / `-SkipSlo` | off | Skip SLO alert-rule sync — use when SLO definitions haven't changed |
 | `--namespace` / `-Namespace` | `argus-system` | Deploy into a different namespace (also respects `$ARGUS_NAMESPACE` env var) |
@@ -254,11 +253,8 @@ Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`
 # First-ever deploy — runs everything
 ./deploy.sh
 
-# Re-deploy after a code change (mirror already populated)
-./deploy.sh --skip-mirror
-
 # Re-deploy, skip all post-config (fastest helmfile-only re-apply)
-./deploy.sh --skip-mirror --skip-tenancy --skip-slo
+./deploy.sh --skip-tenancy --skip-slo
 
 # Deploy to a custom namespace
 ./deploy.sh --namespace staging
@@ -266,17 +262,17 @@ Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`
 # PowerShell — first deploy
 .\deploy.ps1
 
-# PowerShell — skip mirror on re-deploy
-.\deploy.ps1 -SkipMirror -SkipTenancy -SkipSlo
+# PowerShell — skip post-deploy steps
+.\deploy.ps1 -SkipTenancy -SkipSlo
 ```
 
-> **Note (Windows):** `deploy.ps1` calls `bash` for the sub-scripts (`setup-mirror.sh`, `apply-tenancy.sh`, `apply-slo.sh`). WSL or Git Bash must be on `PATH`.
+> **Note (Windows):** `deploy.ps1` calls `bash` for the sub-scripts (`apply-tenancy.sh`, `apply-slo.sh`). WSL or Git Bash must be on `PATH`.
 
 ---
 
 ### Option C — Helmfile Direct
 
-Runs only the Helm releases (phases 2 of the deploy script) without the mirror setup or post-deploy config. Useful if you manage the mirror and post-config separately.
+Runs only the Helm releases (phases 2 of the deploy script) without the sample image build or post-deploy config. Useful if you manage those separately.
 
 ```bash
 # Add chart repos (first time only)
@@ -288,19 +284,18 @@ helm repo update
 helmfile apply
 ```
 
-Override namespace or registry:
+Override namespace (and optionally pull images from a private registry such as ACR):
 ```bash
-ARGUS_NAMESPACE=my-ns ARGUS_IMAGE_REGISTRY=my.registry:5000 helmfile apply
+ARGUS_NAMESPACE=my-ns ARGUS_IMAGE_REGISTRY=my.registry.io helmfile apply   # registry optional; images must be imported as <registry>/argus/<name:tag>
 ```
 
 ---
 
 ### Option D — Manual Step-by-Step Deploy (Kubernetes)
 
-**1. Check readiness & initialize the air-gapped mirror**
+**1. Check readiness**
 ```bash
 ./scripts/init.sh                 # baseline readiness audit
-./deploy/mirror/setup-mirror.sh   # mirror images into localhost:5001
 ```
 
 **2. Deploy the telemetry spine**
@@ -598,7 +593,7 @@ Per-feature suites live in `scripts/` as `test-<feature>.sh` (plus `-edge-cases.
 | 11–12 | `test-signoz-*.sh` | SigNoz UI/engine & cold-start resilience |
 | 13–14 | `test-auto-instrumentation-*.sh` | Zero-code webhook injection & edge cases |
 | 15–16 | `test-ebpf-*.sh` | eBPF discovery, RED export, zero-egress audit |
-| 17 | [`init.sh`](scripts/init.sh) | Air-gap cluster readiness audit |
+| 17 | [`init.sh`](scripts/init.sh) | Cluster readiness audit |
 
 ---
 
@@ -612,7 +607,7 @@ argus/
 ├── charts/
 │   └── argus/                 # Helm chart — all platform workload resources
 │       ├── Chart.yaml
-│       ├── values.yaml        # imageRegistry, secrets, image tags, ingress config
+│       ├── values.yaml        # imageRegistry (optional), secrets, image refs, ingress config
 │       ├── templates/         # 18 template files (secrets, storage, CH, SigNoz,
 │       │                      #   OTel, Beyla, Pyroscope, paging, SSO, RUM,
 │       │                      #   synthetics, AIOps, correlation, LLM, sample-app,
@@ -627,7 +622,7 @@ argus/
 │   ├── helm/values/           # Operator Helm values (OTel, Altinity, Prometheus)
 │   ├── infra-metrics/         # node-exporter + kube-state-metrics (F009)
 │   ├── llm/                   # NL-query + incident-summary copilot (F021)
-│   ├── mirror/                # Air-gapped registry catalog & sync scripts
+│   ├── images.txt             # Pinned upstream image inventory
 │   ├── otel/                  # OTel collector DaemonSet, Gateway & CRDs
 │   ├── paging/                # Paging gateway + ServiceNow mock (F013)
 │   ├── profiling/             # Pyroscope continuous profiling (F010)
@@ -668,15 +663,9 @@ ClickHouse HA via the Altinity ClickHouse Operator:
 - **Consensus** — ClickHouse Keeper, 3-node Raft ([`deploy/clickhouse/clickhouse-keeper.yaml`](deploy/clickhouse/clickhouse-keeper.yaml)).
 - **Tiering (`hot_to_cold`)** — hot tier on local PV; cold tier on MinIO ([`deploy/storage/s3-storage.yaml`](deploy/storage/s3-storage.yaml)); migration at 90% hot-volume utilization.
 
-### Air-Gap & Mirror Management
+### Image Inventory
 
-No runtime egress to public registries or SaaS. All images/artifacts are mirrored locally:
-
-- **Local mirror** — Docker Registry v2 at `localhost:5001`.
-- **Inventory** — [`deploy/mirror/images.txt`](deploy/mirror/images.txt).
-- **Sync** — [`deploy/mirror/setup-mirror.sh`](deploy/mirror/setup-mirror.sh).
-
-Every manifest references `localhost:5001/argus/<image>:<tag>` directly.
+Images are pulled from upstream registries at their pinned tags. Pinned list: [`deploy/images.txt`](deploy/images.txt) (also used for optional ACR import). In-repo images (`argus/sample-service`, `argus/auto-service`) are built locally from `deploy/sample-app` (Docker Desktop k8s shares the local image store).
 
 ---
 

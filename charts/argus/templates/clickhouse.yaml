@@ -20,7 +20,7 @@ spec:
         spec:
           containers:
             - name: clickhouse-keeper
-              image: {{ .Values.imageRegistry }}/argus/{{ .Values.clickhouse.keeperImage }}
+              image: {{ include "argus.image" (list $ .Values.clickhouse.keeperImage) }}
               imagePullPolicy: IfNotPresent
               resources:
                 requests:
@@ -182,7 +182,7 @@ spec:
         spec:
           containers:
             - name: clickhouse
-              image: {{ .Values.imageRegistry }}/argus/{{ .Values.clickhouse.serverImage }}
+              image: {{ include "argus.image" (list $ .Values.clickhouse.serverImage) }}
               imagePullPolicy: IfNotPresent
               env:
                 - name: CLICKHOUSE_PASSWORD
