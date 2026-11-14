@@ -1,16 +1,16 @@
-{{- /* Job spec is immutable: name carries a hash of the image so an image bump creates a new Job.
+{{- /* Job spec is immutable: name carries a hash of image+backoffLimit so an image bump creates a new Job.
      Deliberately NOT a helm hook: with --wait, post-install hooks run after workloads are
      Ready, but signoz-otel-collector can't become Ready until this migration has run. */ -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: signoz-schema-migrator-{{ .Values.signoz.otelCollectorImage | sha256sum | trunc 8 }}
+  name: signoz-schema-migrator-{{ printf "%s-%v" .Values.signoz.otelCollectorImage .Values.signoz.migratorBackoffLimit | sha256sum | trunc 8 }}
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: signoz-schema-migrator
     app.kubernetes.io/part-of: argus
 spec:
-  backoffLimit: 3
+  backoffLimit: {{ .Values.signoz.migratorBackoffLimit }}
   template:
     metadata:
       labels:

@@ -11,6 +11,8 @@ clickhouse:
 signoz:
   image: signoz/signoz:v0.145.0
   otelCollectorImage: signoz/signoz-otel-collector:v0.144.13
+  # schema migrator retries while ClickHouse/keeper come up (slow clusters need many)
+  migratorBackoffLimit: 30
 
 secrets:
   pagingWebhookToken: argus-paging-webhook-token-32b
