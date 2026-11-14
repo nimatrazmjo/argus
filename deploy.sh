@@ -65,10 +65,13 @@ else
   ARGUS_NAMESPACE="$NAMESPACE" bash deploy/tenancy/apply-tenancy.sh
 fi
 
+step "[4b/4] Registering SigNoz admin (needs SIGNOZ_ADMIN_PASSWORD)..."
+ARGUS_NAMESPACE="$NAMESPACE" bash deploy/signoz/register-admin.sh
+
 if [ "$SKIP_SLO" = true ]; then
-  step "[4b/4] Skipping SLO sync (--skip-slo)"
+  step "[4c/4] Skipping SLO sync (--skip-slo)"
 else
-  step "[4b/4] Syncing SLO alert rules..."
+  step "[4c/4] Syncing SLO alert rules..."
   ARGUS_NAMESPACE="$NAMESPACE" bash deploy/slo/apply-slo.sh
 fi
 
