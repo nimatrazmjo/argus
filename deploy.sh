@@ -35,6 +35,12 @@ if [ "$DEBUG" = true ]; then
   HELMFILE_ARGS+=(--debug)
 fi
 
+# SigNoz admin creds: env wins, else the host-side file (chmod 600)
+CRED_FILE="${ARGUS_CRED_FILE:-$HOME/.argus/signoz-admin.env}"
+if [ -z "${SIGNOZ_ADMIN_PASSWORD:-}" ] && [ -f "$CRED_FILE" ]; then
+  set -a; . "$CRED_FILE"; set +a
+fi
+
 step() { echo; echo "==> $*"; }
 fail() { echo "ERROR: $*" >&2; exit 1; }
 
@@ -68,15 +74,23 @@ fi
 step "[4b/4] Registering SigNoz admin (needs SIGNOZ_ADMIN_PASSWORD)..."
 ARGUS_NAMESPACE="$NAMESPACE" bash deploy/signoz/register-admin.sh
 
+# Creates the argus-default-webhook channel that the SLO rules below reference
+step "[4c/4] Syncing alert rules + notification channel..."
+ARGUS_NAMESPACE="$NAMESPACE" bash deploy/alerting/apply-rules.sh
+
 if [ "$SKIP_SLO" = true ]; then
-  step "[4c/4] Skipping SLO sync (--skip-slo)"
+  step "[4d/4] Skipping SLO sync (--skip-slo)"
 else
-  step "[4c/4] Syncing SLO alert rules..."
+  step "[4d/4] Syncing SLO alert rules..."
   ARGUS_NAMESPACE="$NAMESPACE" bash deploy/slo/apply-slo.sh
 fi
 
 echo
 echo "================================================================="
 echo "  Argus deploy complete. Access at: http://argus.local"
+if [ -f "$CRED_FILE" ]; then
+  echo "  SigNoz admin: ${SIGNOZ_ADMIN_EMAIL:-admin@argus.internal}"
+  echo "  Password file: $CRED_FILE"
+fi
 echo "  (Add cluster node IP to /etc/hosts: <node-ip>  argus.local)"
 echo "================================================================="

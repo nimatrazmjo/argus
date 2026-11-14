@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RULES_FILE="${SCRIPT_DIR}/rules.json"
 CRD_FILE="${SCRIPT_DIR}/prometheus-rules.yaml"
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
+DEMO_NAMESPACE="${ARGUS_DEMO_NAMESPACE:-demo}"  # sample service lives here, not in $NAMESPACE
 ADMIN_EMAIL="${SIGNOZ_ADMIN_EMAIL:-admin@argus.internal}"
 ADMIN_PASSWORD="${SIGNOZ_ADMIN_PASSWORD:-ArgusAdminPassword123!}"
 
@@ -25,7 +26,7 @@ echo "    Found ${RULE_COUNT} rule definitions in ${RULES_FILE}"
 echo "--> [2/3] Synchronizing rules to SigNoz Ruler engine via cluster sample service..."
 RULES_RAW=$(cat "${RULES_FILE}")
 
-kubectl exec </dev/null -n "${NAMESPACE}" deployment/argus-sample-service -- python -c "
+kubectl exec </dev/null -n "${DEMO_NAMESPACE}" deployment/argus-sample-service -- python -c "
 import urllib.request, urllib.error, urllib.parse, json, sys
 
 ADMIN_EMAIL = '${ADMIN_EMAIL}'
