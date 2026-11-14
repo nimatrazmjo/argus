@@ -5,13 +5,15 @@ set -euo pipefail
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 SKIP_TENANCY=false
 SKIP_SLO=false
+DEBUG=false
 
 usage() {
-  echo "Usage: $0 [--skip-tenancy] [--skip-slo] [--namespace <ns>]"
+  echo "Usage: $0 [--skip-tenancy] [--skip-slo] [--namespace <ns>] [--debug]"
   echo
   echo "  --skip-tenancy   Skip ClickHouse RLS / tenant policy apply"
   echo "  --skip-slo       Skip SLO alert rules sync"
   echo "  --namespace      Target namespace (default: argus-system)"
+  echo "  --debug          Trace shell (set -x) + helmfile --debug"
   exit 1
 }
 
@@ -19,6 +21,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-tenancy)  SKIP_TENANCY=true ;;
     --skip-slo)      SKIP_SLO=true ;;
+    --debug)         DEBUG=true ;;
     --namespace)     NAMESPACE="$2"; shift ;;
     -h|--help)       usage ;;
     *) echo "Unknown option: $1"; usage ;;
@@ -26,20 +29,29 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+HELMFILE_ARGS=()
+if [ "$DEBUG" = true ]; then
+  set -x
+  HELMFILE_ARGS+=(--debug)
+fi
+
 step() { echo; echo "==> $*"; }
 fail() { echo "ERROR: $*" >&2; exit 1; }
 
 command -v kubectl   >/dev/null 2>&1 || fail "kubectl not found"
 command -v helmfile  >/dev/null 2>&1 || fail "helmfile not found"
 
-# Step 1 — Build in-repo sample image (local Docker; Docker Desktop k8s shares the image store)
+# Step 1 — Build in-repo sample image (local Docker; colima k3s w/ docker runtime shares the image store)
 step "[1/4] Building sample service image..."
 command -v docker >/dev/null 2>&1 || fail "docker not found"
 docker build -t argus/sample-service:1.0.0 deploy/sample-app/app
 
 # Step 2 — Helmfile (operators + all argus workloads)
 step "[2/4] Deploying via helmfile (operators → argus chart)..."
-ARGUS_NAMESPACE="$NAMESPACE" helmfile apply
+# sync, not apply: apply diffs all releases first, which fails on a fresh
+# cluster because operator CRDs (ClickHouseInstallation, OpenTelemetryCollector,
+# ServiceMonitor, PrometheusRule) don't exist until phase 1 is installed.
+ARGUS_NAMESPACE="$NAMESPACE" helmfile ${HELMFILE_ARGS[@]+"${HELMFILE_ARGS[@]}"} sync
 
 # Step 3 — etcd maintenance CronJob (not in helm chart)
 step "[3/4] Applying control-plane etcd maintenance job..."
