@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 752" font-family="Helvetica,Arial,sans-serif">
+<defs><marker id="as" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#1f2937"/></marker><marker id="ag" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#9ca3af"/></marker></defs>
+<rect width="1100" height="752" fill="#fff"/>
+<text x="10" y="20" font-size="15" font-weight="700" fill="#111827">Argus: architecture as configured (charts/argus, single cluster, ns argus-system)</text>
+<rect x="130" y="50" width="250" height="368" rx="10" fill="#e8f0fe" fill-opacity=".45" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="7 4"/>
+<text x="140" y="66" font-size="11" font-weight="700" fill="#2563eb">Workloads &amp; agents (demo ns + DaemonSets)</text>
+<rect x="420" y="50" width="230" height="368" rx="10" fill="#e7f6ec" fill-opacity=".45" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="7 4"/>
+<text x="430" y="66" font-size="11" font-weight="700" fill="#16a34a">Ingest &amp; profiling</text>
+<rect x="680" y="50" width="316" height="315" rx="10" fill="#fff1e6" fill-opacity=".45" stroke="#ea580c" stroke-width="1.5" stroke-dasharray="7 4"/>
+<text x="690" y="66" font-size="11" font-weight="700" fill="#ea580c">Storage &amp; query (Altinity CHI + SigNoz)</text>
+<rect x="130" y="468" width="866" height="232" rx="10" fill="#f1ebfe" fill-opacity=".45" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="7 4"/>
+<text x="140" y="692" font-size="11" font-weight="700" fill="#7c3aed">Ops / governance / AIOps (argus-system)</text>
+<rect x="140" y="72" width="230" height="53" rx="6" fill="#fff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="148" y="86" font-size="10.5" font-weight="700" fill="#111827">Demo mesh x10 (argus-svc-*)</text>
+<text x="148" y="98.5" font-size="9" font-weight="400" fill="#374151">:8001-8010 · Python 3.12-alpine stdlib</text>
+<text x="148" y="111.0" font-size="9" font-weight="400" fill="#374151">OTLP/HTTP direct to gateway</text>
+<rect x="140" y="143" width="230" height="53" rx="6" fill="#fff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="148" y="157" font-size="10.5" font-weight="700" fill="#111827">argus-node-collector (DaemonSet)</text>
+<text x="148" y="169.5" font-size="9" font-weight="400" fill="#374151">OTel contrib 0.160.0 · 256Mi</text>
+<text x="148" y="182.0" font-size="9" font-weight="400" fill="#374151">filelog + kubeletstats</text>
+<rect x="140" y="214" width="230" height="53" rx="6" fill="#fff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="148" y="228" font-size="10.5" font-weight="700" fill="#111827">Grafana Beyla 2.2.4 (DaemonSet)</text>
+<text x="148" y="240.5" font-size="9" font-weight="400" fill="#374151">eBPF L7 traces / RED metrics</text>
+<text x="148" y="253.0" font-size="9" font-weight="400" fill="#374151">privileged · covers un-annotated pods</text>
+<rect x="140" y="285" width="230" height="53" rx="6" fill="#fff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="148" y="299" font-size="10.5" font-weight="700" fill="#111827">sample-service :8080</text>
+<text x="148" y="311.5" font-size="9" font-weight="400" fill="#374151">Python stdlib · OTLP + Pyroscope push</text>
+<text x="148" y="324.0" font-size="9" font-weight="400" fill="#374151">/order /slo /healthz</text>
+<rect x="140" y="356" width="230" height="53" rx="6" fill="#fff" stroke="#2563eb" stroke-width="1.4"/>
+<text x="148" y="370" font-size="10.5" font-weight="700" fill="#111827">synthetic-prober :9115</text>
+<text x="148" y="382.5" font-size="9" font-weight="400" fill="#374151">probes sample-service every 300s</text>
+<text x="148" y="395.0" font-size="9" font-weight="400" fill="#374151">/metrics exposed, no scraper wired</text>
+<rect x="430" y="72" width="210" height="258" rx="6" fill="#fff" stroke="#16a34a" stroke-width="1.4"/>
+<text x="438" y="86" font-size="10.5" font-weight="700" fill="#111827">argus-gateway-collector</text>
+<text x="438" y="98.5" font-size="9" font-weight="400" fill="#374151">:4317 gRPC · :4318 HTTP</text>
+<text x="438" y="111.0" font-size="9" font-weight="400" fill="#374151">OTel contrib 0.160.0 · x1 · 512Mi</text>
+<text x="438" y="123.5" font-size="9" font-weight="400" fill="#374151"></text>
+<text x="438" y="136.0" font-size="9" font-weight="400" fill="#374151">traces: k8sattr &gt; redact &gt; cardinality</text>
+<text x="438" y="148.5" font-size="9" font-weight="400" fill="#374151">logs: k8sattr &gt; level filter &gt; redact</text>
+<text x="438" y="161.0" font-size="9" font-weight="400" fill="#374151">metrics: k8sattr &gt; cardinality</text>
+<text x="438" y="173.5" font-size="9" font-weight="400" fill="#374151">  (no PII redaction on metrics)</text>
+<text x="438" y="186.0" font-size="9" font-weight="400" fill="#374151"></text>
+<text x="438" y="198.5" font-size="9" font-weight="400" fill="#374151">redact: SSN/PAN regex + key drops</text>
+<text x="438" y="211.0" font-size="9" font-weight="400" fill="#374151">memory_limiter 400MiB · batch 5s</text>
+<text x="438" y="223.5" font-size="9" font-weight="400" fill="#374151">scrapes kube-state-metrics :8080</text>
+<text x="438" y="236.0" font-size="9" font-weight="400" fill="#374151">exporters: clickhouse + otlp/signoz</text>
+<rect x="430" y="358" width="210" height="51" rx="6" fill="#fff" stroke="#16a34a" stroke-width="1.4"/>
+<text x="438" y="372" font-size="10.5" font-weight="700" fill="#111827">Pyroscope 1.7.1 :4040</text>
+<text x="438" y="384.5" font-size="9" font-weight="400" fill="#374151">continuous profiling · PVC</text>
+<text x="438" y="397.0" font-size="9" font-weight="400" fill="#374151">receives push from sample-service</text>
+<rect x="690" y="72" width="135" height="60" rx="6" fill="#fff" stroke="#ea580c" stroke-width="1.4"/>
+<text x="698" y="86" font-size="10.5" font-weight="700" fill="#111827">signoz-otel-collector</text>
+<text x="698" y="98.5" font-size="9" font-weight="400" fill="#374151">:4317 / :4318</text>
+<text x="698" y="111.0" font-size="9" font-weight="400" fill="#374151">v0.144.13 · x1</text>
+<rect x="835" y="72" width="135" height="60" rx="6" fill="#fff" stroke="#ea580c" stroke-width="1.4"/>
+<text x="843" y="86" font-size="10.5" font-weight="700" fill="#111827">SigNoz :8080 / :8085</text>
+<text x="843" y="98.5" font-size="9" font-weight="400" fill="#374151">v0.145.0 · x1</text>
+<text x="843" y="111.0" font-size="9" font-weight="400" fill="#374151">UI + API + ruler</text>
+<rect x="690" y="165" width="280" height="85" rx="6" fill="#fff" stroke="#ea580c" stroke-width="1.4"/>
+<text x="698" y="179" font-size="10.5" font-weight="700" fill="#111827">ClickHouse 25.12.5 (CHI argus-cluster)</text>
+<text x="698" y="191.5" font-size="9" font-weight="400" fill="#374151">:9000 native · :8123 HTTP</text>
+<text x="698" y="204.0" font-size="9" font-weight="400" fill="#374151">1 shard x 1 replica (README says 2-node HA)</text>
+<text x="698" y="216.5" font-size="9" font-weight="400" fill="#374151">TTL 30d/90d hot &gt; cold · exporter ttl 72h</text>
+<text x="698" y="229.0" font-size="9" font-weight="400" fill="#374151">default user, password in values.yaml</text>
+<rect x="690" y="285" width="120" height="60" rx="6" fill="#fff" stroke="#ea580c" stroke-width="1.4"/>
+<text x="698" y="299" font-size="10.5" font-weight="700" fill="#111827">CH Keeper :2181</text>
+<text x="698" y="311.5" font-size="9" font-weight="400" fill="#374151">x1 · image :latest</text>
+<text x="698" y="324.0" font-size="9" font-weight="400" fill="#374151">Raft coordination</text>
+<rect x="850" y="285" width="120" height="60" rx="6" fill="#fff" stroke="#ea580c" stroke-width="1.4"/>
+<text x="858" y="299" font-size="10.5" font-weight="700" fill="#111827">SeaweedFS S3 :8333</text>
+<text x="858" y="311.5" font-size="9" font-weight="400" fill="#374151">cold tier bucket</text>
+<text x="858" y="324.0" font-size="9" font-weight="400" fill="#374151">:latest (README: MinIO)</text>
+<rect x="140" y="500" width="140" height="65" rx="6" fill="#fff" stroke="#7c3aed" stroke-width="1.4"/>
+<text x="148" y="514" font-size="10.5" font-weight="700" fill="#111827">SSO gateway :8088</text>
+<text x="148" y="526.5" font-size="9" font-weight="400" fill="#374151">JWT verify &gt; RBAC</text>
+<text x="148" y="539.0" font-size="9" font-weight="400" fill="#374151">tenant header inject</text>
+<text x="148" y="551.5" font-size="9" font-weight="400" fill="#374151">proxy to SigNoz = stub</text>
+<rect x="311" y="500" width="140" height="65" rx="6" fill="#fff" stroke="#7c3aed" stroke-width="1.4"/>
+<text x="319" y="514" font-size="10.5" font-weight="700" fill="#111827">argus-idp :8089</text>
+<text x="319" y="526.5" font-size="9" font-weight="400" fill="#374151">OIDC mock IdP</text>
+<text x="319" y="539.0" font-size="9" font-weight="400" fill="#374151">PIV/CAC claims</text>
+<rect x="482" y="500" width="140" height="65" rx="6" fill="#fff" stroke="#7c3aed" stroke-width="1.4"/>
+<text x="490" y="514" font-size="10.5" font-weight="700" fill="#111827">aiops-llm :9098</text>
+<text x="490" y="526.5" font-size="9" font-weight="400" fill="#374151">NL&gt;SQL + incident summary</text>
+<text x="490" y="539.0" font-size="9" font-weight="400" fill="#374151">CH reads · AIRGAP_MODE</text>
+<rect x="824" y="500" width="140" height="65" rx="6" fill="#fff" stroke="#7c3aed" stroke-width="1.4"/>
+<text x="832" y="514" font-size="10.5" font-weight="700" fill="#111827">rum-collector :8082</text>
+<text x="832" y="526.5" font-size="9" font-weight="400" fill="#374151">RUM + session replay</text>
+<text x="832" y="539.0" font-size="9" font-weight="400" fill="#374151">PII mask · ingest token</text>
+<rect x="140" y="608" width="140" height="64" rx="6" fill="#fff" stroke="#7c3aed" stroke-width="1.4" stroke-dasharray="4 3"/>
+<text x="148" y="622" font-size="10.5" font-weight="700" fill="#111827">Prometheus Operator</text>
+<text x="148" y="634.5" font-size="9" font-weight="400" fill="#374151">v0.94.1 · CRDs only</text>
+<text x="148" y="647.0" font-size="9" font-weight="400" fill="#374151">Prom/Alertmgr disabled</text>
+<rect x="311" y="608" width="140" height="64" rx="6" fill="#fff" stroke="#7c3aed" stroke-width="1.4"/>
+<text x="319" y="622" font-size="10.5" font-weight="700" fill="#111827">anomaly-detector :9096</text>
+<text x="319" y="634.5" font-size="9" font-weight="400" fill="#374151">EWMA / seasonal</text>
+<text x="319" y="647.0" font-size="9" font-weight="400" fill="#374151">no data source wired</text>
+<rect x="482" y="608" width="140" height="64" rx="6" fill="#fff" stroke="#7c3aed" stroke-width="1.4"/>
+<text x="490" y="622" font-size="10.5" font-weight="700" fill="#111827">correlation-engine :9097</text>
+<text x="490" y="634.5" font-size="9" font-weight="400" fill="#374151">120s window grouping</text>
+<text x="490" y="647.0" font-size="9" font-weight="400" fill="#374151">&gt; ServiceNow incidents</text>
+<rect x="653" y="608" width="140" height="64" rx="6" fill="#fff" stroke="#7c3aed" stroke-width="1.4"/>
+<text x="661" y="622" font-size="10.5" font-weight="700" fill="#111827">servicenow-mock :8088</text>
+<text x="661" y="634.5" font-size="9" font-weight="400" fill="#374151">mock incident API</text>
+<text x="661" y="647.0" font-size="9" font-weight="400" fill="#374151">/api/now/table/incident</text>
+<rect x="824" y="608" width="140" height="64" rx="6" fill="#fff" stroke="#7c3aed" stroke-width="1.4"/>
+<text x="832" y="622" font-size="10.5" font-weight="700" fill="#111827">paging-gateway :9099</text>
+<text x="832" y="634.5" font-size="9" font-weight="400" fill="#374151">dedup 300s · 5 retries</text>
+<text x="832" y="647.0" font-size="9" font-weight="400" fill="#374151">inbound webhook: unwired</text>
+<rect x="6" y="496" width="94" height="64" rx="6" fill="#fff" stroke="#4b5563" stroke-width="1.4"/>
+<text x="14" y="510" font-size="10.5" font-weight="700" fill="#111827">User / SRE</text>
+<text x="14" y="522.5" font-size="9" font-weight="400" fill="#374151">via Traefik</text>
+<text x="14" y="535.0" font-size="9" font-weight="400" fill="#374151">Ingress</text>
+<rect x="6" y="566" width="94" height="60" rx="6" fill="#fff" stroke="#4b5563" stroke-width="1.4" stroke-dasharray="4 3"/>
+<text x="14" y="580" font-size="10.5" font-weight="700" fill="#111827">AWS Bedrock</text>
+<text x="14" y="592.5" font-size="9" font-weight="400" fill="#374151">GovCloud LLM</text>
+<text x="14" y="605.0" font-size="9" font-weight="400" fill="#374151">(planned, ext.)</text>
+<rect x="6" y="66" width="94" height="60" rx="6" fill="#fff" stroke="#4b5563" stroke-width="1.4" stroke-dasharray="4 3"/>
+<text x="14" y="80" font-size="10.5" font-weight="700" fill="#111827">Azure Monitor</text>
+<text x="14" y="92.5" font-size="9" font-weight="400" fill="#374151">mgmt API (opt-in</text>
+<text x="14" y="105.0" font-size="9" font-weight="400" fill="#374151">overlay, off)</text>
+<rect x="1004" y="500" width="92" height="65" rx="6" fill="#fff" stroke="#4b5563" stroke-width="1.4"/>
+<text x="1012" y="514" font-size="10.5" font-weight="700" fill="#111827">Browser app</text>
+<text x="1012" y="526.5" font-size="9" font-weight="400" fill="#374151">RUM SDK</text>
+<text x="1012" y="539.0" font-size="9" font-weight="400" fill="#374151">POST /v1/rum</text>
+<path d="M370,98 H430" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="400" y="90" font-size="8.5" text-anchor="middle" fill="#374151">HTTP</text>
+<circle cx="400" cy="98" r="7.5" fill="#fff" stroke="#111827" stroke-width="1.2"/><text x="400" y="101.3" font-size="9.5" font-weight="700" text-anchor="middle" fill="#111827">1</text>
+<path d="M370,170 H430" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="400" y="162" font-size="8.5" text-anchor="middle" fill="#374151">gRPC</text>
+<path d="M370,240 H430" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="400" y="232" font-size="8.5" text-anchor="middle" fill="#374151">HTTP</text>
+<path d="M370,300 H430" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="400" y="292" font-size="8.5" text-anchor="middle" fill="#374151">OTLP</text>
+<path d="M370,326 H400 V383 H430" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<path d="M255,356 V338" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="262" y="350" font-size="8.5" text-anchor="start" fill="#374151">HTTP probe</text>
+<path d="M640,100 H690" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="665" y="92" font-size="8.5" text-anchor="middle" fill="#374151">gRPC</text>
+<circle cx="665" cy="100" r="7.5" fill="#fff" stroke="#111827" stroke-width="1.2"/><text x="665" y="103.3" font-size="9.5" font-weight="700" text-anchor="middle" fill="#111827">3</text>
+<path d="M640,207 H690" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="665" y="199" font-size="8.5" text-anchor="middle" fill="#374151">:9000</text>
+<circle cx="665" cy="207" r="7.5" fill="#fff" stroke="#111827" stroke-width="1.2"/><text x="665" y="210.3" font-size="9.5" font-weight="700" text-anchor="middle" fill="#111827">2</text>
+<path d="M757,132 V165" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="762" y="152" font-size="8.5" text-anchor="start" fill="#374151">insert</text>
+<circle cx="745" cy="148" r="7.5" fill="#fff" stroke="#111827" stroke-width="1.2"/><text x="745" y="151.3" font-size="9.5" font-weight="700" text-anchor="middle" fill="#111827">4</text>
+<path d="M902,165 V132" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="907" y="152" font-size="8.5" text-anchor="start" fill="#374151">SQL query</text>
+<circle cx="890" cy="148" r="7.5" fill="#fff" stroke="#111827" stroke-width="1.2"/><text x="890" y="151.3" font-size="9.5" font-weight="700" text-anchor="middle" fill="#111827">7</text>
+<path d="M750,250 V285" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="756" y="271" font-size="8.5" text-anchor="start" fill="#374151">Raft</text>
+<path d="M910,250 V285" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="916" y="271" font-size="8.5" text-anchor="start" fill="#374151">S3 cold tier</text>
+<path d="M53,66 V42 H535 V72" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ag)"/>
+<text x="140" y="39" font-size="8.5" text-anchor="start" fill="#6b7280">pull REST &gt; azure_monitor receiver (breaks air-gap)</text>
+<path d="M100,526 H140" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="118" y="508" font-size="8.5" text-anchor="middle" fill="#374151">HTTP</text>
+<circle cx="120" cy="538" r="7.5" fill="#fff" stroke="#111827" stroke-width="1.2"/><text x="120" y="541.3" font-size="9.5" font-weight="700" text-anchor="middle" fill="#111827">5</text>
+<path d="M270,500 V432 H980 V125 H970" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="300" y="429" font-size="8.5" text-anchor="start" fill="#374151">HTTP :8080 (gateway proxy is a stub)</text>
+<circle cx="980" cy="400" r="7.5" fill="#fff" stroke="#111827" stroke-width="1.2"/><text x="980" y="403.3" font-size="9.5" font-weight="700" text-anchor="middle" fill="#111827">6</text>
+<path d="M280,532 H311" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<path d="M311,532 H280" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<path d="M552,500 V444 H822 V250" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="640" y="441" font-size="8.5" text-anchor="start" fill="#374151">HTTP :8123 SQL</text>
+<path d="M894,500 V456 H838 V250" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="842" y="453" font-size="8.5" text-anchor="start" fill="#374151">HTTP :8123 insert</text>
+<path d="M1004,532 H964" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="984" y="524" font-size="8.5" text-anchor="middle" fill="#374151">HTTP</text>
+<path d="M552,565 V586 H100" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ag)"/>
+<text x="320" y="582" font-size="8.5" text-anchor="start" fill="#6b7280">HTTPS bedrock-runtime (us-gov-west-1)</text>
+<path d="M622,640 H653" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<path d="M824,640 H793" fill="none" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<path d="M970,95 H989 V640 H964" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ag)"/>
+<rect x="6" y="704" width="1088" height="32" rx="6" fill="#f9fafb" stroke="#e5e7eb"/>
+<path d="M16,718 H46" stroke="#1f2937" stroke-width="1.6" marker-end="url(#as)"/>
+<text x="52" y="721" font-size="8.5" text-anchor="start" fill="#374151">active flow</text>
+<path d="M126,718 H156" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ag)"/>
+<text x="162" y="721" font-size="8.5" text-anchor="start" fill="#374151">planned / unused / not wired</text>
+<circle cx="318" cy="718" r="7.5" fill="#fff" stroke="#111827" stroke-width="1.2"/><text x="318" y="721.3" font-size="9.5" font-weight="700" text-anchor="middle" fill="#111827">1</text>
+<text x="330" y="721" font-size="8.5" text-anchor="start" fill="#374151">1-4 telemetry ingest</text>
+<circle cx="430" cy="718" r="7.5" fill="#fff" stroke="#111827" stroke-width="1.2"/><text x="430" y="721.3" font-size="9.5" font-weight="700" text-anchor="middle" fill="#111827">5</text>
+<text x="442" y="721" font-size="8.5" text-anchor="start" fill="#374151">5-7 UI query</text>
+<rect x="530" y="712" width="14" height="12" rx="3" fill="#e8f0fe" stroke="#2563eb"/>
+<text x="549" y="721" font-size="8.5" text-anchor="start" fill="#374151">workloads</text>
+<rect x="611" y="712" width="14" height="12" rx="3" fill="#e7f6ec" stroke="#16a34a"/>
+<text x="630" y="721" font-size="8.5" text-anchor="start" fill="#374151">ingest</text>
+<rect x="677" y="712" width="14" height="12" rx="3" fill="#fff1e6" stroke="#ea580c"/>
+<text x="696" y="721" font-size="8.5" text-anchor="start" fill="#374151">storage/query</text>
+<rect x="778" y="712" width="14" height="12" rx="3" fill="#f1ebfe" stroke="#7c3aed"/>
+<text x="797" y="721" font-size="8.5" text-anchor="start" fill="#374151">ops/AIOps</text>
+<rect x="859" y="712" width="14" height="12" rx="3" fill="#f3f4f6" stroke="#4b5563"/>
+<text x="878" y="721" font-size="8.5" text-anchor="start" fill="#374151">external</text>
+<text x="10" y="746" font-size="8.5" fill="#6b7280">Hub/spoke multi-cluster split (docs/multi-cluster-onboarding-plan.md) is planned, not in the chart. Every workload is replicas=1.</text>
+</svg>
