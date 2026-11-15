@@ -75,7 +75,12 @@ ARGUS_NAMESPACE="$NAMESPACE" helmfile ${HELMFILE_ARGS[@]+"${HELMFILE_ARGS[@]}"} 
 
 # Step 3 — etcd maintenance CronJob (not in helm chart)
 step "[3/4] Applying control-plane etcd maintenance job..."
-kubectl apply -f deploy/control-plane/etcd-maintenance.yaml -n "$NAMESPACE"
+# k3s/k3d use sqlite/kine (no etcd PKI at /run/config/pki/etcd) -> job would crashloop
+if kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}' 2>/dev/null | grep -q k3s; then
+  echo "    skipped (k3s detected: no etcd to maintain)"
+else
+  kubectl apply -f deploy/control-plane/etcd-maintenance.yaml -n "$NAMESPACE"
+fi
 
 # Step 4 — Post-deploy config (needs running ClickHouse + SigNoz)
 if [ "$SKIP_TENANCY" = true ]; then
