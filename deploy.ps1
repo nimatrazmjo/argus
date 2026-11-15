@@ -21,8 +21,8 @@ if ($LASTEXITCODE -ne 0) { Fail "sample image build failed" }
 # Step 2 — Helmfile (operators + all argus workloads)
 Step "[2/4] Deploying via helmfile (operators -> argus chart)..."
 $env:ARGUS_NAMESPACE = $Namespace
-helmfile apply
-if ($LASTEXITCODE -ne 0) { Fail "helmfile apply failed" }
+helmfile sync
+if ($LASTEXITCODE -ne 0) { Fail "helmfile sync failed" }
 
 # Step 3 — etcd maintenance CronJob (not in helm chart)
 Step "[3/4] Applying control-plane etcd maintenance job..."

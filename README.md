@@ -170,9 +170,9 @@ What each technology is used for, and why it was chosen:
 ### Prerequisites
 
 - **Single service:** Python 3.12+ (standard library only — no `pip install`).
-- **Full platform:** Docker Desktop or Minikube with Kubernetes v1.28+; active context (`kubectl config current-context`); Docker (builds the sample image); `kubectl`, `jq`, `curl`, `bash` on PATH.
+- **Full platform:** a local Kubernetes v1.28+ cluster — Docker Desktop, Minikube, or **colima + k3d** (tested; see [Local cluster notes](#local-cluster-notes-colima--k3d)); a kube context (`deploy.sh` uses the current one, or `--context <name>`); Docker (builds the sample image, skipped with `--no-demo`); `kubectl`, `jq`, `curl`, `bash` on PATH.
 - **Helmfile path (additionally):** [`helmfile`](https://helmfile.readthedocs.io/en/latest/#installation) v0.169+ and `helm` v3.14+ on PATH. Install: `brew install helmfile` (macOS/Linux) or download from [GitHub releases](https://github.com/helmfile/helmfile/releases) (Windows).
-- **Control-plane resource floor (Docker Desktop):** Allocate at least **8 GiB RAM**, **4+ vCPUs**, and SSD-backed virtual disk storage with **> 20% free disk capacity** (low disk IOPS or VM swap thrashing will starve `etcd` boltdb reads and `kube-apiserver`). Deploy scripts enforce `./scripts/check-control-plane-health.sh` before driving rollout load.
+- **Control-plane resource floor (Docker Desktop / colima):** Allocate at least **8 GiB RAM** (**12 GiB recommended** for colima/k3d with the demo), **4+ vCPUs** (6 recommended), and SSD-backed virtual disk storage with **> 20% free disk capacity** (low disk IOPS or VM swap thrashing will starve `etcd` boltdb reads and `kube-apiserver`). Deploy scripts enforce `./scripts/check-control-plane-health.sh` before driving rollout load.
 
 ### Option A — Run a Single Service Locally (no cluster)
 
@@ -224,16 +224,20 @@ Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`
 | Phase | What runs | Can skip |
 | :--- | :--- | :--- |
 | 1 — Build | `docker build` of the in-repo sample service image (`argus/sample-service:1.0.0`) | — |
-| 2 — Helmfile | `helmfile apply` — deploys all 3 operators then the full `argus` Helm chart | — |
-| 3 — Control plane | `kubectl apply -f deploy/control-plane/etcd-maintenance.yaml` — etcd compaction CronJob (not in the Helm chart) | — |
+| 2 — Helmfile | `helmfile sync` — deploys all 3 operators then the full `argus` Helm chart. `sync`, not `apply`: `apply` diffs first and fails on a fresh cluster because operator CRDs don't exist yet | — |
+| 3 — Control plane | `kubectl apply -f deploy/control-plane/etcd-maintenance.yaml` — etcd compaction CronJob (not in the Helm chart). Auto-skipped on k3s/k3d (no etcd) | — |
 | 4a — Tenancy | `deploy/tenancy/apply-tenancy.sh` — ClickHouse RLS policies, tenant accounts, row quotas | `--skip-tenancy` / `-SkipTenancy` |
-| 4b — SLO | `deploy/slo/apply-slo.sh` — pushes declarative SLO alert rules into SigNoz Ruler | `--skip-slo` / `-SkipSlo` |
+| 4b — Admin | `deploy/signoz/register-admin.sh` — idempotent first-user registration. Needs `SIGNOZ_ADMIN_PASSWORD` (env, or `~/.argus/signoz-admin.env`); skipped if unset or SigNoz is already set up | — |
+| 4c — Alerts | `deploy/alerting/apply-rules.sh` — syncs alert rules and the `argus-default-webhook` channel into SigNoz | — |
+| 4d — SLO | `deploy/slo/apply-slo.sh` — pushes the sample-app SLO alert rules into SigNoz Ruler | `--skip-slo` / `-SkipSlo`; always skipped with `--no-demo` |
+
+The sync scripts (4b–4d) run their API calls inside the `argus-sso-gateway` pod, so they work with or without the demo.
 
 #### All flags
 
 **Bash**
 ```bash
-./deploy.sh [--skip-tenancy] [--skip-slo] [--no-demo] [--namespace <ns>]
+./deploy.sh [--skip-tenancy] [--skip-slo] [--no-demo] [--context <name>] [--namespace <ns>] [--debug]
 ```
 
 **PowerShell**
@@ -246,6 +250,8 @@ Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`
 | `--skip-tenancy` / `-SkipTenancy` | off | Skip ClickHouse RLS and tenant policy apply — use when re-deploying without changing tenancy config |
 | `--skip-slo` / `-SkipSlo` | off | Skip SLO alert-rule sync — use when SLO definitions haven't changed |
 | `--no-demo` | off | Platform only: skips sample image build, demo mesh, sample app, synthetics, storefront and the sample-app SLO rules (alert webhook then targets the paging gateway). Bash only. |
+| `--context` | current context | Kube context to deploy to (env `ARGUS_KUBE_CONTEXT`). Pinned for kubectl, helm, helmfile and all child scripts through a private temp kubeconfig, so a context switch elsewhere can't redirect a run and your global current-context is never changed. Bash only. |
+| `--debug` | off | Shell trace (`set -x`) plus `helmfile --debug`. Very verbose and may expose secrets — don't share the output. Bash only. |
 | `--namespace` / `-Namespace` | `argus-system` | Deploy into a different namespace (also respects `$ARGUS_NAMESPACE` env var) |
 
 #### Common invocations
@@ -259,6 +265,12 @@ Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`
 
 # Deploy to a custom namespace
 ./deploy.sh --namespace staging
+
+# Platform only (no demo mesh / sample app / storefront / SLO rules)
+./deploy.sh --no-demo
+
+# Explicit cluster
+./deploy.sh --no-demo --context k3d-traefik
 
 # PowerShell — first deploy
 .\deploy.ps1
@@ -282,12 +294,12 @@ helm repo add clickhouse-operator https://docs.altinity.com/clickhouse-operator/
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
-helmfile apply
+helmfile sync        # not 'apply': CRDs must exist before diffing
 ```
 
 Override namespace (and optionally pull images from a private registry such as ACR):
 ```bash
-ARGUS_NAMESPACE=my-ns ARGUS_IMAGE_REGISTRY=my.registry.io helmfile apply   # registry optional; images must be imported as <registry>/argus/<name:tag>
+ARGUS_NAMESPACE=my-ns ARGUS_IMAGE_REGISTRY=my.registry.io helmfile sync   # registry optional; images must be imported as <registry>/argus/<name:tag>
 ```
 
 ---
@@ -335,7 +347,7 @@ workload at it (see [Sending Telemetry to Argus](#sending-telemetry-to-argus)).
 
 ## What Gets Installed
 
-Every component deployed by `helmfile apply` (phase 2 of `deploy.sh`), grouped by purpose.
+Every component deployed by `helmfile sync` (phase 2 of `deploy.sh`), grouped by purpose.
 
 ### Phase 1 — Operators (deployed in parallel, argus chart waits for all three)
 
@@ -410,6 +422,22 @@ Every component deployed by `helmfile apply` (phase 2 of `deploy.sh`), grouped b
 
 ---
 
+## Local cluster notes (colima + k3d)
+
+Tested setup on macOS (Docker Desktop not required):
+
+```bash
+colima start --cpu 6 --memory 12 --disk 100 --kubernetes   # or without --kubernetes if you only use k3d
+k3d cluster create traefik -p "80:80@loadbalancer" -p "443:443@loadbalancer" \
+  --k3s-arg "--disable=traefik@server:*"                    # then install Traefik (see Troubleshooting)
+./deploy.sh --context k3d-traefik
+```
+
+- k3d runs *inside* colima's VM and shares its CPU/RAM — don't run a second full Argus stack beside it.
+- Never delete `kube-system`; recreate the cluster instead (`k3d cluster delete <name>`).
+
+---
+
 ## Accessing the Platform
 
 After a successful deploy the platform is reachable at:
@@ -430,6 +458,22 @@ echo "<node-ip>  argus.local" | sudo tee -a /etc/hosts
 
 # Add to C:\Windows\System32\drivers\etc\hosts (Windows, run as Administrator)
 # <node-ip>  argus.local
+```
+
+**Local clusters:** with k3d (ports 80/443 mapped to localhost) or colima, use `127.0.0.1  argus.local` in `/etc/hosts`. Plain `http://` works for local dev: the SSO gateway only sets the cookie `Secure` flag when `X-Forwarded-Proto: https`.
+
+**Append safely** (no glued last line): `printf '\n127.0.0.1 argus.local\n' | sudo tee -a /etc/hosts`
+
+**Two different logins — don't mix them up**
+
+| Where | Credentials | Source |
+| :--- | :--- | :--- |
+| `http://argus.local/sso/login` (SSO gateway) | the mock IdP users below — username is the **full email** | `deploy/sso/idp_mock.py` |
+| SigNoz UI | SigNoz admin: email + generated password | `~/.argus/signoz-admin.env` (chmod 600, created by you; `deploy.sh` reads it and prints only its path) |
+
+The SSO gateway does **not** proxy the SigNoz UI yet (it returns a simulated JSON response after auth). To open SigNoz:
+```bash
+kubectl -n argus-system port-forward svc/signoz 8080:8080   # then http://localhost:8080
 ```
 
 **Default dev credentials** (mock IdP only — change before any real use):
@@ -472,6 +516,16 @@ curl -s 'localhost:8001/api/checkout?trigger_error=payment'   # force an error f
 ```
 
 Not part of the platform — see [`demo/README.md`](demo/README.md).
+
+**Storefront GUI.** The chart also deploys `argus-storefront` (a single-file shop UI, [`demo/storefront.py`](demo/storefront.py)) in the demo namespace. Each click is one trace: storefront → gateway → auth/catalog/order/…, and the UI shows the trace ID so you can find it in SigNoz. It includes a failure injector (payment declined, auth expired, inventory exhausted) and a shopper simulator.
+```bash
+kubectl -n demo port-forward svc/argus-storefront 8090:8090   # http://localhost:8090
+# or via ingress: add `127.0.0.1  shop.argus.local` to /etc/hosts
+```
+
+**Platform only.** `./deploy.sh --no-demo` (chart value `demo.enabled=false`) skips the demo mesh, sample app, synthetic prober, storefront, demo-namespace secrets and the sample-app SLO rules; the alert webhook then points at `argus-paging-gateway`. Beyla then also stops excluding the demo namespace.
+
+**Uninstrumented apps (no OTel).** Anything with ports in 80, 443 or 8000–9999 in a non-excluded namespace is auto-instrumented by Beyla (eBPF): traces and RED metrics with no code changes. Example: [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo) in its own namespace shows up in SigNoz with no OTel config. On colima/k3d arm64 it needs larger memory limits and, for `cartservice`, `DOTNET_EnableDiagnostics=0` plus a writable root filesystem. Use `ClusterIP` for `frontend-external` so it doesn't take port 80 from Traefik. Custom spans and app logs with trace IDs still need an OTel SDK.
 
 ### 2. Your own workloads
 
@@ -706,6 +760,12 @@ The full dependency matrix and parallel-execution track topology live in [`.harn
 
 - **Control-plane / `etcd` disk I/O latency** — If `kubectl` times out (`TLS handshake timeout` / `context deadline exceeded`) or `etcd` logs `apply request took too long`, run `./scripts/maintain-etcd.sh` to compact old revisions and defragment the boltdb file (works via `docker exec` even when `kube-apiserver` is degraded). Periodic compaction/defrag is scheduled declaratively via [`deploy/control-plane/etcd-maintenance.yaml`](deploy/control-plane/etcd-maintenance.yaml), and [`scripts/check-control-plane-health.sh`](scripts/check-control-plane-health.sh) gates deployments on `/readyz` and `etcd` apply latency.
 - **ClickHouse Keeper startup timing** — on Docker Desktop, Keeper replays uncompacted Raft changelogs at startup. The pod uses a `startupProbe` with a 300s window (`failureThreshold: 60, periodSeconds: 5`) to avoid premature liveness kills during WAL replay.
+- **`deploy.sh` says `context not found` / kubeconfig lost contexts** — something outside the script rewrote `~/.kube/config`. Re-add the k3d context with `k3d kubeconfig merge <cluster> --kubeconfig-merge-default` and pass `--context` explicitly.
+- **`ImagePullBackOff` on `argus/sample-service` (k3d)** — k3d has its own image store, separate from Docker's. Run `k3d image import argus/sample-service:1.0.0 -c <cluster>`.
+- **`another operation in progress` (helm)** — a release is stuck in `pending-install`. `helm uninstall argus -n argus-system --no-hooks`, then redeploy.
+- **ClickHouse `S3Exception AccessDenied` (cold tier)** — fixed in the chart (SeaweedFS now gets an explicit S3 identity and the `argus-cold-storage` bucket). If you see it on an older install, `helmfile sync` again.
+- **Overload (`TLS handshake timeout`, API server restarts)** — one VM can't hold two full stacks. Keep a single cluster per colima VM, give it 6 CPU / 12 GiB, and remove unused releases.
+- **Traefik install fails on Gateway API CRDs** — install them first: `kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml`. Argus's Ingress only needs `className: traefik`.
 - **eBPF kernel compatibility** — Beyla needs Linux kernel 5.8+ with BPF support. Pods need `privileged: true` (or `CAP_BPF`, `CAP_PERFMON`, `CAP_NET_ADMIN`) and a `/sys/kernel/debug` mount.
 - **Collector gateway ingest** — gateway listens on `4317` (gRPC) and `4318` (HTTP); workloads route to `http://argus-gateway-collector.argus-system.svc.cluster.local:4318`.
 

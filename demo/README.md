@@ -15,6 +15,7 @@ platform's service maps, APM views, alerting, and AIOps have live signal.
 | :--- | :--- |
 | `service_template.py` | Single-file Python 3.12 stdlib server; `SERVICE_ROLE` env switches behavior for all 10 roles. |
 | `datadog-services.yaml` | K8s manifests (Service + Deployment) for the 10 services. |
+| `storefront.py` | Shop GUI (stdlib). Proxies to the gateway, propagates `traceparent`, emits its own root span, shows trace IDs, injects failures. Deployed by the Helm chart (`templates/storefront.yaml`, `storefront.enabled`). |
 | `apply-services.sh` | Staggered rollout into `argus-system` (throttles etcd write bursts, retries transient control-plane timeouts). |
 
 ## Topology
