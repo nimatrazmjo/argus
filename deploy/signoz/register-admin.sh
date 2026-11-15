@@ -4,7 +4,6 @@
 set -euo pipefail
 
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
-DEMO_NAMESPACE="${ARGUS_DEMO_NAMESPACE:-demo}"   # exec host: any pod w/ python + cluster DNS
 ADMIN_EMAIL="${SIGNOZ_ADMIN_EMAIL:-admin@argus.internal}"
 ADMIN_NAME="${SIGNOZ_ADMIN_NAME:-admin}"
 ORG_NAME="${SIGNOZ_ORG_NAME:-argus}"
@@ -16,7 +15,7 @@ if [ -z "${SIGNOZ_ADMIN_PASSWORD:-}" ]; then
 fi
 
 # Credentials go via stdin, not argv, so they don't show in process lists.
-printf '%s' "${SIGNOZ_ADMIN_PASSWORD}" | kubectl exec -i -n "${DEMO_NAMESPACE}" deployment/argus-sample-service -- python -c "
+printf '%s' "${SIGNOZ_ADMIN_PASSWORD}" | kubectl exec -i -n "${NAMESPACE}" deployment/argus-sso-gateway -- python -c "
 import sys, json, time, urllib.request, urllib.error
 host = 'http://signoz.${NAMESPACE}.svc.cluster.local:8080'
 password = sys.stdin.read()
