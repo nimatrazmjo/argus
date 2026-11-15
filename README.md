@@ -233,7 +233,7 @@ Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`
 
 **Bash**
 ```bash
-./deploy.sh [--skip-tenancy] [--skip-slo] [--namespace <ns>]
+./deploy.sh [--skip-tenancy] [--skip-slo] [--no-demo] [--namespace <ns>]
 ```
 
 **PowerShell**
@@ -245,6 +245,7 @@ Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`
 | :--- | :--- | :--- |
 | `--skip-tenancy` / `-SkipTenancy` | off | Skip ClickHouse RLS and tenant policy apply — use when re-deploying without changing tenancy config |
 | `--skip-slo` / `-SkipSlo` | off | Skip SLO alert-rule sync — use when SLO definitions haven't changed |
+| `--no-demo` | off | Platform only: skips sample image build, demo mesh, sample app, synthetics, storefront and the sample-app SLO rules (alert webhook then targets the paging gateway). Bash only. |
 | `--namespace` / `-Namespace` | `argus-system` | Deploy into a different namespace (also respects `$ARGUS_NAMESPACE` env var) |
 
 #### Common invocations

@@ -63,8 +63,10 @@ data:
             namespace: "kube-public"
         - kubernetes:
             namespace: "kube-node-lease"
+{{- if .Values.demo.enabled }}
         - kubernetes:
             namespace: {{ $demoNs }}
+{{- end }}
     otel_traces_export:
       endpoint: "http://argus-gateway-collector.{{ .Release.Namespace }}.svc.cluster.local:4318"
       protocol: "http/protobuf"

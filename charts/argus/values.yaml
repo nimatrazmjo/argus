@@ -3,6 +3,10 @@
 imageRegistry: ""
 demoNamespace: demo
 
+# false = platform only (no demo mesh, sample app, synthetics, storefront)
+demo:
+  enabled: true
+
 clickhouse:
   password: argus123
   keeperImage: clickhouse/clickhouse-keeper:latest

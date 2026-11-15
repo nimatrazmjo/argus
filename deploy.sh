@@ -6,13 +6,15 @@ NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 SKIP_TENANCY=false
 SKIP_SLO=false
 DEBUG=false
+NO_DEMO=false
 
 usage() {
-  echo "Usage: $0 [--skip-tenancy] [--skip-slo] [--namespace <ns>] [--debug]"
+  echo "Usage: $0 [--skip-tenancy] [--skip-slo] [--namespace <ns>] [--debug] [--no-demo]"
   echo
   echo "  --skip-tenancy   Skip ClickHouse RLS / tenant policy apply"
   echo "  --skip-slo       Skip SLO alert rules sync"
   echo "  --namespace      Target namespace (default: argus-system)"
+  echo "  --no-demo        Platform only: no demo mesh/sample app/storefront/SLO rules"
   echo "  --debug          Trace shell (set -x) + helmfile --debug"
   exit 1
 }
@@ -22,12 +24,20 @@ while [[ $# -gt 0 ]]; do
     --skip-tenancy)  SKIP_TENANCY=true ;;
     --skip-slo)      SKIP_SLO=true ;;
     --debug)         DEBUG=true ;;
+    --no-demo)       NO_DEMO=true ;;
     --namespace)     NAMESPACE="$2"; shift ;;
     -h|--help)       usage ;;
     *) echo "Unknown option: $1"; usage ;;
   esac
   shift
 done
+
+if [ "$NO_DEMO" = true ]; then
+  SKIP_SLO=true   # SLO rules target the demo sample service
+  export ARGUS_DEMO_ENABLED=false
+else
+  export ARGUS_DEMO_ENABLED=true
+fi
 
 HELMFILE_ARGS=()
 if [ "$DEBUG" = true ]; then
@@ -49,8 +59,12 @@ command -v helmfile  >/dev/null 2>&1 || fail "helmfile not found"
 
 # Step 1 — Build in-repo sample image (local Docker; colima k3s w/ docker runtime shares the image store)
 step "[1/4] Building sample service image..."
-command -v docker >/dev/null 2>&1 || fail "docker not found"
-docker build -t argus/sample-service:1.0.0 deploy/sample-app/app
+if [ "$NO_DEMO" = true ]; then
+  echo "    skipped (--no-demo)"
+else
+  command -v docker >/dev/null 2>&1 || fail "docker not found"
+  docker build -t argus/sample-service:1.0.0 deploy/sample-app/app
+fi
 
 # Step 2 — Helmfile (operators + all argus workloads)
 step "[2/4] Deploying via helmfile (operators → argus chart)..."
@@ -79,7 +93,7 @@ step "[4c/4] Syncing alert rules + notification channel..."
 ARGUS_NAMESPACE="$NAMESPACE" bash deploy/alerting/apply-rules.sh
 
 if [ "$SKIP_SLO" = true ]; then
-  step "[4d/4] Skipping SLO sync (--skip-slo)"
+  step "[4d/4] Skipping SLO sync (--skip-slo / --no-demo)"
 else
   step "[4d/4] Syncing SLO alert rules..."
   ARGUS_NAMESPACE="$NAMESPACE" bash deploy/slo/apply-slo.sh

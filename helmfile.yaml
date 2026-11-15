@@ -52,3 +52,4 @@ releases:
     values:
       - charts/argus/values.yaml
       - charts/argus/registry-override.yaml.gotmpl
+      - charts/argus/demo-toggle.yaml.gotmpl

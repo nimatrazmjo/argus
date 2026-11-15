@@ -1,4 +1,5 @@
 {{- $demoNs := .Values.demoNamespace | default "demo" }}
+{{- if .Values.demo.enabled }}
 ---
 apiVersion: v1
 kind: Namespace
@@ -141,4 +142,5 @@ spec:
         - name: app-code
           configMap:
             name: argus-services-code
+{{- end }}
 {{- end }}

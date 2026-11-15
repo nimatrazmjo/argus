@@ -1,4 +1,4 @@
-{{- if .Values.storefront.enabled }}
+{{- if and .Values.demo.enabled .Values.storefront.enabled }}
 {{- $demoNs := .Values.demoNamespace | default "demo" }}
 apiVersion: v1
 kind: ConfigMap

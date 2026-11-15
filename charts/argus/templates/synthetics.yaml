@@ -1,4 +1,5 @@
 {{- $demoNs := .Values.demoNamespace | default "demo" }}
+{{- if .Values.demo.enabled }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -98,3 +99,4 @@ spec:
     - name: metrics
       port: 9115
       targetPort: 9115
+{{- end }}

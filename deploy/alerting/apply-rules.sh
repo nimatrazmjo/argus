@@ -7,6 +7,12 @@ RULES_FILE="${SCRIPT_DIR}/rules.json"
 CRD_FILE="${SCRIPT_DIR}/prometheus-rules.yaml"
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 DEMO_NAMESPACE="${ARGUS_DEMO_NAMESPACE:-demo}"  # sample service lives here, not in $NAMESPACE
+# Alert webhook: sample app when demo is on, else the platform paging gateway
+if [ "${ARGUS_DEMO_ENABLED:-true}" = "true" ]; then
+  WEBHOOK_URL="${ARGUS_ALERT_WEBHOOK_URL:-http://argus-sample-service.${DEMO_NAMESPACE}.svc.cluster.local:8080/api/alerts}"
+else
+  WEBHOOK_URL="${ARGUS_ALERT_WEBHOOK_URL:-http://argus-paging-gateway.${NAMESPACE}.svc.cluster.local:9099/webhook/alert}"
+fi
 ADMIN_EMAIL="${SIGNOZ_ADMIN_EMAIL:-admin@argus.internal}"
 ADMIN_PASSWORD="${SIGNOZ_ADMIN_PASSWORD:-ArgusAdminPassword123!}"
 
@@ -23,15 +29,15 @@ echo "--> [1/3] Reading declarative rule manifests from ${RULES_FILE}..."
 RULE_COUNT=$(jq '.rules | length' "${RULES_FILE}")
 echo "    Found ${RULE_COUNT} rule definitions in ${RULES_FILE}"
 
-echo "--> [2/3] Synchronizing rules to SigNoz Ruler engine via cluster sample service..."
+echo "--> [2/3] Synchronizing rules to SigNoz Ruler engine via an in-cluster python pod (argus-sso-gateway)..."
 RULES_RAW=$(cat "${RULES_FILE}")
 
-kubectl exec </dev/null -n "${DEMO_NAMESPACE}" deployment/argus-sample-service -- python -c "
+kubectl exec </dev/null -n "${NAMESPACE}" deployment/argus-sso-gateway -- python -c "
 import urllib.request, urllib.error, urllib.parse, json, sys
 
 ADMIN_EMAIL = '${ADMIN_EMAIL}'
 ADMIN_PASSWORD = '${ADMIN_PASSWORD}'
-SIGNOZ_HOST = 'http://signoz.argus-system.svc.cluster.local:8080'
+SIGNOZ_HOST = 'http://signoz.${NAMESPACE}.svc.cluster.local:8080'
 RULES_DOC = json.loads('''${RULES_RAW}''')
 RULES = RULES_DOC.get('rules', [])
 
@@ -60,7 +66,7 @@ if 'argus-default-webhook' not in channel_names:
         'webhook_configs': [
             {
                 'send_resolved': True,
-                'url': 'http://argus-sample-service.argus-system.svc.cluster.local:8080/api/alerts'
+                'url': '${WEBHOOK_URL}'
             }
         ]
     }
