@@ -21,7 +21,6 @@ chrislusf/seaweedfs:latest
 
 # Base Images & Sample Microservices
 python:3.12-alpine
-# In-repo images (argus/sample-service, argus/auto-service) are built from deploy/sample-app, not listed here
 
 # SigNoz APM, Traces, Logs & Dashboards
 signoz/signoz:v0.145.0

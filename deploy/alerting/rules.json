@@ -31,7 +31,7 @@
       "labels": {
         "severity": "critical",
         "alertname": "ArgusServiceHighCpuUsage",
-        "service": "argus-sample-service",
+        "service": "argus-platform",
         "team": "argus-core"
       },
       "annotations": {
@@ -71,7 +71,7 @@
       "labels": {
         "severity": "warning",
         "alertname": "ArgusServiceHighMemoryUsage",
-        "service": "argus-sample-service",
+        "service": "argus-platform",
         "team": "argus-core"
       },
       "annotations": {

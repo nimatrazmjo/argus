@@ -1,1 +1,0 @@
-../../../demo/service_template.py

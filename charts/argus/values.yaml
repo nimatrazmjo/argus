@@ -1,11 +1,6 @@
 # Optional private registry (e.g. ACR). Empty = pull upstream images.
 # Set => <registry>/argus/<name:tag>; import first (see deploy/images.txt).
 imageRegistry: ""
-demoNamespace: demo
-
-# false = platform only (no demo mesh, sample app, synthetics, storefront)
-demo:
-  enabled: true
 
 clickhouse:
   password: argus123
@@ -22,8 +17,6 @@ secrets:
   pagingWebhookToken: argus-paging-webhook-token-32b
   rumIngestToken: argus-rum-ingest-token-default-32b
   jwtSecret: argus-agency-piv-cac-shared-secret-key-32b
-  syntheticBearerToken: argus-synthetic-bearer-token-32b
-  sampleAppApiToken: argus-sample-app-api-token-32b
 
 storage:
   s3Image: chrislusf/seaweedfs:latest
@@ -41,13 +34,6 @@ otel:
 
 beyla:
   image: grafana/beyla:2.2.4
-
-sampleApp:
-  image: argus/sample-service:1.0.0
-
-storefront:
-  enabled: true
-  host: shop.argus.local
 
 ingress:
   enabled: true

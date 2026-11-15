@@ -17,7 +17,7 @@ spec:
           for: 1m
           labels:
             severity: critical
-            service: argus-sample-service
+            service: argus-platform
             team: argus-core
           annotations:
             summary: "Container CPU usage rate exceeded threshold"
@@ -28,7 +28,7 @@ spec:
           for: 1m
           labels:
             severity: warning
-            service: argus-sample-service
+            service: argus-platform
             team: argus-core
           annotations:
             summary: "Container working set memory exceeded 512MB"

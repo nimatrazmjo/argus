@@ -4,19 +4,15 @@ set -euo pipefail
 
 NAMESPACE="${ARGUS_NAMESPACE:-argus-system}"
 SKIP_TENANCY=false
-SKIP_SLO=false
 DEBUG=false
-NO_DEMO=false
 KUBE_CONTEXT="${ARGUS_KUBE_CONTEXT:-}"
 
 usage() {
-  echo "Usage: $0 [--skip-tenancy] [--skip-slo] [--namespace <ns>] [--debug] [--no-demo] [--context <name>]"
+  echo "Usage: $0 [--skip-tenancy] [--namespace <ns>] [--debug] [--context <name>]"
   echo
   echo "  --skip-tenancy   Skip ClickHouse RLS / tenant policy apply"
-  echo "  --skip-slo       Skip SLO alert rules sync"
   echo "  --namespace      Target namespace (default: argus-system)"
   echo "  --context        kube context (default: current context; env ARGUS_KUBE_CONTEXT)"
-  echo "  --no-demo        Platform only: no demo mesh/sample app/storefront/SLO rules"
   echo "  --debug          Trace shell (set -x) + helmfile --debug"
   exit 1
 }
@@ -24,9 +20,7 @@ usage() {
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-tenancy)  SKIP_TENANCY=true ;;
-    --skip-slo)      SKIP_SLO=true ;;
     --debug)         DEBUG=true ;;
-    --no-demo)       NO_DEMO=true ;;
     --context)       KUBE_CONTEXT="$2"; shift ;;
     --namespace)     NAMESPACE="$2"; shift ;;
     -h|--help)       usage ;;
@@ -34,13 +28,6 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
-
-if [ "$NO_DEMO" = true ]; then
-  SKIP_SLO=true   # SLO rules target the demo sample service
-  export ARGUS_DEMO_ENABLED=false
-else
-  export ARGUS_DEMO_ENABLED=true
-fi
 
 HELMFILE_ARGS=()
 if [ "$DEBUG" = true ]; then
@@ -73,24 +60,15 @@ export KUBECONFIG="$PINNED_KUBECONFIG"
 echo "Using kube context: $KUBE_CONTEXT"
 command -v helmfile  >/dev/null 2>&1 || fail "helmfile not found"
 
-# Step 1 — Build in-repo sample image (local Docker; colima k3s w/ docker runtime shares the image store)
-step "[1/4] Building sample service image..."
-if [ "$NO_DEMO" = true ]; then
-  echo "    skipped (--no-demo)"
-else
-  command -v docker >/dev/null 2>&1 || fail "docker not found"
-  docker build -t argus/sample-service:1.0.0 deploy/sample-app/app
-fi
-
-# Step 2 — Helmfile (operators + all argus workloads)
-step "[2/4] Deploying via helmfile (operators → argus chart)..."
+# Step 1 — Helmfile (operators + all argus workloads)
+step "[1/3] Deploying via helmfile (operators → argus chart)..."
 # sync, not apply: apply diffs all releases first, which fails on a fresh
 # cluster because operator CRDs (ClickHouseInstallation, OpenTelemetryCollector,
 # ServiceMonitor, PrometheusRule) don't exist until phase 1 is installed.
 ARGUS_NAMESPACE="$NAMESPACE" helmfile ${HELMFILE_ARGS[@]+"${HELMFILE_ARGS[@]}"} sync
 
-# Step 3 — etcd maintenance CronJob (not in helm chart)
-step "[3/4] Applying control-plane etcd maintenance job..."
+# Step 2 — etcd maintenance CronJob (not in helm chart)
+step "[2/3] Applying control-plane etcd maintenance job..."
 # k3s/k3d use sqlite/kine (no etcd PKI at /run/config/pki/etcd) -> job would crashloop
 if kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.kubeletVersion}' 2>/dev/null | grep -q k3s; then
   echo "    skipped (k3s detected: no etcd to maintain)"
@@ -98,27 +76,20 @@ else
   kubectl apply -f deploy/control-plane/etcd-maintenance.yaml -n "$NAMESPACE"
 fi
 
-# Step 4 — Post-deploy config (needs running ClickHouse + SigNoz)
+# Step 3 — Post-deploy config (needs running ClickHouse + SigNoz)
 if [ "$SKIP_TENANCY" = true ]; then
-  step "[4a/4] Skipping tenancy apply (--skip-tenancy)"
+  step "[3a/3] Skipping tenancy apply (--skip-tenancy)"
 else
-  step "[4a/4] Applying ClickHouse tenancy policies..."
+  step "[3a/3] Applying ClickHouse tenancy policies..."
   ARGUS_NAMESPACE="$NAMESPACE" bash deploy/tenancy/apply-tenancy.sh
 fi
 
-step "[4b/4] Registering SigNoz admin (needs SIGNOZ_ADMIN_PASSWORD)..."
+step "[3b/3] Registering SigNoz admin (needs SIGNOZ_ADMIN_PASSWORD)..."
 ARGUS_NAMESPACE="$NAMESPACE" bash deploy/signoz/register-admin.sh
 
-# Creates the argus-default-webhook channel that the SLO rules below reference
-step "[4c/4] Syncing alert rules + notification channel..."
+# Creates the argus-default-webhook channel used by alert rules
+step "[3c/3] Syncing alert rules + notification channel..."
 ARGUS_NAMESPACE="$NAMESPACE" bash deploy/alerting/apply-rules.sh
-
-if [ "$SKIP_SLO" = true ]; then
-  step "[4d/4] Skipping SLO sync (--skip-slo / --no-demo)"
-else
-  step "[4d/4] Syncing SLO alert rules..."
-  ARGUS_NAMESPACE="$NAMESPACE" bash deploy/slo/apply-slo.sh
-fi
 
 echo
 echo "================================================================="

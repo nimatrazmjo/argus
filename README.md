@@ -10,7 +10,7 @@
 
 Project Argus is an enterprise-grade, internal DHS observability platform engineered to provide Datadog-equivalent telemetry (distributed tracing, application performance monitoring, logs, infrastructure metrics, and eBPF network maps) running entirely on air-gapped internal Kubernetes clusters with zero external SaaS egress.
 
-It spans the full observability lifecycle: a collection spine (OTel → ClickHouse → SigNoz), operations (alerting, SLOs, paging, synthetics, RUM), governance (retention, multi-tenancy, SSO/RBAC), and an in-boundary AIOps layer (anomaly detection, alert correlation, NL-query + incident summarization). A 10-service demo microservice mesh is bundled to generate realistic traffic.
+It spans the full observability lifecycle: a collection spine (OTel → ClickHouse → SigNoz), operations (alerting, paging, RUM), governance (retention, multi-tenancy, SSO/RBAC), and an in-boundary AIOps layer (anomaly detection, alert correlation, NL-query + incident summarization). The platform ships without a sample workload; the demo mesh, storefront GUI, sample-app SLOs and synthetic probes live on the [`demo`](../../tree/demo) branch.
 
 > ⚠️ **Security note:** this is a reference/demo platform. An internal security review found several critical issues (hardcoded JWT secret, unverified tokens, unauthenticated ingest, a stored-XSS replay sink, plaintext DB passwords). See issue [#2](https://github.com/nimatrazmjo/argus/issues/2) before running any of this outside a throwaway local cluster.
 
@@ -50,7 +50,7 @@ It spans the full observability lifecycle: a collection spine (OTel → ClickHou
 
 - **Full telemetry spine** — OpenTelemetry collection, ClickHouse HA storage, SigNoz APM UI.
 - **Dual onboarding** — zero-code auto-instrumentation (Python/Java/Node) plus an eBPF safety net (Grafana Beyla) for everything else.
-- **Operations** — declarative alerting with dedup, SLO/error-budget tracking, ServiceNow paging, synthetic canary probes, and RUM with session replay.
+- **Operations** — declarative alerting with dedup, ServiceNow paging, and RUM with session replay.
 - **Governance** — tiered retention/downsampling, multi-tenancy with row-level isolation, and agency SSO/RBAC with PIV/CAC claims.
 - **AIOps** — EWMA/seasonal anomaly + forecast monitors, topological alert correlation, and an in-boundary NL-to-SQL + incident-summary copilot.
 - **Air-gapped by design** — in-memory PII/CJIS redaction at ingest, zero SaaS telemetry egress.
@@ -170,9 +170,9 @@ What each technology is used for, and why it was chosen:
 ### Prerequisites
 
 - **Single service:** Python 3.12+ (standard library only — no `pip install`).
-- **Full platform:** a local Kubernetes v1.28+ cluster — Docker Desktop, Minikube, or **colima + k3d** (tested; see [Local cluster notes](#local-cluster-notes-colima--k3d)); a kube context (`deploy.sh` uses the current one, or `--context <name>`); Docker (builds the sample image, skipped with `--no-demo`); `kubectl`, `jq`, `curl`, `bash` on PATH.
+- **Full platform:** a local Kubernetes v1.28+ cluster — Docker Desktop, Minikube, or **colima + k3d** (tested; see [Local cluster notes](#local-cluster-notes-colima--k3d)); a kube context (`deploy.sh` uses the current one, or `--context <name>`); `kubectl`, `jq`, `curl`, `bash` on PATH.
 - **Helmfile path (additionally):** [`helmfile`](https://helmfile.readthedocs.io/en/latest/#installation) v0.169+ and `helm` v3.14+ on PATH. Install: `brew install helmfile` (macOS/Linux) or download from [GitHub releases](https://github.com/helmfile/helmfile/releases) (Windows).
-- **Control-plane resource floor (Docker Desktop / colima):** Allocate at least **8 GiB RAM** (**12 GiB recommended** for colima/k3d with the demo), **4+ vCPUs** (6 recommended), and SSD-backed virtual disk storage with **> 20% free disk capacity** (low disk IOPS or VM swap thrashing will starve `etcd` boltdb reads and `kube-apiserver`). Deploy scripts enforce `./scripts/check-control-plane-health.sh` before driving rollout load.
+- **Control-plane resource floor (Docker Desktop / colima):** Allocate at least **8 GiB RAM** (**12 GiB recommended** for colima/k3d), **4+ vCPUs** (6 recommended), and SSD-backed virtual disk storage with **> 20% free disk capacity** (low disk IOPS or VM swap thrashing will starve `etcd` boltdb reads and `kube-apiserver`). Deploy scripts enforce `./scripts/check-control-plane-health.sh` before driving rollout load.
 
 ### Option A — Run a Single Service Locally (no cluster)
 
@@ -223,33 +223,29 @@ Most services also expose `/healthz`, `/metrics` (Prometheus), and `/api/status`
 
 | Phase | What runs | Can skip |
 | :--- | :--- | :--- |
-| 1 — Build | `docker build` of the in-repo sample service image (`argus/sample-service:1.0.0`) | — |
-| 2 — Helmfile | `helmfile sync` — deploys all 3 operators then the full `argus` Helm chart. `sync`, not `apply`: `apply` diffs first and fails on a fresh cluster because operator CRDs don't exist yet | — |
-| 3 — Control plane | `kubectl apply -f deploy/control-plane/etcd-maintenance.yaml` — etcd compaction CronJob (not in the Helm chart). Auto-skipped on k3s/k3d (no etcd) | — |
-| 4a — Tenancy | `deploy/tenancy/apply-tenancy.sh` — ClickHouse RLS policies, tenant accounts, row quotas | `--skip-tenancy` / `-SkipTenancy` |
-| 4b — Admin | `deploy/signoz/register-admin.sh` — idempotent first-user registration. Needs `SIGNOZ_ADMIN_PASSWORD` (env, or `~/.argus/signoz-admin.env`); skipped if unset or SigNoz is already set up | — |
-| 4c — Alerts | `deploy/alerting/apply-rules.sh` — syncs alert rules and the `argus-default-webhook` channel into SigNoz | — |
-| 4d — SLO | `deploy/slo/apply-slo.sh` — pushes the sample-app SLO alert rules into SigNoz Ruler | `--skip-slo` / `-SkipSlo`; always skipped with `--no-demo` |
+| 1 — Helmfile | `helmfile sync` — deploys all 3 operators then the full `argus` Helm chart. `sync`, not `apply`: `apply` diffs first and fails on a fresh cluster because operator CRDs don't exist yet | — |
+| 2 — Control plane | `kubectl apply -f deploy/control-plane/etcd-maintenance.yaml` — etcd compaction CronJob (not in the Helm chart). Auto-skipped on k3s/k3d (no etcd) | — |
+| 3a — Tenancy | `deploy/tenancy/apply-tenancy.sh` — ClickHouse RLS policies, tenant accounts, row quotas | `--skip-tenancy` / `-SkipTenancy` |
+| 3b — Admin | `deploy/signoz/register-admin.sh` — idempotent first-user registration. Needs `SIGNOZ_ADMIN_PASSWORD` (env, or `~/.argus/signoz-admin.env`); skipped if unset or SigNoz is already set up | — |
+| 3c — Alerts | `deploy/alerting/apply-rules.sh` — syncs alert rules and the `argus-default-webhook` channel into SigNoz | — |
 
-The sync scripts (4b–4d) run their API calls inside the `argus-sso-gateway` pod, so they work with or without the demo.
+The sync scripts (3b–3c) run their API calls inside the `argus-sso-gateway` pod.
 
 #### All flags
 
 **Bash**
 ```bash
-./deploy.sh [--skip-tenancy] [--skip-slo] [--no-demo] [--context <name>] [--namespace <ns>] [--debug]
+./deploy.sh [--skip-tenancy] [--context <name>] [--namespace <ns>] [--debug]
 ```
 
 **PowerShell**
 ```powershell
-.\deploy.ps1 [-SkipTenancy] [-SkipSlo] [-Namespace <ns>]
+.\deploy.ps1 [-SkipTenancy] [-Namespace <ns>]
 ```
 
 | Flag | Default | Purpose |
 | :--- | :--- | :--- |
 | `--skip-tenancy` / `-SkipTenancy` | off | Skip ClickHouse RLS and tenant policy apply — use when re-deploying without changing tenancy config |
-| `--skip-slo` / `-SkipSlo` | off | Skip SLO alert-rule sync — use when SLO definitions haven't changed |
-| `--no-demo` | off | Platform only: skips sample image build, demo mesh, sample app, synthetics, storefront and the sample-app SLO rules (alert webhook then targets the paging gateway). Bash only. |
 | `--context` | current context | Kube context to deploy to (env `ARGUS_KUBE_CONTEXT`). Pinned for kubectl, helm, helmfile and all child scripts through a private temp kubeconfig, so a context switch elsewhere can't redirect a run and your global current-context is never changed. Bash only. |
 | `--debug` | off | Shell trace (`set -x`) plus `helmfile --debug`. Very verbose and may expose secrets — don't share the output. Bash only. |
 | `--namespace` / `-Namespace` | `argus-system` | Deploy into a different namespace (also respects `$ARGUS_NAMESPACE` env var) |
@@ -261,31 +257,28 @@ The sync scripts (4b–4d) run their API calls inside the `argus-sso-gateway` po
 ./deploy.sh
 
 # Re-deploy, skip all post-config (fastest helmfile-only re-apply)
-./deploy.sh --skip-tenancy --skip-slo
+./deploy.sh --skip-tenancy
 
 # Deploy to a custom namespace
 ./deploy.sh --namespace staging
 
-# Platform only (no demo mesh / sample app / storefront / SLO rules)
-./deploy.sh --no-demo
-
 # Explicit cluster
-./deploy.sh --no-demo --context k3d-traefik
+./deploy.sh --context k3d-traefik
 
 # PowerShell — first deploy
 .\deploy.ps1
 
 # PowerShell — skip post-deploy steps
-.\deploy.ps1 -SkipTenancy -SkipSlo
+.\deploy.ps1 -SkipTenancy
 ```
 
-> **Note (Windows):** `deploy.ps1` calls `bash` for the sub-scripts (`apply-tenancy.sh`, `apply-slo.sh`). WSL or Git Bash must be on `PATH`.
+> **Note (Windows):** `deploy.ps1` calls `bash` for the sub-scripts (`apply-tenancy.sh`, `register-admin.sh`, `apply-rules.sh`). WSL or Git Bash must be on `PATH`.
 
 ---
 
 ### Option C — Helmfile Direct
 
-Runs only the Helm releases (phases 2 of the deploy script) without the sample image build or post-deploy config. Useful if you manage those separately.
+Runs only the Helm releases (phases 2 of the deploy script) without the post-deploy config. Useful if you manage those separately.
 
 ```bash
 # Add chart repos (first time only)
@@ -323,12 +316,10 @@ kubectl apply -f deploy/ebpf/beyla.yaml   # eBPF safety net
 **3. Deploy the platform layers** (each is independent — these *are* Argus)
 ```bash
 ./deploy/alerting/apply-rules.sh          # alerting engine
-./deploy/slo/apply-slo.sh                 # SLO / error budgets
 ./deploy/paging/apply-paging.sh           # paging → ServiceNow
 ./deploy/tenancy/apply-tenancy.sh         # multi-tenancy & RLS
 ./deploy/sso/apply-sso.sh                 # SSO / RBAC
 ./deploy/rum/apply-rum.sh                 # RUM & replay
-./deploy/synthetics/apply-synthetics.sh   # synthetic probes
 ./deploy/aiops/apply-aiops.sh             # anomaly detection
 ./deploy/correlation/apply-correlation.sh # alert correlation
 ./deploy/llm/apply-llm.sh                 # NL query + summaries
@@ -395,7 +386,6 @@ Every component deployed by `helmfile sync` (phase 2 of `deploy.sh`), grouped by
 | **Prometheus alert rules** | Declarative firing-state alert rules managed as `PrometheusRule` CRDs. Includes deduplication and state-change suppression. |
 | **argus-paging-gateway** | Receives Alertmanager webhooks, deduplicates, applies exponential-backoff retry, and opens/closes ServiceNow incidents. |
 | **argus-servicenow-mock** | Stand-in for the ServiceNow Incident Table API. Used in dev/demo so paging tests don't hit a real ITSM system. |
-| **argus-synthetic-prober** | Scheduled canary prober. Runs HTTP/API probes on a cron schedule and exposes results as Prometheus metrics for SLO burn-rate calculations. |
 | **argus-rum-collector** | Receives Real User Monitoring events from browsers. Applies client- and server-side PII masking. Provides a session replay player at `/v1/rum/player/<session_id>`. |
 
 #### Governance
@@ -403,7 +393,6 @@ Every component deployed by `helmfile sync` (phase 2 of `deploy.sh`), grouped by
 | Component | Purpose |
 | :--- | :--- |
 | **Multi-tenancy (post-deploy)** | ClickHouse row-level security (RLS) policies, per-tenant user accounts, and query quotas applied by `deploy/tenancy/apply-tenancy.sh`. Each tenant sees only their own telemetry. |
-| **SLO rules (post-deploy)** | Declarative SLO definitions (`deploy/slo/slo-rules.json`) pushed into SigNoz Ruler via `deploy/slo/apply-slo.sh`. Tracks error budgets and multi-window burn rates. |
 | **etcd maintenance CronJob** | Runs every 15 minutes to compact and defragment the etcd boltdb. Prevents control-plane I/O latency from accumulating on long-running clusters. |
 
 #### AIOps
@@ -502,30 +491,13 @@ Argus ingests via the OTel Collector gateway. In-cluster that endpoint is:
 | OTLP/gRPC | `argus-gateway-collector.argus-system:4317` |
 
 Anything that speaks OTLP (any language SDK, the OTel auto-instrumentation, or
-another collector) can send traces/metrics/logs here. Three ways to get data in:
+another collector) can send traces/metrics/logs here. Ways to get data in:
 
-### 1. The bundled demo mesh (fastest)
+### 1. Uninstrumented apps (no OTel) — Beyla
 
-The 10-service sample workload wired to this endpoint out of the box:
+Anything with ports in 80, 443 or 8000–9999 in any namespace (except `kube-*`) is auto-instrumented by Beyla (eBPF): traces and RED metrics with no code changes. Example: [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo) in its own namespace shows up in SigNoz with no OTel config. On colima/k3d arm64 it needs larger memory limits and, for `cartservice`, `DOTNET_EnableDiagnostics=0` plus a writable root filesystem. Use `ClusterIP` for `frontend-external` so it doesn't take port 80 from Traefik. Custom spans and app logs with trace IDs still need an OTel SDK.
 
-```bash
-./demo/apply-services.sh          # deploy into the cluster, then:
-kubectl -n argus-system port-forward deploy/argus-svc-gateway 8001:8001
-curl -s localhost:8001/api/checkout           # one full fan-out trace
-curl -s 'localhost:8001/api/checkout?trigger_error=payment'   # force an error for alerting/AIOps
-```
-
-Not part of the platform — see [`demo/README.md`](demo/README.md).
-
-**Storefront GUI.** The chart also deploys `argus-storefront` (a single-file shop UI, [`demo/storefront.py`](demo/storefront.py)) in the demo namespace. Each click is one trace: storefront → gateway → auth/catalog/order/…, and the UI shows the trace ID so you can find it in SigNoz. It includes a failure injector (payment declined, auth expired, inventory exhausted) and a shopper simulator.
-```bash
-kubectl -n demo port-forward svc/argus-storefront 8090:8090   # http://localhost:8090
-# or via ingress: add `127.0.0.1  shop.argus.local` to /etc/hosts
-```
-
-**Platform only.** `./deploy.sh --no-demo` (chart value `demo.enabled=false`) skips the demo mesh, sample app, synthetic prober, storefront, demo-namespace secrets and the sample-app SLO rules; the alert webhook then points at `argus-paging-gateway`. Beyla then also stops excluding the demo namespace.
-
-**Uninstrumented apps (no OTel).** Anything with ports in 80, 443 or 8000–9999 in a non-excluded namespace is auto-instrumented by Beyla (eBPF): traces and RED metrics with no code changes. Example: [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo) in its own namespace shows up in SigNoz with no OTel config. On colima/k3d arm64 it needs larger memory limits and, for `cartservice`, `DOTNET_EnableDiagnostics=0` plus a writable root filesystem. Use `ClusterIP` for `frontend-external` so it doesn't take port 80 from Traefik. Custom spans and app logs with trace IDs still need an OTel SDK.
+> **Demo workload:** the 10-service mesh, the storefront GUI (with failure injector), the sample app + SLO rules and the synthetic prober live on the [`demo`](../../tree/demo) branch: `git checkout demo && ./deploy.sh`.
 
 ### 2. Your own workloads
 
@@ -584,7 +556,6 @@ than metrics.
 
 | Service | File | Default port | Purpose |
 | :--- | :--- | :--- | :--- |
-| Sample app | [`deploy/sample-app/app/server.py`](deploy/sample-app/app/server.py) | 8080 | Emits traces/logs/metrics + SLO dashboard (`/slo`); `/order` generates traffic |
 | SSO gateway | [`deploy/sso/sso_gateway.py`](deploy/sso/sso_gateway.py) | 8088 | Token validation, RBAC, tenant header injection, login portal (`/sso/login`) |
 | Identity provider | [`deploy/sso/idp_mock.py`](deploy/sso/idp_mock.py) | 8089 | OIDC discovery, JWKS, token issuance with PIV/CAC claims |
 | RUM collector | [`deploy/rum/rum_collector.py`](deploy/rum/rum_collector.py) | 8082 | Session ingest (`/v1/rum/ingest`), replay player, PII masking |
@@ -593,9 +564,6 @@ than metrics.
 | AIOps LLM | [`deploy/llm/aiops_llm_service.py`](deploy/llm/aiops_llm_service.py) | 9098 | NL-to-SQL telemetry queries + executive incident summaries |
 | Paging gateway | [`deploy/paging/paging_gateway.py`](deploy/paging/paging_gateway.py) | 9099 | Alertmanager → ServiceNow incidents, dedup + retry |
 | ServiceNow mock | [`deploy/paging/servicenow_mock.py`](deploy/paging/servicenow_mock.py) | 8088 | Stand-in Incident Table API for the paging path |
-| Synthetic prober | [`deploy/synthetics/synthetic_prober.py`](deploy/synthetics/synthetic_prober.py) | 9115 | Scheduled canary probes exposed as Prometheus metrics |
-
-Demo mesh (sample monitored workload, **not** part of the platform): [`demo/datadog-services.yaml`](demo/datadog-services.yaml) defines 10 interconnected services — `argus-svc-{gateway, auth, catalog, inventory, order, payment, billing, shipping, notification, recommendation}` — bundled only to generate realistic traffic. See [`demo/README.md`](demo/README.md).
 
 ---
 
@@ -665,9 +633,9 @@ argus/
 │       ├── values.yaml        # imageRegistry (optional), secrets, image refs, ingress config
 │       ├── templates/         # 18 template files (secrets, storage, CH, SigNoz,
 │       │                      #   OTel, Beyla, Pyroscope, paging, SSO, RUM,
-│       │                      #   synthetics, AIOps, correlation, LLM, sample-app,
-│       │                      #   alerting, demo mesh, ingress)
-│       └── files/             # Symlinks → deploy/*/​*.py + demo/service_template.py
+│       │                      #   AIOps, correlation, LLM,
+│       │                      #   alerting, ingress)
+│       └── files/             # Symlinks → deploy/*/​*.py
 ├── deploy/                    # The platform — declarative Kubernetes manifests
 │   ├── aiops/                 # Anomaly & forecast detector (F019)
 │   ├── alerting/              # Declarative alert rules & dedup (F011)
@@ -682,14 +650,10 @@ argus/
 │   ├── paging/                # Paging gateway + ServiceNow mock (F013)
 │   ├── profiling/             # Pyroscope continuous profiling (F010)
 │   ├── rum/                   # RUM collector & DOM replay (F017)
-│   ├── sample-app/            # Sample & auto-instrumented test apps
 │   ├── signoz/                # SigNoz APM UI, query service & schema migration
-│   ├── slo/                   # SLO tracking & error budgets (F012)
 │   ├── sso/                   # SSO gateway + OIDC IdP (F016)
 │   ├── storage/               # MinIO S3 cold-storage tier
-│   ├── synthetics/            # Synthetic canary prober (F018)
 │   └── tenancy/               # Multi-tenancy & RLS (F015)
-├── demo/                      # Sample monitored workload (10-svc mesh) — NOT the platform
 ├── docs/                      # Technical docs & runbooks (ADRs, onboarding)
 ├── scripts/                   # Deploy + verification test suites
 └── .harness/                  # Project tracking (specs, roadmap, dependency graph)
@@ -720,13 +684,13 @@ ClickHouse HA via the Altinity ClickHouse Operator:
 
 ### Image Inventory
 
-Images are pulled from upstream registries at their pinned tags. Pinned list: [`deploy/images.txt`](deploy/images.txt) (also used for optional ACR import). In-repo images (`argus/sample-service`, `argus/auto-service`) are built locally from `deploy/sample-app` (Docker Desktop k8s shares the local image store).
+Images are pulled from upstream registries at their pinned tags. Pinned list: [`deploy/images.txt`](deploy/images.txt) (also used for optional ACR import). The platform has no in-repo images; the demo's `argus/sample-service` image is built on the `demo` branch.
 
 ---
 
 ## Roadmap
 
-**21 / 21 features complete** across 5 phases, plus the bundled 10-service demo mesh.
+**21 / 21 features complete** across 5 phases.
 
 | ID | Title | Phase | Status |
 | :--- | :--- | :--- | :--- |
@@ -761,7 +725,7 @@ The full dependency matrix and parallel-execution track topology live in [`.harn
 - **Control-plane / `etcd` disk I/O latency** — If `kubectl` times out (`TLS handshake timeout` / `context deadline exceeded`) or `etcd` logs `apply request took too long`, run `./scripts/maintain-etcd.sh` to compact old revisions and defragment the boltdb file (works via `docker exec` even when `kube-apiserver` is degraded). Periodic compaction/defrag is scheduled declaratively via [`deploy/control-plane/etcd-maintenance.yaml`](deploy/control-plane/etcd-maintenance.yaml), and [`scripts/check-control-plane-health.sh`](scripts/check-control-plane-health.sh) gates deployments on `/readyz` and `etcd` apply latency.
 - **ClickHouse Keeper startup timing** — on Docker Desktop, Keeper replays uncompacted Raft changelogs at startup. The pod uses a `startupProbe` with a 300s window (`failureThreshold: 60, periodSeconds: 5`) to avoid premature liveness kills during WAL replay.
 - **`deploy.sh` says `context not found` / kubeconfig lost contexts** — something outside the script rewrote `~/.kube/config`. Re-add the k3d context with `k3d kubeconfig merge <cluster> --kubeconfig-merge-default` and pass `--context` explicitly.
-- **`ImagePullBackOff` on `argus/sample-service` (k3d)** — k3d has its own image store, separate from Docker's. Run `k3d image import argus/sample-service:1.0.0 -c <cluster>`.
+- **`ImagePullBackOff` on a locally built image (k3d)** — k3d has its own image store, separate from Docker's. Run `k3d image import <image> -c <cluster>`.
 - **`another operation in progress` (helm)** — a release is stuck in `pending-install`. `helm uninstall argus -n argus-system --no-hooks`, then redeploy.
 - **ClickHouse `S3Exception AccessDenied` (cold tier)** — fixed in the chart (SeaweedFS now gets an explicit S3 identity and the `argus-cold-storage` bucket). If you see it on an older install, `helmfile sync` again.
 - **Overload (`TLS handshake timeout`, API server restarts)** — one VM can't hold two full stacks. Keep a single cluster per colima VM, give it 6 CPU / 12 GiB, and remove unused releases.
