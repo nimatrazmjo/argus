@@ -7,13 +7,15 @@ SKIP_TENANCY=false
 SKIP_SLO=false
 DEBUG=false
 NO_DEMO=false
+KUBE_CONTEXT="${ARGUS_KUBE_CONTEXT:-}"
 
 usage() {
-  echo "Usage: $0 [--skip-tenancy] [--skip-slo] [--namespace <ns>] [--debug] [--no-demo]"
+  echo "Usage: $0 [--skip-tenancy] [--skip-slo] [--namespace <ns>] [--debug] [--no-demo] [--context <name>]"
   echo
   echo "  --skip-tenancy   Skip ClickHouse RLS / tenant policy apply"
   echo "  --skip-slo       Skip SLO alert rules sync"
   echo "  --namespace      Target namespace (default: argus-system)"
+  echo "  --context        kube context (default: current context; env ARGUS_KUBE_CONTEXT)"
   echo "  --no-demo        Platform only: no demo mesh/sample app/storefront/SLO rules"
   echo "  --debug          Trace shell (set -x) + helmfile --debug"
   exit 1
@@ -25,6 +27,7 @@ while [[ $# -gt 0 ]]; do
     --skip-slo)      SKIP_SLO=true ;;
     --debug)         DEBUG=true ;;
     --no-demo)       NO_DEMO=true ;;
+    --context)       KUBE_CONTEXT="$2"; shift ;;
     --namespace)     NAMESPACE="$2"; shift ;;
     -h|--help)       usage ;;
     *) echo "Unknown option: $1"; usage ;;
@@ -55,6 +58,19 @@ step() { echo; echo "==> $*"; }
 fail() { echo "ERROR: $*" >&2; exit 1; }
 
 command -v kubectl   >/dev/null 2>&1 || fail "kubectl not found"
+
+# Pin ONE context for kubectl, helm, helmfile and every child script via a
+# private kubeconfig, so a context switch in another terminal can't redirect
+# a deploy mid-run and the global current-context is never modified.
+KUBE_CONTEXT="${KUBE_CONTEXT:-$(kubectl config current-context 2>/dev/null || true)}"
+[ -n "$KUBE_CONTEXT" ] || fail "no kube context (set --context or: kubectl config use-context <name>)"
+PINNED_KUBECONFIG="$(mktemp -t argus-kubeconfig.XXXXXX)"
+trap 'rm -f "$PINNED_KUBECONFIG"' EXIT
+kubectl config view --minify --flatten --context="$KUBE_CONTEXT" > "$PINNED_KUBECONFIG" \
+  || fail "context '$KUBE_CONTEXT' not found"
+chmod 600 "$PINNED_KUBECONFIG"
+export KUBECONFIG="$PINNED_KUBECONFIG"
+echo "Using kube context: $KUBE_CONTEXT"
 command -v helmfile  >/dev/null 2>&1 || fail "helmfile not found"
 
 # Step 1 — Build in-repo sample image (local Docker; colima k3s w/ docker runtime shares the image store)
